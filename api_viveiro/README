@@ -1,0 +1,159 @@
+# Sistema de Gestão de Viveiro de Plantas
+
+Este projeto implementa uma API REST completa para gestão de viveiro de plantas, incluindo controle de espécies, plantas individuais, atividades, pragas, vendas e muito mais.
+
+## Tecnologias utilizadas
+
+- Python 3.9
+- FastAPI
+- PostgreSQL
+- SQLAlchemy (ORM)
+- Alembic (Migrações)
+- Docker e Docker Compose
+- JWT (Autenticação)
+
+## Características principais
+
+- **Gestão completa de viveiro**: Controle de espécies, plantas, canteiros, atividades, pragas e vendas
+- **Rastreabilidade**: Cada planta possui um código único de rastreio e coordenadas de localização
+- **Gestão financeira**: Registro de custos por atividade e formação de preço
+- **Autenticação e autorização**: Sistema de login com JWT para funcionários
+- **Documentação interativa**: Interface Swagger/OpenAPI para testes e documentação da API
+
+## Estrutura de dados
+
+O sistema gerencia as seguintes entidades principais:
+
+- **Espécies**: Dados básicos das espécies de plantas (ID matriz)
+- **Plantas**: Instâncias individuais de cada planta com código de rastreio
+- **Canteiros**: Zonas do viveiro onde as plantas são cultivadas
+- **Funcionários**: Usuários do sistema que realizam atividades
+- **Compradores**: Clientes que adquirem as plantas
+- **Atividades**: Registro de plantio, rega, fertilização, etc.
+- **Pragas**: Controle de pragas e métodos de combate
+- **Vendas**: Registro de vendas de plantas
+
+## Configuração e execução
+
+### Pré-requisitos
+
+- Docker e Docker Compose instalados
+- Git (opcional, para clonar o repositório)
+
+### Passos para execução
+
+1. Clone o repositório ou baixe os arquivos
+
+```bash
+git clone <url-do-repositorio>
+cd viveiro-api
+```
+
+2. Configure as variáveis de ambiente
+
+```bash
+cp .env.example .env
+# Edite o arquivo .env conforme necessário
+```
+
+3. Inicie os contêineres
+
+```bash
+docker-compose up -d
+```
+
+4. Aplique as migrações
+
+```bash
+docker-compose exec api alembic upgrade head
+```
+
+5. Crie um usuário administrador (opcional)
+
+```bash
+docker-compose exec api python -m app.scripts.create_admin
+```
+
+6. Acesse a documentação da API em:
+
+```
+http://localhost:8000/docs
+```
+
+## Principais endpoints
+
+A API fornece os seguintes endpoints principais:
+
+- **/api/v1/auth/login**: Autenticação de usuários
+- **/api/v1/especies**: Gestão de espécies de plantas
+- **/api/v1/plantas**: Gestão de plantas individuais
+- **/api/v1/canteiros**: Gestão de canteiros no viveiro
+- **/api/v1/funcionarios**: Gestão de funcionários
+- **/api/v1/compradores**: Gestão de compradores
+- **/api/v1/atividades**: Registro de atividades
+- **/api/v1/pragas**: Controle de pragas
+- **/api/v1/vendas**: Registro de vendas
+
+Cada endpoint suporta operações CRUD completas (Create, Read, Update, Delete).
+
+## Autenticação
+
+A API utiliza autenticação JWT. Para acessar endpoints protegidos:
+
+1. Faça login via **/api/v1/auth/login** para obter um token
+2. Inclua o token no cabeçalho de todas as requisições:
+
+```
+Authorization: Bearer <seu-token-jwt>
+```
+
+## Banco de dados
+
+O sistema utiliza PostgreSQL como banco de dados. O esquema inclui:
+
+- Chaves estrangeiras para garantir integridade referencial
+- Índices para melhorar a performance
+- Triggers para atualizações automáticas (ex: cálculo de custos)
+- Views para relatórios comuns
+
+## Interface administrativa
+
+O PgAdmin está disponível para administração do banco de dados:
+
+```
+http://localhost:5050
+```
+
+Credenciais padrão:
+- Email: admin@viveiro.com
+- Senha: admin_senha
+
+## Desenvolvimento
+
+Para desenvolvimento, você pode montar o diretório local no contêiner:
+
+```yaml
+volumes:
+  - ./app:/app/app
+```
+
+O servidor FastAPI irá recarregar automaticamente quando detectar alterações.
+
+## Migrações do banco de dados
+
+Para criar e aplicar migrações:
+
+```bash
+# Criar uma nova migração
+docker-compose exec api alembic revision --autogenerate -m "Descrição da migração"
+
+# Aplicar migrações pendentes
+docker-compose exec api alembic upgrade head
+```
+
+## Suporte
+
+Para suporte, entre em contato com:
+
+- Email: seu-email@exemplo.com
+- GitHub: github.com/seu-usuario

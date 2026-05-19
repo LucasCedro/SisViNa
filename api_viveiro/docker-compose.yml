@@ -1,0 +1,24 @@
+services:
+  api:
+    build: .
+    container_name: viveiro_api
+    restart: always
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./app:/app/app
+      - ./alembic:/app/alembic
+      - ./alembic.ini:/app/alembic.ini
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://viveiro_admin:senha_segura_aqui@viveiro_postgres:5432/viveiro_db
+      - SECRET_KEY=dev-secret-change-in-production
+      - ALGORITHM=HS256
+      - ACCESS_TOKEN_EXPIRE_MINUTES=480
+      - BACKEND_CORS_ORIGINS=["http://localhost:5173","http://localhost:8000","http://localhost:3000"]
+    networks:
+      - viveiro_network
+
+networks:
+  viveiro_network:
+    external: true

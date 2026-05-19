@@ -1,0 +1,476 @@
+# Documentação do Banco de Dados - Sistema de Gestão de Viveiro
+
+Este documento descreve a estrutura do banco de dados PostgreSQL utilizado no Sistema de Gestão de Viveiro de Plantas, incluindo tabelas, relacionamentos, funções e triggers.
+
+## Visão Geral
+
+O banco de dados foi projetado para atender às necessidades de gestão completa de um viveiro de plantas, desde o cadastro de espécies até a venda, passando por monitoramento de atividades, pragas e custos.
+
+## Modelo de Dados
+
+### Principais Entidades
+
+1. **Espécies (especies)**: Cadastro matriz das espécies de plantas
+2. **Plantas (plantas)**: Instâncias individuais de cada planta
+3. **Canteiros (canteiros)**: Zonas do viveiro onde as plantas são cultivadas
+4. **Funcionários (funcionarios)**: Usuários do sistema
+5. **Compradores (compradores)**: Clientes que adquirem as plantas
+6. **Atividades (atividades)**: Registro de ações realizadas nas plantas
+7. **Pragas (tipos_pragas, pragas_plantas)**: Controle de pragas e ocorrências
+8. **Insumos (insumos)**: Materiais utilizados nas atividades
+9. **Vendas (vendas, itens_venda)**: Registro de vendas e itens
+
+### Diagrama de Relacionamentos
+
+```
+especies (1) --- (*) plantas
+canteiros (1) --- (*) plantas
+plantas (1) --- (*) atividades
+plantas (1) --- (*) pragas_plantas
+plantas (1) --- (*) itens_venda
+funcionarios (1) --- (*) atividades
+funcionarios (1) --- (*) vendas
+funcionarios (1) --- (*) combates_realizados
+compradores (1) --- (*) vendas
+tipos_atividades (1) --- (*) atividades
+tipos_pragas (1) --- (*) pragas_plantas
+metodos_combate (1) --- (*) combates_realizados
+pragas_plantas (1) --- (*) combates_realizados
+insumos (1) --- (*) insumos_atividades
+atividades (1) --- (*) insumos_atividades
+vendas (1) --- (*) itens_venda
+```
+
+## Estrutura das Tabelas
+
+### especies
+
+Armazena informações sobre as espécies de plantas (matriz).
+
+| Coluna | Tipo | Descrição |
+|--------|------|-----------|
+| id | SERIAL | Chave primária |
+| nome_cientifico | VARCHAR(100) | Nome científico (único) |
+| nome_popular | VARCHAR(100) | Nome popular |
+| familia | VARCHAR(50) | Família botânica |
+| descricao | TEXT | Descrição geral |
+| tempo_germinacao | INT | Tempo médio de germinação (dias) |
+| tempo_crescimento | INT | Tempo médio de crescimento (dias) |
+| altura_maxima | DECIMAL(5,2) | Altura máxima da planta (metros) |
+| data_cadastro | TIMESTAMP | Data de cadastro |
+
+### plantas
+
+Armazena informações sobre cada planta individual.
+
+| Coluna | Tipo | Descrição |
+|--------|------|-----------|
+| id | SERIAL | Chave primária |
+| id_especie | INT | Referência à espécie (FK) |
+| id_canteiro | INT | Referência ao canteiro (FK) |
+| codigo_rastreio | VARCHAR(20) | Código único de rastreabilidade |
+| data_plantio | DATE | Data do plantio |
+| data_germinacao | DATE | Data da germinação |
+| altura_atual | DECIMAL(5,2) | Altura atual (metros) |
+| diametro_caule | DECIMAL(5,2) | Diâmetro do caule (cm) |
+| coordenada_x | DECIMAL(10,2) | Coordenada X no viveiro |
+| coordenada_y | DECIMAL(10,2) | Coordenada Y no viveiro |
+| status | ENUM | Status: SEMENTE, MUDA, JOVEM, ADULTA, VENDIDA, MORTA |
+| observacoes | TEXT | Observações gerais |
+| data_cadastro | TIMESTAMP | Data de cadastro |
+| preco_venda | DECIMAL(10,2) | Preço de venda |
+| custo_atual | DECIMAL(10,2) | Custo acumulado (atualizado por trigger) |
+
+### canteiros
+
+Armazena informações sobre as zonas do viveiro.
+
+| Coluna | Tipo | Descrição |
+|--------|------|-----------|
+| id | SERIAL | Chave primária |
+| nome | VARCHAR(50) | Nome do canteiro |
+| descricao | TEXT | Descrição |
+| area_total | DECIMAL(10,2) | Área em metros quadrados |
+| localizacao | VARCHAR(100) | Descrição da localização |
+| tipo_solo | VARCHAR(50) | Tipo de solo |
+| data_criacao | TIMESTAMP | Data de criação |
+| ativo | BOOLEAN | Se o canteiro está ativo |
+
+### funcionarios
+
+Armazena informações sobre os usuários do sistema.
+
+| Coluna | Tipo | Descrição |
+|--------|------|-----------|
+| id | SERIAL | Chave primária |
+| nome | VARCHAR(100) | Nome completo |
+| cpf | VARCHAR(14) | CPF (único) |
+| rg | VARCHAR(20) | RG |
+| data_nascimento | DATE | Data de nascimento |
+| telefone | VARCHAR(20) | Telefone para contato |
+| email | VARCHAR(100) | Email (único) |
+| endereco | VARCHAR(200) | Endereço |
+| cargo | VARCHAR(50) | Cargo ocupado |
+| data_contratacao | DATE | Data de contratação |
+| salario | DECIMAL(10,2) | Salário |
+| usuario | VARCHAR(50) | Nome de usuário (único) |
+| senha | VARCHAR(255) | Senha (hash) |
+| ativo | BOOLEAN | Se o funcionário está ativo |
+| data_cadastro | TIMESTAMP | Data de cadastro |
+
+### compradores
+
+Armazena informações sobre os clientes.
+
+| Coluna | Tipo | Descrição |
+|--------|------|-----------|
+| id | SERIAL | Chave primária |
+| tipo | VARCHAR(10) | Tipo: PF (Pessoa Física) ou PJ (Pessoa Jurídica) |
+| nome | VARCHAR(100) | Nome completo ou razão social |
+| cpf_cnpj | VARCHAR(18) | CPF ou CNPJ (único) |
+| telefone | VARCHAR(20) | Telefone para contato |
+| email | VARCHAR(100) | Email (único) |
+| endereco | VARCHAR(200) | Endereço |
+| cidade | VARCHAR(50) | Cidade |
+| estado | VARCHAR(2) | Estado (UF) |
+| cep | VARCHAR(10) | CEP |
+| usuario | VARCHAR(50) | Nome de usuário (único, opcional) |
+| senha | VARCHAR(255) | Senha (hash, opcional) |
+| data_cadastro | TIMESTAMP | Data de cadastro |
+| ativo | BOOLEAN | Se o comprador está ativo |
+
+### tipos_atividades
+
+Armazena os tipos de atividades que podem ser realizadas.
+
+| Coluna | Tipo | Descrição |
+|--------|------|-----------|
+| id | SERIAL | Chave primária |
+| nome | VARCHAR(50) | Nome do tipo de atividade (único) |
+| descricao | TEXT | Descrição |
+| gera_custo | BOOLEAN | Se a atividade gera custo |
+
+### atividades
+
+Armazena as atividades realizadas nas plantas.
+
+| Coluna | Tipo | Descrição |
+|--------|------|-----------|
+| id | SERIAL | Chave primária |
+| id_tipo_atividade | INT | Referência ao tipo (FK) |
+| id_planta | INT | Referência à planta (FK) |
+| id_funcionario | INT | Referência ao funcionário (FK) |
+| data_atividade | TIMESTAMP | Data e hora da atividade |
+| descricao | TEXT | Descrição detalhada |
+| custo_atividade | DECIMAL(10,2) | Custo da atividade |
+| observacoes | TEXT | Observações |
+| data_registro | TIMESTAMP | Data de registro |
+
+### insumos
+
+Armazena informações sobre os insumos utilizados.
+
+| Coluna | Tipo | Descrição |
+|--------|------|-----------|
+| id | SERIAL | Chave primária |
+| nome | VARCHAR(100) | Nome do insumo |
+| tipo | VARCHAR(50) | Tipo do insumo |
+| descricao | TEXT | Descrição |
+| unidade_medida | VARCHAR(20) | Unidade de medida |
+| quantidade_estoque | DECIMAL(10,2) | Quantidade em estoque |
+| preco_unitario | DECIMAL(10,2) | Preço unitário |
+| data_ultima_compra | DATE | Data da última compra |
+| fornecedor | VARCHAR(100) | Nome do fornecedor |
+| data_cadastro | TIMESTAMP | Data de cadastro |
+
+### insumos_atividades
+
+Armazena o uso de insumos em atividades.
+
+| Coluna | Tipo | Descrição |
+|--------|------|-----------|
+| id | SERIAL | Chave primária |
+| id_atividade | INT | Referência à atividade (FK) |
+| id_insumo | INT | Referência ao insumo (FK) |
+| quantidade_usada | DECIMAL(10,2) | Quantidade utilizada |
+| custo_total | DECIMAL(10,2) | Custo total do insumo na atividade |
+| data_registro | TIMESTAMP | Data de registro |
+
+### tipos_pragas
+
+Armazena informações sobre os tipos de pragas.
+
+| Coluna | Tipo | Descrição |
+|--------|------|-----------|
+| id | SERIAL | Chave primária |
+| nome | VARCHAR(50) | Nome da praga |
+| descricao | TEXT | Descrição |
+| metodo_identificacao | TEXT | Como identificar a praga |
+| data_cadastro | TIMESTAMP | Data de cadastro |
+
+### metodos_combate
+
+Armazena métodos de combate a pragas.
+
+| Coluna | Tipo | Descrição |
+|--------|------|-----------|
+| id | SERIAL | Chave primária |
+| nome | VARCHAR(100) | Nome do método |
+| descricao | TEXT | Descrição |
+| produto | VARCHAR(100) | Produto utilizado |
+| dosagem | VARCHAR(50) | Dosagem recomendada |
+| metodo_aplicacao | TEXT | Como aplicar |
+| tempo_carencia | INT | Tempo de carência (dias) |
+| eficacia | VARCHAR(20) | Nível de eficácia |
+| custo_unitario | DECIMAL(10,2) | Custo unitário |
+| data_cadastro | TIMESTAMP | Data de cadastro |
+
+### pragas_plantas
+
+Armazena ocorrências de pragas em plantas.
+
+| Coluna | Tipo | Descrição |
+|--------|------|-----------|
+| id | SERIAL | Chave primária |
+| id_planta | INT | Referência à planta (FK) |
+| id_tipo_praga | INT | Referência ao tipo de praga (FK) |
+| data_identificacao | DATE | Data de identificação |
+| nivel_infestacao | ENUM | Nível: BAIXO, MEDIO, ALTO, CRITICO |
+| observacoes | TEXT | Observações |
+| data_registro | TIMESTAMP | Data de registro |
+
+### combates_realizados
+
+Armazena os combates a pragas realizados.
+
+| Coluna | Tipo | Descrição |
+|--------|------|-----------|
+| id | SERIAL | Chave primária |
+| id_praga_planta | INT | Referência à ocorrência (FK) |
+| id_metodo_combate | INT | Referência ao método (FK) |
+| id_funcionario | INT | Referência ao funcionário (FK) |
+| data_aplicacao | TIMESTAMP | Data da aplicação |
+| quantidade_aplicada | DECIMAL(10,2) | Quantidade aplicada |
+| custo_total | DECIMAL(10,2) | Custo total |
+| eficacia_observada | VARCHAR(20) | Eficácia observada |
+| observacoes | TEXT | Observações |
+| data_registro | TIMESTAMP | Data de registro |
+
+### vendas
+
+Armazena informações sobre vendas.
+
+| Coluna | Tipo | Descrição |
+|--------|------|-----------|
+| id | SERIAL | Chave primária |
+| id_comprador | INT | Referência ao comprador (FK) |
+| id_funcionario | INT | Referência ao funcionário (FK) |
+| data_venda | TIMESTAMP | Data e hora da venda |
+| valor_total | DECIMAL(10,2) | Valor total da venda |
+| forma_pagamento | VARCHAR(20) | Forma de pagamento |
+| status | ENUM | Status: PENDENTE, PAGO, CANCELADO |
+| observacoes | TEXT | Observações |
+| data_registro | TIMESTAMP | Data de registro |
+
+### itens_venda
+
+Armazena os itens de cada venda.
+
+| Coluna | Tipo | Descrição |
+|--------|------|-----------|
+| id | SERIAL | Chave primária |
+| id_venda | INT | Referência à venda (FK) |
+| id_planta | INT | Referência à planta (FK) |
+| quantidade | INT | Quantidade |
+| valor_unitario | DECIMAL(10,2) | Valor unitário |
+| valor_total | DECIMAL(10,2) | Valor total do item |
+| desconto | DECIMAL(10,2) | Desconto aplicado |
+| data_entrega | DATE | Data da entrega |
+| status_entrega | VARCHAR(20) | Status da entrega |
+| data_registro | TIMESTAMP | Data de registro |
+
+## Funções e Triggers
+
+### Atualização de Custos
+
+```sql
+-- Função para atualizar o custo da planta
+CREATE OR REPLACE FUNCTION atualizar_custo_planta()
+RETURNS TRIGGER AS $$
+BEGIN
+    UPDATE plantas 
+    SET custo_atual = custo_atual + NEW.custo_atividade
+    WHERE id = NEW.id_planta;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger para atualizar o custo após nova atividade
+CREATE TRIGGER trigger_atualizar_custo_planta
+AFTER INSERT ON atividades
+FOR EACH ROW
+WHEN (NEW.custo_atividade > 0)
+EXECUTE FUNCTION atualizar_custo_planta();
+```
+
+### Atualização de Status da Planta
+
+```sql
+-- Função para atualizar o status da planta quando vendida
+CREATE OR REPLACE FUNCTION atualizar_status_planta_vendida()
+RETURNS TRIGGER AS $$
+BEGIN
+    UPDATE plantas 
+    SET status = 'VENDIDA'
+    WHERE id = NEW.id_planta;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger para atualizar o status após venda
+CREATE TRIGGER trigger_atualizar_status_planta_vendida
+AFTER INSERT ON itens_venda
+FOR EACH ROW
+EXECUTE FUNCTION atualizar_status_planta_vendida();
+```
+
+## Índices
+
+O banco de dados possui os seguintes índices para otimização de consultas:
+
+```sql
+CREATE INDEX idx_plantas_especie ON plantas(id_especie);
+CREATE INDEX idx_plantas_canteiro ON plantas(id_canteiro);
+CREATE INDEX idx_plantas_status ON plantas(status);
+CREATE INDEX idx_atividades_planta ON atividades(id_planta);
+CREATE INDEX idx_atividades_tipo ON atividades(id_tipo_atividade);
+CREATE INDEX idx_atividades_funcionario ON atividades(id_funcionario);
+CREATE INDEX idx_vendas_comprador ON vendas(id_comprador);
+CREATE INDEX idx_itens_venda_planta ON itens_venda(id_planta);
+CREATE INDEX idx_pragas_plantas_planta ON pragas_plantas(id_planta);
+```
+
+## Views para Relatórios
+
+O banco de dados inclui as seguintes views para facilitar relatórios comuns:
+
+### Custos por Planta
+
+```sql
+CREATE VIEW vw_custos_por_planta AS
+SELECT 
+    p.id AS id_planta,
+    p.codigo_rastreio,
+    e.nome_cientifico,
+    e.nome_popular,
+    p.data_plantio,
+    p.status,
+    p.custo_atual,
+    p.preco_venda,
+    (p.preco_venda - p.custo_atual) AS lucro_estimado,
+    COUNT(a.id) AS qtd_atividades
+FROM plantas p
+JOIN especies e ON p.id_especie = e.id
+LEFT JOIN atividades a ON p.id = a.id_planta
+GROUP BY p.id, e.nome_cientifico, e.nome_popular;
+```
+
+### Produtividade por Funcionário
+
+```sql
+CREATE VIEW vw_produtividade_funcionario AS
+SELECT 
+    f.id AS id_funcionario,
+    f.nome,
+    COUNT(a.id) AS total_atividades,
+    SUM(a.custo_atividade) AS custo_total_atividades,
+    COUNT(DISTINCT a.id_planta) AS total_plantas_tratadas
+FROM funcionarios f
+LEFT JOIN atividades a ON f.id = a.id_funcionario
+WHERE f.ativo = TRUE
+GROUP BY f.id, f.nome;
+```
+
+### Ocupação de Canteiros
+
+```sql
+CREATE VIEW vw_ocupacao_canteiros AS
+SELECT 
+    c.id AS id_canteiro,
+    c.nome,
+    c.area_total,
+    COUNT(p.id) AS total_plantas,
+    COUNT(p.id) FILTER (WHERE p.status = 'SEMENTE') AS total_sementes,
+    COUNT(p.id) FILTER (WHERE p.status = 'MUDA') AS total_mudas,
+    COUNT(p.id) FILTER (WHERE p.status = 'JOVEM') AS total_jovens,
+    COUNT(p.id) FILTER (WHERE p.status = 'ADULTA') AS total_adultas
+FROM canteiros c
+LEFT JOIN plantas p ON c.id = p.id_canteiro AND p.status NOT IN ('VENDIDA', 'MORTA')
+GROUP BY c.id, c.nome, c.area_total;
+```
+
+## Acesso ao Banco de Dados
+
+O banco de dados está configurado dentro de um container Docker e pode ser acessado:
+
+- Internamente pelo container da API: `postgres:5432`
+- Externamente via porta mapeada: `localhost:5432`
+- Via interface PgAdmin: `http://localhost:5050`
+
+### Credenciais Padrão
+- **Usuário**: viveiro_admin
+- **Senha**: senha_segura_aqui
+- **Banco de dados**: viveiro_db
+
+## Backup e Restauração
+
+Para realizar backup do banco de dados:
+
+```bash
+docker-compose exec postgres pg_dump -U viveiro_admin -d viveiro_db > backup_viveiro_$(date +%Y%m%d).sql
+```
+
+Para restaurar a partir de um backup:
+
+```bash
+cat backup_viveiro.sql | docker-compose exec -T postgres psql -U viveiro_admin -d viveiro_db
+```
+
+## Manutenção
+
+Recomendações para manutenção regular:
+
+1. Execute `VACUUM ANALYZE` periodicamente para otimizar o desempenho
+2. Monitore o crescimento das tabelas, especialmente `atividades` e `plantas`
+3. Defina políticas de retenção de dados para registros históricos
+4. Realize backups regulares
+
+## Considerações de Performance
+
+1. As consultas de relatórios foram otimizadas com views
+2. Índices foram criados para as consultas mais frequentes
+3. Para grandes volumes de dados, considere:
+   - Particionamento da tabela `atividades` por data
+   - Arquivamento de dados históricos
+   - Ajuste dos parâmetros de configuração do PostgreSQL
+
+## Perguntas Frequentes
+
+**P: Como adicionar um novo tipo de atividade?**  
+R: Insira um registro na tabela `tipos_atividades`:
+```sql
+INSERT INTO tipos_atividades (nome, descricao, gera_custo) 
+VALUES ('NOVA_ATIVIDADE', 'Descrição da atividade', TRUE);
+```
+
+**P: Como verificar o custo total de uma planta?**  
+R: Consulte a view `vw_custos_por_planta`:
+```sql
+SELECT * FROM vw_custos_por_planta WHERE codigo_rastreio = 'PL-12345678';
+```
+
+**P: Como verificar a produtividade dos funcionários?**  
+R: Consulte a view `vw_produtividade_funcionario`:
+```sql
+SELECT * FROM vw_produtividade_funcionario ORDER BY total_atividades DESC;
+```
