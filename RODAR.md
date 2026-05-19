@@ -1,5 +1,28 @@
 # SisViNa — rodar tudo com Docker
 
+## Git (monorepo na raiz)
+
+Abra no Cursor a pasta **`C:\Projetos\SisViNa`** (não só uma subpasta).
+
+```powershell
+cd c:\Projetos\SisViNa
+git status
+git add -A
+git commit -m "sua mensagem"
+git push
+```
+
+Primeira vez no GitHub: crie um repositório **vazio** (sem README) e:
+
+```powershell
+git remote add origin https://github.com/SEU_USUARIO/SisViNa.git
+git push -u origin main
+```
+
+`.env` não é versionado (só `.env.example` na API).
+
+---
+
 ## Pré-requisito
 
 Docker Desktop instalado e em execução.
