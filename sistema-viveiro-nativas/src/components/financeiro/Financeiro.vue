@@ -429,7 +429,14 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue'
+import {
+  listLancamentos,
+  createLancamento,
+  updateLancamento,
+  deleteLancamento
+} from '@/services/lancamentosFinanceiros'
+import { getResumoFinanceiro } from '@/services/dashboard'
 
 // Configuração inicial
 const tipoViveiro = ref('mecanizado');
@@ -471,189 +478,35 @@ const categoriasOpex = [
   'Administrativo'
 ];
 
-// Mock de dados para custos
-const custos = ref([
-  {
-    id: 1,
-    tipo: "CAPEX",
-    descricao: "Construção de estufa principal",
-    categoria: "Estufas e Estruturas",
-    data: "2025-01-15",
-    valor: 85000.00,
-    formaPagamento: "Transferência Bancária",
-    observacoes: "Estrutura metálica com cobertura em arco, área de 500m²"
-  },
-  {
-    id: 2,
-    tipo: "CAPEX",
-    descricao: "Aquisição de trator compacto",
-    categoria: "Máquinas e Equipamentos",
-    data: "2025-02-10",
-    valor: 45000.00,
-    formaPagamento: "Financiamento",
-    observacoes: "Modelo TX-450 com implementos básicos"
-  },
-  {
-    id: 3,
-    tipo: "CAPEX",
-    descricao: "Sistema de irrigação automatizado",
-    categoria: "Sistemas de Irrigação",
-    data: "2025-02-25",
-    valor: 32000.00,
-    formaPagamento: "Cartão de Crédito",
-    observacoes: "Sistema por gotejamento com controlador digital"
-  },
-  {
-    id: 4,
-    tipo: "CAPEX",
-    descricao: "Bancadas para mudas",
-    categoria: "Estufas e Estruturas",
-    data: "2025-03-05",
-    valor: 12500.00,
-    formaPagamento: "Transferência Bancária",
-    observacoes: "15 bancadas de concreto com 2,5m x 1,2m cada"
-  },
-  {
-    id: 5,
-    tipo: "CAPEX",
-    descricao: "Software de gestão de viveiro",
-    categoria: "Tecnologia e Software",
-    data: "2025-03-20",
-    valor: 8500.00,
-    formaPagamento: "Boleto Bancário",
-    observacoes: "Licença permanente com 2 anos de suporte"
-  },
-  {
-    id: 6,
-    tipo: "OPEX",
-    descricao: "Folha de pagamento - Janeiro",
-    categoria: "Mão de Obra",
-    data: "2025-01-05",
-    valor: 15000.00,
-    formaPagamento: "Transferência Bancária",
-    observacoes: "5 funcionários fixos"
-  },
-  {
-    id: 7,
-    tipo: "OPEX",
-    descricao: "Compra de substrato orgânico",
-    categoria: "Insumos",
-    data: "2025-01-10",
-    valor: 5800.00,
-    formaPagamento: "Boleto Bancário",
-    observacoes: "5 toneladas"
-  },
-  {
-    id: 8,
-    tipo: "OPEX",
-    descricao: "Sementes de espécies nativas",
-    categoria: "Insumos",
-    data: "2025-01-15",
-    valor: 4200.00,
-    formaPagamento: "Pix",
-    observacoes: "20 variedades"
-  },
-  {
-    id: 9,
-    tipo: "OPEX",
-    descricao: "Conta de energia - Janeiro",
-    categoria: "Energia e Água",
-    data: "2025-01-20",
-    valor: 2300.00,
-    formaPagamento: "Débito Automático",
-    observacoes: "Aumento de 15% em relação ao mês anterior"
-  },
-  {
-    id: 10,
-    tipo: "OPEX",
-    descricao: "Manutenção do sistema de irrigação",
-    categoria: "Manutenção",
-    data: "2025-01-25",
-    valor: 1200.00,
-    formaPagamento: "Dinheiro",
-    observacoes: "Substituição de válvulas e limpeza geral"
-  },
-  {
-    id: 11,
-    tipo: "OPEX",
-    descricao: "Folha de pagamento - Fevereiro",
-    categoria: "Mão de Obra",
-    data: "2025-02-05",
-    valor: 15000.00,
-    formaPagamento: "Transferência Bancária",
-    observacoes: "5 funcionários fixos"
-  },
-  {
-    id: 12,
-    tipo: "OPEX",
-    descricao: "Conta de água - Fevereiro",
-    categoria: "Energia e Água",
-    data: "2025-02-15",
-    valor: 1800.00,
-    formaPagamento: "Débito Automático",
-    observacoes: ""
-  },
-  {
-    id: 13,
-    tipo: "OPEX",
-    descricao: "Compra de bandejas plásticas",
-    categoria: "Embalagens",
-    data: "2025-02-20",
-    valor: 3500.00,
-    formaPagamento: "Boleto Bancário",
-    observacoes: "1000 unidades"
-  },
-  {
-    id: 14,
-    tipo: "OPEX",
-    descricao: "Combustível - Fevereiro",
-    categoria: "Combustível",
-    data: "2025-02-28",
-    valor: 800.00,
-    formaPagamento: "Cartão de Débito",
-    observacoes: ""
-  },
-  {
-    id: 15,
-    tipo: "OPEX",
-    descricao: "Compra de EPIs",
-    categoria: "EPIs",
-    data: "2025-03-02",
-    valor: 1500.00,
-    formaPagamento: "Cartão de Crédito",
-    observacoes: "Botas, luvas, óculos e protetores auriculares"
-  },
-  {
-    id: 16,
-    tipo: "OPEX",
-    descricao: "Folha de pagamento - Março",
-    categoria: "Mão de Obra",
-    data: "2025-03-05",
-    valor: 16000.00,
-    formaPagamento: "Transferência Bancária",
-    observacoes: "Contratação de 1 funcionário temporário"
-  },
-  {
-    id: 17,
-    tipo: "OPEX",
-    descricao: "Manutenção do trator",
-    categoria: "Manutenção",
-    data: "2025-03-10",
-    valor: 2200.00,
-    formaPagamento: "Pix",
-    observacoes: "Troca de óleo e revisão completa"
-  },
-  {
-    id: 18,
-    tipo: "OPEX",
-    descricao: "Conta de energia - Março",
-    categoria: "Energia e Água",
-    data: "2025-03-20",
-    valor: 2500.00,
-    formaPagamento: "Débito Automático",
-    observacoes: ""
+const resumoApi = ref(null)
+
+function mapLancamento(l) {
+  return {
+    id: l.id,
+    tipo: l.tipo,
+    descricao: l.descricao,
+    categoria: l.categoria,
+    data: l.data_lancamento,
+    valor: Number(l.valor),
+    formaPagamento: l.forma_pagamento || '',
+    observacoes: l.observacoes || ''
   }
-]);
+}
+
+async function carregarFinanceiro() {
+  try {
+    const [lanc, resumo] = await Promise.all([listLancamentos(), getResumoFinanceiro()])
+    custos.value = lanc.map(mapLancamento)
+    resumoApi.value = resumo
+  } catch (e) {
+    console.error(e)
+  }
+}
+
+const custos = ref([])
+
+onMounted(carregarFinanceiro)
+
 
 // Estado para o item em edição
 const custoEmEdicao = ref({
@@ -714,11 +567,12 @@ const totalOpexFiltrado = computed(() => {
 
 // Dados para resumo financeiro
 const resumoFinanceiro = computed(() => {
-  const totalCapex = custos.value
+  const api = resumoApi.value
+  const totalCapex = api?.total_capex ?? custos.value
     .filter(item => item.tipo === 'CAPEX')
     .reduce((total, item) => total + item.valor, 0);
   
-  const totalOpex = custos.value
+  const totalOpex = api?.total_opex ?? custos.value
     .filter(item => item.tipo === 'OPEX')
     .reduce((total, item) => total + item.valor, 0);
   
@@ -743,8 +597,9 @@ const resumoFinanceiro = computed(() => {
     })
     .reduce((total, item) => total + item.valor, 0);
   
-  // Custo por muda (estimado com base em uma produção de 50.000 mudas)
-  const custoPorMuda = (totalOpex / 50000).toFixed(2);
+  const custoPorMuda = api?.custo_por_muda
+    ? Number(api.custo_por_muda).toFixed(2)
+    : (api?.mudas_ativas ? (totalOpex / api.mudas_ativas).toFixed(2) : '0');
   
   // Previsão até o final do ano (considerando média mensal * meses restantes + valores atuais)
   const mesesPassados = mesAtual;
@@ -758,7 +613,9 @@ const resumoFinanceiro = computed(() => {
     totalMesAtual,
     totalAno,
     custoPorMuda,
-    previsaoFimAno
+    previsaoFimAno,
+    receitaVendas: api?.receita_vendas_paga ?? 0,
+    custoOperacional: api?.custo_operacional_total ?? 0
   };
 });
 
@@ -902,30 +759,38 @@ const fecharModal = () => {
   modalAberto.value = false;
 };
 
-const salvarCusto = () => {
-  if (custoEmEdicao.value.id) {
-    // Atualizar um custo existente
-    const index = custos.value.findIndex(item => item.id === custoEmEdicao.value.id);
-    if (index !== -1) {
-      custos.value[index] = { ...custoEmEdicao.value };
+const salvarCusto = async () => {
+  const payload = {
+    tipo: custoEmEdicao.value.tipo,
+    descricao: custoEmEdicao.value.descricao,
+    categoria: custoEmEdicao.value.categoria,
+    data_lancamento: custoEmEdicao.value.data,
+    valor: custoEmEdicao.value.valor,
+    forma_pagamento: custoEmEdicao.value.formaPagamento,
+    observacoes: custoEmEdicao.value.observacoes
+  }
+  try {
+    if (custoEmEdicao.value.id) {
+      await updateLancamento(custoEmEdicao.value.id, payload)
+    } else {
+      await createLancamento(payload)
     }
-  } else {
-    // Adicionar um novo custo
-    const novoId = Math.max(0, ...custos.value.map(item => item.id)) + 1;
-    custos.value.push({
-      ...custoEmEdicao.value,
-      id: novoId
-    });
+    fecharModal()
+    await carregarFinanceiro()
+  } catch (e) {
+    alert(e.response?.data?.detail || 'Erro ao salvar lançamento.')
   }
-  
-  fecharModal();
-};
+}
 
-const excluirCusto = (id) => {
-  if (confirm('Tem certeza que deseja excluir este registro?')) {
-    custos.value = custos.value.filter(item => item.id !== id);
+const excluirCusto = async (id) => {
+  if (!confirm('Tem certeza que deseja excluir este registro?')) return
+  try {
+    await deleteLancamento(id)
+    await carregarFinanceiro()
+  } catch (e) {
+    alert(e.response?.data?.detail || 'Erro ao excluir.')
   }
-};
+}
 
 const aplicarFiltros = () => {
   // Os filtros já estão sendo aplicados via computed properties
@@ -953,10 +818,6 @@ const formatarData = (dataStr) => {
   return data.toLocaleDateString('pt-BR');
 };
 
-// Inicialização
-onMounted(() => {
-  // Poderia ter lógica de inicialização, como carregar dados de uma API
-});
 </script>
 
 <style scoped>

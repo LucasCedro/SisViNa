@@ -1,7 +1,7 @@
 <template>
   <div class="financeiro-view">
     <div class="content-wrapper">
-      <h1 class="titulo-pagina">Financeiro meu amor</h1>
+      <h1 class="titulo-pagina">Financeiro</h1>
 
       <div class="secao">
         <div class="secao-content">

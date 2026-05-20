@@ -19,3 +19,4 @@ class Especie(Base):
 
     # Relacionamentos
     plantas = relationship("Planta", back_populates="especie")
+    arvores_matriz = relationship("ArvoreMatriz", back_populates="especie")

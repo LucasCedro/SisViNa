@@ -285,113 +285,57 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue';
-import Chart from 'chart.js/auto';
+import { ref, reactive, computed, onMounted } from 'vue'
+import Chart from 'chart.js/auto'
+import { listCanteiros } from '@/services/canteiros'
+import { listPragasPlantas, listTiposPragas, createPragaPlanta } from '@/services/pragas'
+import { listPlantasComRelacoes } from '@/services/plantas'
+import { useAuthStore } from '@/store/auth'
 
-// Dados mockados para o componente
-const canteiros = ref([
-  { id: 1, nome: 'Canteiro A1' },
-  { id: 2, nome: 'Canteiro A2' },
-  { id: 3, nome: 'Canteiro B1' },
-  { id: 4, nome: 'Canteiro B2' },
-  { id: 5, nome: 'Canteiro C1' },
-  { id: 6, nome: 'Canteiro C2' }
-]);
+const auth = useAuthStore()
+const canteiros = ref([])
+const plantas = ref([])
+const tiposPraga = ref([])
 
-// Array de ocorrências
-const ocorrencias = ref([
-  {
-    id: 1,
-    data: '2023-10-05',
-    canteiro: 'Canteiro A1',
-    especie: 'Jatobá (Hymenaea courbaril)',
-    pragaDoenca: 'Antracnose',
-    severidade: 'moderada',
-    produto: 'Calda Bordalesa',
-    responsavel: 'Ana Silva',
-    custo: 120.50,
-    observacoes: 'Identificado em estágio inicial. Tratamento aplicado em toda a área do canteiro.',
-    imagem: 'https://via.placeholder.com/300x200?text=Antracnose'
-  },
-  {
-    id: 2,
-    data: '2023-11-15',
-    canteiro: 'Canteiro B2',
-    especie: 'Ipê Amarelo (Handroanthus albus)',
-    pragaDoenca: 'Cochonilha',
-    severidade: 'grave',
-    produto: 'Óleo de Neem',
-    responsavel: 'Carlos Pereira',
-    custo: 230.00,
-    observacoes: 'Infestação severa afetando folhas e galhos jovens. Aplicação semanal por três semanas.',
-    imagem: 'https://via.placeholder.com/300x200?text=Cochonilha'
-  },
-  {
-    id: 3,
-    data: '2023-12-02',
-    canteiro: 'Canteiro C1',
-    especie: 'Cedro (Cedrela fissilis)',
-    pragaDoenca: 'Ferrugem',
-    severidade: 'leve',
-    produto: 'Fungicida orgânico',
-    responsavel: 'Mariana Costa',
-    custo: 85.75,
-    observacoes: 'Pequenos focos nas folhas mais baixas. Tratamento preventivo aplicado.',
-    imagem: 'https://via.placeholder.com/300x200?text=Ferrugem'
-  },
-  {
-    id: 4,
-    data: '2024-01-20',
-    canteiro: 'Canteiro A2',
-    especie: 'Aroeira (Schinus terebinthifolia)',
-    pragaDoenca: 'Pulgões',
-    severidade: 'moderada',
-    produto: 'Calda de Fumo',
-    responsavel: 'Bruno Santos',
-    custo: 45.20,
-    observacoes: 'Colônias estabelecidas em brotos novos. Aplicação em duas etapas com intervalo de 5 dias.',
-    imagem: 'https://via.placeholder.com/300x200?text=Pulgoes'
-  },
-  {
-    id: 5,
-    data: '2024-02-10',
-    canteiro: 'Canteiro B1',
-    especie: 'Jatobá (Hymenaea courbaril)',
-    pragaDoenca: 'Oídio',
-    severidade: 'grave',
-    produto: 'Enxofre agrícola',
-    responsavel: 'Ana Silva',
-    custo: 175.30,
-    observacoes: 'Pó branco cobrindo grande parte das folhas. Necessário poda sanitária além do tratamento químico.',
-    imagem: 'https://via.placeholder.com/300x200?text=Oidio'
-  },
-  {
-    id: 6,
-    data: '2024-03-05',
-    canteiro: 'Canteiro C2',
-    especie: 'Peroba (Aspidosperma polyneuron)',
-    pragaDoenca: 'Lagartas',
-    severidade: 'moderada',
-    produto: 'Bacillus thuringiensis',
-    responsavel: 'Carlos Pereira',
-    custo: 95.00,
-    observacoes: 'Desfolhamento parcial observado. Aplicação biológica com bom resultado após uma semana.',
-    imagem: 'https://via.placeholder.com/300x200?text=Lagartas'
-  },
-  {
-    id: 7,
-    data: '2024-04-12',
-    canteiro: 'Canteiro A1',
-    especie: 'Ipê Amarelo (Handroanthus albus)',
-    pragaDoenca: 'Míldio',
-    severidade: 'leve',
-    produto: 'Bicarbonato de sódio',
-    responsavel: 'Mariana Costa',
-    custo: 30.50,
-    observacoes: 'Pequenas manchas em folhas isoladas. Tratamento preventivo estendido para canteiros vizinhos.',
-    imagem: 'https://via.placeholder.com/300x200?text=Mildio'
+const SEV_MAP = { leve: 'BAIXO', moderada: 'MEDIO', grave: 'ALTO' }
+const SEV_REV = { BAIXO: 'leve', MEDIO: 'moderada', ALTO: 'grave', CRITICO: 'grave' }
+
+const ocorrencias = ref([])
+
+function mapPraga(p) {
+  const pl = plantas.value.find((x) => x.id === p.id_planta)
+  return {
+    id: p.id,
+    data: p.data_identificacao,
+    canteiro: pl?.nome_canteiro || '—',
+    especie: p.especie_nome || '—',
+    pragaDoenca: p.tipo_praga?.nome || '—',
+    severidade: SEV_REV[p.nivel_infestacao] || 'leve',
+    produto: '—',
+    responsavel: '—',
+    custo: 0,
+    observacoes: p.observacoes || '',
+    imagem: null,
+    id_planta: p.id_planta,
+    id_tipo_praga: p.id_tipo_praga
   }
-]);
+}
+
+async function carregarFitossanidade() {
+  const [cant, pl, tp, pr] = await Promise.all([
+    listCanteiros({ ativo: true }),
+    listPlantasComRelacoes({ limit: 300 }),
+    listTiposPragas(),
+    listPragasPlantas({ limit: 200 })
+  ])
+  canteiros.value = cant
+  plantas.value = pl
+  tiposPraga.value = tp
+  ocorrencias.value = pr.map(mapPraga)
+  atualizarGraficos()
+}
+
+onMounted(carregarFitossanidade)
 
 // Formulário para nova ocorrência
 const ocorrenciaForm = reactive({
@@ -504,23 +448,33 @@ const previewImagem = (event) => {
   }
 };
 
-const salvarOcorrencia = () => {
+const salvarOcorrencia = async () => {
   if (modoEdicao.value) {
-    // Atualizar ocorrência existente
-    const index = ocorrencias.value.findIndex(item => item.id === ocorrenciaForm.id);
-    if (index !== -1) {
-      ocorrencias.value[index] = { ...ocorrenciaForm };
-    }
-  } else {
-    // Criar nova ocorrência
-    const novaOcorrencia = { ...ocorrenciaForm };
-    novaOcorrencia.id = Math.max(0, ...ocorrencias.value.map(o => o.id)) + 1;
-    ocorrencias.value.push(novaOcorrencia);
+    alert('Edição via API em breve. Exclua e recadastre se necessário.')
+    return
   }
-  
-  fecharFormulario();
-  atualizarGraficos();
-};
+  const planta = plantas.value.find((p) =>
+    ocorrenciaForm.especie && String(p.especie_nome).includes(ocorrenciaForm.especie.split('(')[0].trim())
+  ) || plantas.value[0]
+  const tipo = tiposPraga.value.find((t) => t.nome === ocorrenciaForm.pragaDoenca) || tiposPraga.value[0]
+  if (!planta || !tipo) {
+    alert('Cadastre plantas e tipos de praga no banco.')
+    return
+  }
+  try {
+    await createPragaPlanta({
+      id_planta: planta.id,
+      id_tipo_praga: tipo.id,
+      data_identificacao: ocorrenciaForm.data,
+      nivel_infestacao: SEV_MAP[ocorrenciaForm.severidade] || 'MEDIO',
+      observacoes: ocorrenciaForm.observacoes
+    })
+    fecharFormulario()
+    await carregarFitossanidade()
+  } catch (e) {
+    alert(e.response?.data?.detail || 'Erro ao salvar ocorrência.')
+  }
+}
 
 const editarOcorrencia = (ocorrencia) => {
   modoEdicao.value = true;

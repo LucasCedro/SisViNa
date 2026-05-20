@@ -16,7 +16,7 @@
                 </div>
 
                 <div class="editor-container">
-                    <ViveiroDesigner />
+                    <ViveiroDesigner @voltar="voltarParaViveiro" />
                 </div>
             </div>
         </div>
@@ -24,7 +24,11 @@
 </template>
 
 <script setup>
-import ViveiroDesigner from '@/components/viveiro/ViveiroDesigner.vue';
+import { useRouter } from 'vue-router'
+import ViveiroDesigner from '@/components/viveiro/ViveiroDesigner.vue'
+
+const router = useRouter()
+const voltarParaViveiro = () => router.push('/viveiro')
 </script>
 
 <style>

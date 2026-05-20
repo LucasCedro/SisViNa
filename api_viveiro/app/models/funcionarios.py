@@ -27,3 +27,6 @@ class Funcionario(Base):
     atividades = relationship("Atividade", back_populates="funcionario")
     vendas = relationship("Venda", back_populates="funcionario")
     combates = relationship("CombateRealizado", back_populates="funcionario")
+    coletas_sementes = relationship("ColetaSementes", back_populates="funcionario")
+    testes_sementes = relationship("TesteSementes", back_populates="funcionario")
+    semeaduras = relationship("Semeadura", back_populates="funcionario")

@@ -16,13 +16,16 @@ async def read_canteiros(
     skip: int = 0,
     limit: int = 100,
     ativo: Optional[bool] = None,
+    tipo_local: Optional[str] = Query(None, description="sementeira | canteiro | armazem"),
     db: AsyncSession = Depends(get_db),
     current_user: FuncionarioOut = Depends(get_current_user)
 ):
     """
     Recupera todos os canteiros.
     """
-    canteiros = await crud_canteiros.get_canteiros(db, skip=skip, limit=limit, ativo=ativo)
+    canteiros = await crud_canteiros.get_canteiros(
+        db, skip=skip, limit=limit, ativo=ativo, tipo_local=tipo_local
+    )
     return canteiros
 
 @router.get("/with-ocupacao", response_model=List[CanteiroWithOcupacao])

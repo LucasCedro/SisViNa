@@ -9,6 +9,7 @@ class CanteiroBase(BaseModel):
     area_total: Optional[float] = None
     localizacao: Optional[str] = None
     tipo_solo: Optional[str] = None
+    tipo_local: Optional[str] = "canteiro"
     ativo: Optional[bool] = True
 
 class CanteiroCreate(CanteiroBase):
@@ -20,6 +21,7 @@ class CanteiroUpdate(BaseModel):
     area_total: Optional[float] = None
     localizacao: Optional[str] = None
     tipo_solo: Optional[str] = None
+    tipo_local: Optional[str] = None
     ativo: Optional[bool] = None
 
 class CanteiroInDBBase(CanteiroBase):

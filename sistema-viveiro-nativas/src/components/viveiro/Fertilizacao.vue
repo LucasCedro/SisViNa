@@ -282,120 +282,54 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue';
-import Chart from 'chart.js/auto';
+import { ref, reactive, computed, onMounted } from 'vue'
+import Chart from 'chart.js/auto'
+import { listCanteiros } from '@/services/canteiros'
+import { listPlantasComRelacoes } from '@/services/plantas'
+import { listAtividades, listTiposAtividades, createAtividade } from '@/services/atividades'
+import { useAuthStore } from '@/store/auth'
 
-// Dados mockados para o componente
-const canteiros = ref([
-  { id: 1, nome: 'Canteiro A1' },
-  { id: 2, nome: 'Canteiro A2' },
-  { id: 3, nome: 'Canteiro B1' },
-  { id: 4, nome: 'Canteiro B2' },
-  { id: 5, nome: 'Canteiro C1' },
-  { id: 6, nome: 'Canteiro C2' }
-]);
+const auth = useAuthStore()
+const canteiros = ref([])
+const plantas = ref([])
+const tipoFertilizacaoId = ref(null)
+const aplicacoes = ref([])
 
-// Array de aplicações (dados mockados)
-const aplicacoes = ref([
-  {
-    id: 1,
-    data: '2023-10-10',
-    canteiro: 'Canteiro A1',
-    especie: 'Jatobá (Hymenaea courbaril)',
-    tipoFertilizante: 'orgânico',
-    nutrientes: 'Composto orgânico',
-    quantidade: 5,
-    unidade: 'kg',
+function mapAtividade(a) {
+  return {
+    id: a.id,
+    data: String(a.data_atividade).slice(0, 10),
+    canteiro: '—',
+    especie: a.especie_nome,
+    tipoFertilizante: 'atividade',
+    nutrientes: a.descricao || a.tipo_atividade_nome,
+    quantidade: 1,
+    unidade: '—',
     formaAplicacao: 'manual',
-    responsavel: 'Ana Silva',
-    custo: 75.00,
-    observacoes: 'Aplicação realizada após o transplante das mudas.'
-  },
-  {
-    id: 2,
-    data: '2023-11-05',
-    canteiro: 'Canteiro B2',
-    especie: 'Ipê Amarelo (Handroanthus albus)',
-    tipoFertilizante: 'químico',
-    nutrientes: 'NPK 10-10-10',
-    quantidade: 2.5,
-    unidade: 'kg',
-    formaAplicacao: 'gotejo',
-    responsavel: 'Carlos Pereira',
-    custo: 120.50,
-    observacoes: 'Aplicação para corrigir deficiência de nutrientes identificada nas folhas.'
-  },
-  {
-    id: 3,
-    data: '2023-12-15',
-    canteiro: 'Canteiro C1',
-    especie: 'Cedro (Cedrela fissilis)',
-    tipoFertilizante: 'foliar',
-    nutrientes: 'Micronutrientes (Fe, Zn, B)',
-    quantidade: 3,
-    unidade: 'L',
-    formaAplicacao: 'aspersão',
-    responsavel: 'Mariana Costa',
-    custo: 95.75,
-    observacoes: 'Aplicação foliar para corrigir clorose nas folhas.'
-  },
-  {
-    id: 4,
-    data: '2024-01-10',
-    canteiro: 'Canteiro A2',
-    especie: 'Aroeira (Schinus terebinthifolia)',
-    tipoFertilizante: 'biofertilizante',
-    nutrientes: 'Húmus líquido',
-    quantidade: 4,
-    unidade: 'L',
-    formaAplicacao: 'aspersão',
-    responsavel: 'Bruno Santos',
-    custo: 60.25,
-    observacoes: 'Aplicação preventiva para fortalecer as mudas.'
-  },
-  {
-    id: 5,
-    data: '2024-02-05',
-    canteiro: 'Canteiro B1',
-    especie: 'Jatobá (Hymenaea courbaril)',
-    tipoFertilizante: 'químico',
-    nutrientes: 'Ureia (45% N)',
-    quantidade: 1.8,
-    unidade: 'kg',
-    formaAplicacao: 'fertirrigação',
-    responsavel: 'Ana Silva',
-    custo: 45.30,
-    observacoes: 'Suplementação de nitrogênio para acelerar o crescimento vegetativo.'
-  },
-  {
-    id: 6,
-    data: '2024-03-15',
-    canteiro: 'Canteiro C2',
-    especie: 'Peroba (Aspidosperma polyneuron)',
-    tipoFertilizante: 'orgânico',
-    nutrientes: 'Esterco bovino compostado',
-    quantidade: 8,
-    unidade: 'kg',
-    formaAplicacao: 'manual',
-    responsavel: 'Carlos Pereira',
-    custo: 90.00,
-    observacoes: 'Aplicação como cobertura para melhorar a estrutura do solo.'
-  },
-  {
-    id: 7,
-    data: '2024-04-01',
-    canteiro: 'Canteiro A1',
-    especie: 'Ipê Amarelo (Handroanthus albus)',
-    tipoFertilizante: 'foliar',
-    nutrientes: 'Cálcio + Boro',
-    quantidade: 2,
-    unidade: 'L',
-    formaAplicacao: 'aspersão',
-    responsavel: 'Mariana Costa',
-    custo: 110.50,
-    observacoes: 'Tratamento para melhorar o desenvolvimento das gemas apicais.'
+    responsavel: a.funcionario_nome,
+    custo: Number(a.custo_atividade) || 0,
+    observacoes: a.observacoes || ''
   }
-]);
+}
+
+async function carregarFertilizacao() {
+  const [cant, pl, tipos, ativ] = await Promise.all([
+    listCanteiros({ ativo: true }),
+    listPlantasComRelacoes({ limit: 300 }),
+    listTiposAtividades(),
+    listAtividades({ limit: 200 })
+  ])
+  canteiros.value = cant
+  plantas.value = pl
+  const fert = tipos.find((t) => t.nome === 'FERTILIZACAO')
+  tipoFertilizacaoId.value = fert?.id
+  aplicacoes.value = ativ
+    .filter((a) => !tipoFertilizacaoId.value || a.id_tipo_atividade === tipoFertilizacaoId.value)
+    .map(mapAtividade)
+  atualizarGraficos()
+}
+
+onMounted(carregarFertilizacao)
 
 // Formulário para nova aplicação
 const aplicacaoForm = reactive({
@@ -494,23 +428,32 @@ const resetarFormulario = () => {
   aplicacaoForm.id = null;
 };
 
-const salvarAplicacao = () => {
-  if (modoEdicao.value) {
-    // Atualizar aplicação existente
-    const index = aplicacoes.value.findIndex(item => item.id === aplicacaoForm.id);
-    if (index !== -1) {
-      aplicacoes.value[index] = { ...aplicacaoForm };
-    }
-  } else {
-    // Criar nova aplicação
-    const novaAplicacao = { ...aplicacaoForm };
-    novaAplicacao.id = Math.max(0, ...aplicacoes.value.map(o => o.id)) + 1;
-    aplicacoes.value.push(novaAplicacao);
+const salvarAplicacao = async () => {
+  if (!tipoFertilizacaoId.value || !auth.user?.id) {
+    alert('Tipo FERTILIZACAO ou usuário não disponível.')
+    return
   }
-  
-  fecharFormulario();
-  atualizarGraficos();
-};
+  const planta = plantas.value[0]
+  if (!planta) {
+    alert('Cadastre plantas no viveiro primeiro.')
+    return
+  }
+  try {
+    await createAtividade({
+      id_tipo_atividade: tipoFertilizacaoId.value,
+      id_planta: planta.id,
+      id_funcionario: auth.user.id,
+      data_atividade: new Date(aplicacaoForm.data + 'T12:00:00').toISOString(),
+      descricao: `${aplicacaoForm.nutrientes} (${aplicacaoForm.tipoFertilizante})`,
+      custo_atividade: aplicacaoForm.custo || 0,
+      observacoes: aplicacaoForm.observacoes
+    })
+    fecharFormulario()
+    await carregarFertilizacao()
+  } catch (e) {
+    alert(e.response?.data?.detail || 'Erro ao registrar fertilização.')
+  }
+}
 
 const editarAplicacao = (aplicacao) => {
   modoEdicao.value = true;

@@ -1,0 +1,120 @@
+<template>
+  <div class="export-bar">
+    <span class="label">Exportar</span>
+    <button type="button" class="btn-exp" :disabled="carregando" @click="exp('matrizes')">
+      Matrizes CSV
+    </button>
+    <button type="button" class="btn-exp" :disabled="carregando" @click="exp('coletas')">
+      Coletas CSV
+    </button>
+    <button type="button" class="btn-exp" :disabled="carregando" @click="exp('lotes')">
+      Lotes CSV
+    </button>
+    <button
+      type="button"
+      class="btn-exp"
+      :disabled="carregando || !idMatriz"
+      title="Selecione uma matriz no mapa"
+      @click="exp('rastreio')"
+    >
+      Rastreio matriz CSV
+    </button>
+    <button type="button" class="btn-exp btn-pdf" :disabled="gerandoPdf" @click="gerarPdf">
+      Relatório PDF
+    </button>
+  </div>
+</template>
+
+<script setup>
+import { ref, computed } from 'vue'
+import { useColetaStore } from '@/store/coleta'
+import {
+  exportMatrizesCsv,
+  exportColetasCsv,
+  exportLotesCsv,
+  exportRastreabilidadeMatrizCsv
+} from '@/services/coletaRelatorios'
+
+const store = useColetaStore()
+const carregando = ref(false)
+const gerandoPdf = ref(false)
+
+const idMatriz = computed(() => store.matrizSelecionada?.id)
+
+async function exp(tipo) {
+  carregando.value = true
+  try {
+    if (tipo === 'matrizes') await exportMatrizesCsv()
+    else if (tipo === 'coletas') await exportColetasCsv(idMatriz.value)
+    else if (tipo === 'lotes') await exportLotesCsv(idMatriz.value)
+    else if (tipo === 'rastreio') {
+      if (!idMatriz.value) {
+        alert('Selecione uma matriz no mapa para exportar o dossiê de rastreabilidade.')
+        return
+      }
+      await exportRastreabilidadeMatrizCsv(idMatriz.value)
+    }
+  } catch (e) {
+    alert(e.response?.data?.detail || e.message || 'Erro na exportação')
+  } finally {
+    carregando.value = false
+  }
+}
+
+async function gerarPdf() {
+  const el = document.getElementById('relatorio-coleta-pdf')
+  if (!el) return
+  gerandoPdf.value = true
+  try {
+    const html2pdf = (await import('html2pdf.js')).default
+    await html2pdf()
+      .set({
+        margin: 10,
+        filename: `coleta-relatorio-${new Date().toISOString().slice(0, 10)}.pdf`,
+        html2canvas: { scale: 2 },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      })
+      .from(el)
+      .save()
+  } catch (e) {
+    alert('Erro ao gerar PDF: ' + (e.message || e))
+  } finally {
+    gerandoPdf.value = false
+  }
+}
+</script>
+
+<style scoped>
+.export-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+.label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+.btn-exp {
+  padding: 0.35rem 0.65rem;
+  font-size: 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+}
+.btn-exp:hover:not(:disabled) {
+  border-color: #6ca234;
+  color: #5d9130;
+}
+.btn-exp:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.btn-pdf {
+  background: #f0f7eb;
+  border-color: #6ca234;
+}
+</style>

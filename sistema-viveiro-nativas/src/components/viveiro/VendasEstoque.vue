@@ -29,16 +29,11 @@
           </thead>
           <tbody>
             <tr v-for="venda in historicoVendas" :key="venda.id">
-              <td>{{ formatarData(venda.data) }}</td>
-              <td>
-                <div class="especie-info">
-                  <div class="nome-popular">{{ venda.especie.nomePopular }}</div>
-                  <div class="nome-cientifico">{{ venda.especie.nomeCientifico }}</div>
-                </div>
-              </td>
-              <td>{{ venda.quantidade }}</td>
-              <td>R$ {{ venda.valorTotal.toFixed(2) }}</td>
-              <td>{{ venda.comprador }}</td>
+              <td>{{ formatarData(venda.data_venda) }}</td>
+              <td>{{ venda.total_itens }} planta(s)</td>
+              <td>{{ venda.total_itens }}</td>
+              <td>R$ {{ Number(venda.valor_total).toFixed(2) }}</td>
+              <td>{{ venda.comprador_nome }}</td>
               <td>
                 <span class="tag pagamento-tag">{{ venda.formaPagamento }}</span>
               </td>
@@ -68,7 +63,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="item in estoqueItems" :key="item.id" :class="{ 'estoque-baixo': item.quantidade < 20 }">
+            <tr v-for="item in estoqueItems" :key="item.id_especie" :class="{ 'estoque-baixo': item.quantidade < 20 }">
               <td>
                 <div class="especie-info">
                   <div class="nome-popular">{{ item.nomePopular }}</div>
@@ -165,8 +160,8 @@
               <label for="especie-venda">Espécie:</label>
               <select id="especie-venda" v-model="formVenda.especieId" required @change="atualizarDadosEspecie">
                 <option value="">Selecione uma espécie</option>
-                <option v-for="item in estoqueDisponivel" :key="item.id" :value="item.id">
-                  {{ item.nomePopular }} ({{ item.quantidade }} disponíveis)
+                <option v-for="item in estoqueDisponivel" :key="item.id_especie" :value="item.id_especie">
+                  {{ item.nomePopular || item.nomeCientifico }} ({{ item.quantidade }} disponíveis)
                 </option>
               </select>
             </div>
@@ -190,8 +185,11 @@
           
           <div class="form-row">
             <div class="form-group">
-              <label for="comprador">Nome do Comprador:</label>
-              <input type="text" id="comprador" v-model="formVenda.comprador" required>
+              <label for="comprador">Comprador:</label>
+              <select id="comprador" v-model.number="formVenda.idComprador" required>
+                <option value="">Selecione</option>
+                <option v-for="c in compradores" :key="c.id" :value="c.id">{{ c.nome }}</option>
+              </select>
             </div>
             
             <div class="form-group">
@@ -234,102 +232,31 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue'
+import { useAuthStore } from '@/store/auth'
+import { getEstoqueResumo, atualizarPrecoEspecie, listPlantas } from '@/services/plantas'
+import { listVendas, createVenda } from '@/services/vendas'
+import { listCompradores } from '@/services/compradores'
 
-// Mock de dados para o estoque
-const estoqueItems = ref([
-  {
-    id: 1,
-    nomePopular: 'Ipê Amarelo',
-    nomeCientifico: 'Handroanthus albus',
-    tamanho: 'Média',
-    quantidade: 45,
-    valorUnitario: 25.00,
-    localizacao: 'Canteiro B3'
-  },
-  {
-    id: 2,
-    nomePopular: 'Jatobá',
-    nomeCientifico: 'Hymenaea courbaril',
-    tamanho: 'Grande',
-    quantidade: 12,
-    valorUnitario: 35.50,
-    localizacao: 'Canteiro A2'
-  },
-  {
-    id: 3,
-    nomePopular: 'Pau-Brasil',
-    nomeCientifico: 'Paubrasilia echinata',
-    tamanho: 'Pequena',
-    quantidade: 30,
-    valorUnitario: 20.00,
-    localizacao: 'Canteiro C1'
-  },
-  {
-    id: 4,
-    nomePopular: 'Aroeira',
-    nomeCientifico: 'Schinus terebinthifolia',
-    tamanho: 'Média',
-    quantidade: 18,
-    valorUnitario: 22.00,
-    localizacao: 'Canteiro D2'
-  },
-  {
-    id: 5,
-    nomePopular: 'Cedro',
-    nomeCientifico: 'Cedrela fissilis',
-    tamanho: 'Grande',
-    quantidade: 28,
-    valorUnitario: 40.00,
-    localizacao: 'Canteiro B1'
-  }
-]);
+const auth = useAuthStore()
+const carregando = ref(true)
+const erro = ref(null)
 
-// Mock de dados para o histórico de vendas
-const historicoVendas = ref([
-  {
-    id: 1,
-    data: '2023-10-15',
-    especie: {
-      nomePopular: 'Ipê Amarelo',
-      nomeCientifico: 'Handroanthus albus'
-    },
-    quantidade: 5,
-    valorTotal: 125.00,
-    comprador: 'Prefeitura de São Carlos',
-    formaPagamento: 'Transferência',
-    observacoes: 'Projeto de arborização urbana'
-  },
-  {
-    id: 2,
-    data: '2023-11-03',
-    especie: {
-      nomePopular: 'Pau-Brasil',
-      nomeCientifico: 'Paubrasilia echinata'
-    },
-    quantidade: 10,
-    valorTotal: 200.00,
-    comprador: 'João Silva',
-    formaPagamento: 'PIX',
-    observacoes: 'Reflorestamento em área particular'
-  },
-  {
-    id: 3,
-    data: '2023-11-20',
-    especie: {
-      nomePopular: 'Jatobá',
-      nomeCientifico: 'Hymenaea courbaril'
-    },
-    quantidade: 3,
-    valorTotal: 106.50,
-    comprador: 'Maria Oliveira',
-    formaPagamento: 'Dinheiro',
-    observacoes: ''
-  }
-]);
+const estoqueItems = ref([])
+const historicoVendas = ref([])
+const compradores = ref([])
 
 // Estado para modais
-const modalVendaAberto = ref(false);
+const modalVendaAberto = ref(false)
+const modalEstoqueAberto = ref(false)
+const formEstoque = ref({
+  id_especie: null,
+  nomePopular: '',
+  nomeCientifico: '',
+  quantidade: 0,
+  valorUnitario: 0,
+  localizacao: ''
+})
 
 // Formulários
 const formVenda = ref({
@@ -337,10 +264,10 @@ const formVenda = ref({
   especieId: '',
   quantidade: 1,
   valorTotal: 0,
-  comprador: '',
+  idComprador: '',
   formaPagamento: 'PIX',
   observacoes: ''
-});
+})
 
 // Computed properties
 const estoqueDisponivel = computed(() => {
@@ -348,9 +275,39 @@ const estoqueDisponivel = computed(() => {
 });
 
 const especieSelecionada = computed(() => {
-  if (!formVenda.value.especieId) return null;
-  return estoqueItems.value.find(item => item.id === formVenda.value.especieId);
-});
+  if (!formVenda.value.especieId) return null
+  return estoqueItems.value.find((item) => item.id_especie === Number(formVenda.value.especieId))
+})
+
+async function carregar() {
+  carregando.value = true
+  erro.value = null
+  try {
+    const [estoque, vendas, comps] = await Promise.all([
+      getEstoqueResumo(),
+      listVendas({ limit: 200 }),
+      listCompradores({ ativo: true, limit: 200 })
+    ])
+    estoqueItems.value = estoque.map((e) => ({
+      id_especie: e.id_especie,
+      nomePopular: e.nome_popular,
+      nomeCientifico: e.nome_cientifico,
+      tamanho: e.status_predominante || '—',
+      quantidade: e.quantidade,
+      valorUnitario: Number(e.valor_unitario) || 0,
+      localizacao: e.localizacao || '—'
+    }))
+    historicoVendas.value = vendas
+    compradores.value = comps
+  } catch (e) {
+    erro.value = 'Falha ao carregar vendas/estoque.'
+    console.error(e)
+  } finally {
+    carregando.value = false
+  }
+}
+
+onMounted(carregar)
 
 // Métodos para o registro de vendas
 function abrirFormularioNovaVenda() {
@@ -359,11 +316,11 @@ function abrirFormularioNovaVenda() {
     especieId: '',
     quantidade: 1,
     valorTotal: 0,
-    comprador: '',
+    idComprador: compradores.value[0]?.id || '',
     formaPagamento: 'PIX',
     observacoes: ''
-  };
-  modalVendaAberto.value = true;
+  }
+  modalVendaAberto.value = true
 }
 
 function fecharModalVenda() {
@@ -383,42 +340,65 @@ function calcularValorTotal() {
   }
 }
 
-function salvarVenda() {
-  // Verificar se a quantidade solicitada está disponível
+async function salvarVenda() {
   if (!especieSelecionada.value || formVenda.value.quantidade > especieSelecionada.value.quantidade) {
-    alert('Quantidade indisponível no estoque!');
-    return;
+    alert('Quantidade indisponível no estoque!')
+    return
   }
-  
-  // Criar nova venda
-  const novoId = historicoVendas.value.length > 0 
-    ? Math.max(...historicoVendas.value.map(venda => venda.id)) + 1 
-    : 1;
-  
-  const novaVenda = {
-    id: novoId,
-    data: formVenda.value.data,
-    especie: {
-      nomePopular: especieSelecionada.value.nomePopular,
-      nomeCientifico: especieSelecionada.value.nomeCientifico
-    },
-    quantidade: formVenda.value.quantidade,
-    valorTotal: formVenda.value.valorTotal,
-    comprador: formVenda.value.comprador,
-    formaPagamento: formVenda.value.formaPagamento,
-    observacoes: formVenda.value.observacoes
-  };
-  
-  // Adicionar ao histórico
-  historicoVendas.value.push(novaVenda);
-  
-  // Atualizar o estoque
-  const index = estoqueItems.value.findIndex(item => item.id === formVenda.value.especieId);
-  if (index !== -1) {
-    estoqueItems.value[index].quantidade -= formVenda.value.quantidade;
+  if (!formVenda.value.idComprador || !auth.user?.id) {
+    alert('Selecione comprador e faça login.')
+    return
   }
-  
-  fecharModalVenda();
+  try {
+    const todas = await listPlantas({
+      id_especie: especieSelecionada.value.id_especie,
+      limit: 500
+    })
+    const plantas = todas.filter((p) => !['VENDIDA', 'MORTA'].includes(p.status))
+    if (plantas.length < formVenda.value.quantidade) {
+      alert('Plantas insuficientes no estoque.')
+      return
+    }
+    const valorUnit = especieSelecionada.value.valorUnitario
+    const itens = plantas.slice(0, formVenda.value.quantidade).map((p) => ({
+      id_planta: p.id,
+      quantidade: 1,
+      valor_unitario: valorUnit,
+      desconto: 0
+    }))
+    await createVenda({
+      id_comprador: Number(formVenda.value.idComprador),
+      id_funcionario: auth.user.id,
+      data_venda: new Date(formVenda.value.data + 'T12:00:00').toISOString(),
+      forma_pagamento: formVenda.value.formaPagamento,
+      status: 'PAGO',
+      observacoes: formVenda.value.observacoes,
+      itens
+    })
+    fecharModalVenda()
+    await carregar()
+  } catch (e) {
+    alert(e.response?.data?.detail || 'Erro ao registrar venda.')
+  }
+}
+
+function editarEstoque(item) {
+  formEstoque.value = { ...item }
+  modalEstoqueAberto.value = true
+}
+
+function fecharModalEstoque() {
+  modalEstoqueAberto.value = false
+}
+
+async function salvarEstoque() {
+  try {
+    await atualizarPrecoEspecie(formEstoque.value.id_especie, formEstoque.value.valorUnitario)
+    fecharModalEstoque()
+    await carregar()
+  } catch (e) {
+    alert(e.response?.data?.detail || 'Erro ao atualizar preço.')
+  }
 }
 
 // Função para formatar data

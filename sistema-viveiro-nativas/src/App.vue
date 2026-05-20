@@ -11,6 +11,8 @@ const isBlankLayout = computed(() => route.meta.layout === 'blank')
 const currentPageTitle = computed(() => {
   const routePath = route.path;
   if (routePath === '/') return 'Página Inicial';
+  if (routePath.includes('/producao')) return 'Produção';
+  if (routePath.includes('/estoques')) return 'Estoques';
   if (routePath.includes('/viveiro')) return 'Viveiro';
   if (routePath.includes('/fitossanidade')) return 'Fitossanidade';
   if (routePath.includes('/fertilizacao')) return 'Fertilização';

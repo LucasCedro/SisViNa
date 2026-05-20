@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.schemas.vendas import (
-    Venda, VendaCreate, VendaUpdate, VendaDetalhe,
+    Venda, VendaCreate, VendaUpdate, VendaDetalhe, VendaList,
     ItemVenda, ItemVendaUpdate, ItemVendaDetalhe
 )
 from app.crud import vendas as crud_vendas
@@ -15,7 +15,7 @@ from app.schemas.funcionarios import FuncionarioOut
 
 router = APIRouter()
 
-@router.get("/", response_model=List[Venda])
+@router.get("/", response_model=List[VendaList])
 async def read_vendas(
     skip: int = 0,
     limit: int = 100,

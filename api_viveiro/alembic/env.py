@@ -10,7 +10,7 @@ from alembic import context
 from app.config import settings
 from app.database import Base
 # Importe aqui todos os seus modelos
-from app.models import especies, plantas, funcionarios, compradores, canteiros, atividades, insumos, pragas, vendas
+from app.models import especies, plantas, funcionarios, compradores, canteiros, atividades, insumos, pragas, vendas, arvores_matriz, coletas_sementes, lotes_sementes, testes_sementes, semeaduras
 
 # Configuração do Alembic
 config = context.config

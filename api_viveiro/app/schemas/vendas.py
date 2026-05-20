@@ -98,6 +98,13 @@ class VendaInDBBase(VendaBase):
 class Venda(VendaInDBBase):
     pass
 
+
+class VendaList(VendaInDBBase):
+    comprador_nome: Optional[str] = None
+    funcionario_nome: Optional[str] = None
+    total_itens: int = 0
+
+
 class VendaDetalhe(VendaInDBBase):
     comprador_nome: str
     funcionario_nome: str

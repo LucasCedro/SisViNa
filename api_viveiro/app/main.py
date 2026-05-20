@@ -3,10 +3,29 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.bootstrap import ensure_default_admin, ensure_demo_especies
+from app.bootstrap import ensure_default_admin, ensure_demo_especies, ensure_demo_comprador
 from app.config import settings
 from app.database import get_db
-from app.routes import especies, plantas, funcionarios, compradores, canteiros, atividades, pragas, insumos, vendas
+from app.routes import (
+    especies,
+    plantas,
+    funcionarios,
+    compradores,
+    canteiros,
+    atividades,
+    pragas,
+    insumos,
+    vendas,
+    arvores_matriz,
+    coletas_sementes,
+    lotes_sementes,
+    testes_sementes,
+    semeaduras,
+    coleta_relatorios,
+    dashboard,
+    lancamentos_financeiros,
+    estoques,
+)
 from app.auth.router import router as auth_router
 
 app = FastAPI(
@@ -31,6 +50,7 @@ async def startup():
     # Schema criado pelos scripts SQL em bd_viveiro/init-scripts
     await ensure_default_admin()
     await ensure_demo_especies()
+    await ensure_demo_comprador()
 
 
 @app.get("/")
@@ -107,4 +127,58 @@ app.include_router(
     vendas.router,
     prefix=f"{settings.API_V1_STR}/vendas",
     tags=["vendas"],
+)
+
+app.include_router(
+    arvores_matriz.router,
+    prefix=f"{settings.API_V1_STR}/arvores-matriz",
+    tags=["arvores-matriz"],
+)
+
+app.include_router(
+    coletas_sementes.router,
+    prefix=f"{settings.API_V1_STR}/coletas-sementes",
+    tags=["coletas-sementes"],
+)
+
+app.include_router(
+    lotes_sementes.router,
+    prefix=f"{settings.API_V1_STR}/lotes-sementes",
+    tags=["lotes-sementes"],
+)
+
+app.include_router(
+    testes_sementes.router,
+    prefix=f"{settings.API_V1_STR}/testes-sementes",
+    tags=["testes-sementes"],
+)
+
+app.include_router(
+    semeaduras.router,
+    prefix=f"{settings.API_V1_STR}/semeaduras",
+    tags=["semeaduras"],
+)
+
+app.include_router(
+    coleta_relatorios.router,
+    prefix=f"{settings.API_V1_STR}/coleta-relatorios",
+    tags=["coleta-relatorios"],
+)
+
+app.include_router(
+    dashboard.router,
+    prefix=f"{settings.API_V1_STR}/dashboard",
+    tags=["dashboard"],
+)
+
+app.include_router(
+    lancamentos_financeiros.router,
+    prefix=f"{settings.API_V1_STR}/lancamentos-financeiros",
+    tags=["lancamentos-financeiros"],
+)
+
+app.include_router(
+    estoques.router,
+    prefix=f"{settings.API_V1_STR}/estoques",
+    tags=["estoques"],
 )

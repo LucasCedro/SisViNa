@@ -4,6 +4,8 @@ from app.auth.utils import gerar_senha_hash
 from app.database import AsyncSessionLocal
 from app.models.especies import Especie
 from app.models.funcionarios import Funcionario
+from app.models.compradores import Comprador
+from app.models.compradores import Comprador
 
 DEFAULT_ADMIN = {
     "nome": "Administrador",
@@ -70,5 +72,22 @@ async def ensure_demo_especies() -> None:
                     tempo_crescimento=1095,
                 ),
             ]
+        )
+        await db.commit()
+
+
+async def ensure_demo_comprador() -> None:
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(select(Comprador).limit(1))
+        if result.scalars().first():
+            return
+        db.add(
+            Comprador(
+                tipo="PF",
+                nome="Comprador demonstração",
+                cpf_cnpj="111.444.777-35",
+                email="comprador@demo.local",
+                ativo=True,
+            )
         )
         await db.commit()

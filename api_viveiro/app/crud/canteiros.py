@@ -18,12 +18,18 @@ async def get_canteiro_by_nome(db: AsyncSession, nome: str) -> Optional[Canteiro
     return result.scalars().first()
 
 async def get_canteiros(
-    db: AsyncSession, skip: int = 0, limit: int = 100, ativo: Optional[bool] = None
+    db: AsyncSession,
+    skip: int = 0,
+    limit: int = 100,
+    ativo: Optional[bool] = None,
+    tipo_local: Optional[str] = None,
 ) -> List[Canteiro]:
     query = select(Canteiro)
     
     if ativo is not None:
         query = query.where(Canteiro.ativo == ativo)
+    if tipo_local is not None:
+        query = query.where(Canteiro.tipo_local == tipo_local)
     
     query = query.offset(skip).limit(limit)
     result = await db.execute(query)

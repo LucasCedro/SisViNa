@@ -13,6 +13,7 @@ class Canteiro(Base):
     area_total = Column(Numeric(10, 2))  # em metros quadrados
     localizacao = Column(String(100))
     tipo_solo = Column(String(50))
+    tipo_local = Column(String(20), nullable=False, default="canteiro")
     data_criacao = Column(DateTime, default=func.now())
     ativo = Column(Boolean, default=True)
 

@@ -46,13 +46,13 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                     </svg>
-                    Temperaturas Médias dos Canteiros
+                    Plantas por canteiro (API)
                 </h3>
                 <div class="temp-chart-container">
                     <div v-for="item in temperaturasMedias" :key="item.nome" class="temp-item">
                         <div class="temp-label">{{ item.nome }}</div>
-                        <div class="temp-value" :class="getTemperatureClass(item.temperatura)">
-                            {{ item.temperatura }}°C
+                        <div class="temp-value">
+                            {{ item.temperatura }}
                         </div>
                     </div>
                 </div>
@@ -79,7 +79,7 @@
                             <div class="alert-message">{{ alerta.mensagem }}</div>
                             <div class="alert-time">{{ formatarDataHora(alerta.data) }}</div>
                         </div>
-                        <button @click="removerAlerta(alerta.id)" class="btn-dismiss">
+                        <button type="button" class="btn-dismiss" disabled title="Gerencie em Fitossanidade">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20"
                                 fill="currentColor">
                                 <path fill-rule="evenodd"
@@ -95,16 +95,43 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
-import { useViveiroStore } from '../../store/viveiro';
+import { ref, computed, onMounted } from 'vue'
+import { getDashboardResumo } from '@/services/dashboard'
+import { listPragasPlantas } from '@/services/pragas'
 
-const store = useViveiroStore();
+const resumo = ref({ plantas_por_especie: [], ocupacao_canteiros: [] })
+const alertas = ref([])
 
-// Dados para o dashboard
-const mudaEspecie = computed(() => store.dadosMudasPorEspecie);
-const mediaPermanencia = computed(() => store.metricas.mediaPermanencia);
-const temperaturasMedias = computed(() => store.temperaturasMedias);
-const alertas = computed(() => store.alertasAtivos);
+const mudaEspecie = computed(() =>
+  (resumo.value.plantas_por_especie || []).map((p) => ({
+    especie: p.especie,
+    quantidade: p.quantidade
+  }))
+)
+const mediaPermanencia = computed(() => '—')
+const temperaturasMedias = computed(() =>
+  (resumo.value.ocupacao_canteiros || []).map((c) => ({
+    nome: c.nome,
+    temperatura: c.total_plantas ?? 0
+  }))
+)
+
+onMounted(async () => {
+  try {
+    resumo.value = await getDashboardResumo()
+    const pragas = await listPragasPlantas({ limit: 50 })
+    alertas.value = pragas
+      .filter((p) => ['ALTO', 'CRITICO'].includes(p.nivel_infestacao))
+      .map((p) => ({
+        id: p.id,
+        tipo: 'praga',
+        mensagem: `${p.tipo_praga?.nome || 'Praga'} — ${p.especie_nome} (${p.nivel_infestacao})`,
+        data: p.data_identificacao
+      }))
+  } catch (e) {
+    console.error(e)
+  }
+})
 
 // Máximo de mudas por espécie (para o gráfico de barras)
 const maxMudas = computed(() => {

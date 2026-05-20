@@ -20,6 +20,16 @@ const routes = [
         component: () => import('../views/viveiro/ViveiroView.vue')
     },
     {
+        path: '/producao',
+        name: 'producao',
+        component: () => import('../views/viveiro/ProducaoView.vue')
+    },
+    {
+        path: '/estoques',
+        name: 'estoques',
+        component: () => import('../views/viveiro/EstoquesView.vue')
+    },
+    {
         path: '/viveiro/planta-editor',
         name: 'planta-editor',
         component: () => import('../views/viveiro/PlantaBaixaEditorView.vue')

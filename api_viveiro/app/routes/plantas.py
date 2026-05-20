@@ -4,7 +4,21 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.schemas.plantas import Planta, PlantaCreate, PlantaUpdate, PlantaWithEspecie
+from app.schemas.plantas import (
+    Planta,
+    PlantaCreate,
+    PlantaUpdate,
+    PlantaWithEspecie,
+    EstoqueResumoItem,
+    AtualizarPrecoEspecie,
+)
+from app.schemas.producao import (
+    PromoverMudasRequest,
+    PromoverMudasResponse,
+    PlantaPendenteTransferencia,
+    CadastroLotePlantasRequest,
+    CadastroLotePlantasResponse,
+)
 from app.crud import plantas as crud_plantas
 from app.auth.jwt import get_current_user
 from app.schemas.funcionarios import FuncionarioOut
@@ -56,6 +70,62 @@ async def read_plantas_with_relations(
         status=status
     )
     return plantas
+
+@router.get("/pendentes-transferencia", response_model=List[PlantaPendenteTransferencia])
+async def read_pendentes_transferencia(
+    id_canteiro: Optional[int] = None,
+    id_especie: Optional[int] = None,
+    limit: int = Query(500, le=1000),
+    db: AsyncSession = Depends(get_db),
+    current_user: FuncionarioOut = Depends(get_current_user),
+):
+    return await crud_plantas.get_plantas_pendentes_transferencia(
+        db, id_canteiro=id_canteiro, id_especie=id_especie, limit=limit
+    )
+
+
+@router.post("/promover-mudas", response_model=PromoverMudasResponse)
+async def promover_mudas(
+    body: PromoverMudasRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: FuncionarioOut = Depends(get_current_user),
+):
+    try:
+        return await crud_plantas.promover_mudas(db, body, id_funcionario=current_user.id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+
+@router.post("/cadastro-lote", response_model=CadastroLotePlantasResponse, status_code=201)
+async def cadastro_lote_plantas(
+    body: CadastroLotePlantasRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: FuncionarioOut = Depends(get_current_user),
+):
+    try:
+        return await crud_plantas.cadastro_lote_plantas(db, body)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+
+@router.get("/estoque-resumo", response_model=List[EstoqueResumoItem])
+async def read_estoque_resumo(
+    db: AsyncSession = Depends(get_db),
+    current_user: FuncionarioOut = Depends(get_current_user),
+):
+    return await crud_plantas.get_estoque_resumo(db)
+
+
+@router.patch("/preco-especie/{id_especie}")
+async def patch_preco_especie(
+    id_especie: int,
+    body: AtualizarPrecoEspecie,
+    db: AsyncSession = Depends(get_db),
+    current_user: FuncionarioOut = Depends(get_current_user),
+):
+    n = await crud_plantas.atualizar_preco_especie(db, id_especie, body.preco_venda)
+    return {"atualizadas": n}
+
 
 @router.get("/{planta_id}", response_model=Planta)
 async def read_planta(

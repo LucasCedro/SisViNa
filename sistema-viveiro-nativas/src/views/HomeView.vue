@@ -52,19 +52,23 @@
         <div class="stats-section">
             <div class="stat-card">
                 <h3 class="stat-value">{{ stats.especies }}</h3>
-                <p class="stat-label">Espécies (API)</p>
+                <p class="stat-label">Espécies</p>
             </div>
             <div class="stat-card">
-                <h3 class="stat-value">48</h3>
-                <p class="stat-label">Árvores Matrizes</p>
+                <h3 class="stat-value">{{ stats.matrizes }}</h3>
+                <p class="stat-label">Árvores matrizes</p>
             </div>
             <div class="stat-card">
-                <h3 class="stat-value">5.280</h3>
-                <p class="stat-label">Mudas em Desenvolvimento</p>
+                <h3 class="stat-value">{{ stats.mudas }}</h3>
+                <p class="stat-label">Mudas ativas</p>
             </div>
             <div class="stat-card">
-                <h3 class="stat-value">21</h3>
-                <p class="stat-label">Coletas Realizadas</p>
+                <h3 class="stat-value">{{ stats.coletas }}</h3>
+                <p class="stat-label">Coletas registradas</p>
+            </div>
+            <div class="stat-card">
+                <h3 class="stat-value">{{ stats.vendasMes }}</h3>
+                <p class="stat-label">Vendas pagas (mês)</p>
             </div>
         </div>
     </div>
@@ -73,21 +77,36 @@
 <script setup>
 import { reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { listEspecies } from '../services/especies'
+import { getDashboardResumo } from '../services/dashboard'
 
 const router = useRouter()
-const stats = reactive({ especies: '—' })
+const stats = reactive({
+  especies: '—',
+  matrizes: '—',
+  mudas: '—',
+  coletas: '—',
+  vendasMes: '—'
+})
 
 const navigateTo = (path) => {
     router.push(path)
 }
 
+function fmtMoeda(v) {
+  if (v == null || v === '—') return '—'
+  return `R$ ${Number(v).toLocaleString('pt-BR', { maximumFractionDigits: 0 })}`
+}
+
 onMounted(async () => {
     try {
-        const data = await listEspecies()
-        stats.especies = data.length
+        const d = await getDashboardResumo()
+        stats.especies = d.especies
+        stats.matrizes = d.matrizes
+        stats.mudas = d.mudas_ativas
+        stats.coletas = d.coletas
+        stats.vendasMes = fmtMoeda(d.vendas_mes)
     } catch {
-        stats.especies = '!'
+        Object.keys(stats).forEach((k) => { stats[k] = '!' })
     }
 })
 </script>

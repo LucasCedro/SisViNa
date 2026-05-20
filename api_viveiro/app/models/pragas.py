@@ -1,5 +1,5 @@
 # app/models/pragas.py
-from sqlalchemy import Column, Integer, String, Text, Date, DateTime, Numeric, ForeignKey, Enum, func
+from sqlalchemy import Column, Integer, String, Text, Date, DateTime, Numeric, ForeignKey, func
 from sqlalchemy.orm import relationship
 
 from app.database import Base
@@ -40,7 +40,7 @@ class PragaPlanta(Base):
     id_planta = Column(Integer, ForeignKey("plantas.id"), nullable=False)
     id_tipo_praga = Column(Integer, ForeignKey("tipos_pragas.id"), nullable=False)
     data_identificacao = Column(Date, nullable=False)
-    nivel_infestacao = Column(Enum('BAIXO', 'MEDIO', 'ALTO', 'CRITICO', name='nivel_infestacao'))
+    nivel_infestacao = Column(String(20))
     observacoes = Column(Text)
     data_registro = Column(DateTime, default=func.now())
 

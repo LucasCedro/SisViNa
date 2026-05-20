@@ -1,78 +1,116 @@
 <template>
   <div class="card mapa-card">
-    <h3 class="card-title">
-      <svg xmlns="http://www.w3.org/2000/svg" class="icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-          d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-      </svg>
-      Mapa de Coleta
-    </h3>
-    <div class="mapa-container">
-      <div id="map" ref="mapContainer" class="mapa-content"></div>
+    <div class="mapa-header">
+      <h3 class="card-title">
+        <svg xmlns="http://www.w3.org/2000/svg" class="icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+        Mapa de matrizes
+      </h3>
+      <!-- Contador: edite o texto aqui (linha ~12) -->
+      <!-- <span class="contador">{{ store.matrizesFiltradas.length }} no mapa</span> -->
+    </div>
+
+    <div class="mapa-layout">
+      <div class="mapa-container">
+        <div ref="mapContainer" class="mapa-content"></div>
+      </div>
+
+      <MatrizPainelDetalhe
+        @editar="emit('editar', $event)"
+        @coletar="emit('coletar', $event)"
+        @editar-coleta="emit('editar-coleta', $event)"
+        @teste="emit('teste', $event)"
+        @semeadura="emit('semeadura', $event)"
+      />
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { useColetaStore } from '../../store/coleta'
+import { useColetaStore } from '@/store/coleta'
+import { criarIconeMatriz } from '@/utils/mapaMatriz'
+import MatrizPainelDetalhe from '@/components/coleta/MatrizPainelDetalhe.vue'
+
+const emit = defineEmits(['editar', 'coletar', 'editar-coleta', 'teste', 'semeadura'])
 
 const store = useColetaStore()
 const mapContainer = ref(null)
 let map = null
-const markers = []
+let markersLayer = null
+const iconeArvore = criarIconeMatriz()
+
+function formatarData(data) {
+  if (!data) return '—'
+  return new Date(data).toLocaleDateString('pt-BR')
+}
+
+function localizacao(arvore) {
+  const partes = [arvore.cidade, arvore.estado].filter(Boolean)
+  return partes.length ? partes.join(' / ') : '—'
+}
+
+function popupHtml(arvore) {
+  return `
+    <div class="popup-content">
+      <h3>${arvore.especie_nome || 'Matriz'}</h3>
+      <p><strong>Nome:</strong> ${arvore.nome}</p>
+      <p><strong>Local:</strong> ${localizacao(arvore)}</p>
+      <p><strong>Lat/Lng:</strong> ${arvore.latitude}, ${arvore.longitude}</p>
+      <p><em>Clique para ver detalhes e editar</em></p>
+    </div>
+  `
+}
+
+function atualizarMarcadores() {
+  if (!map || !markersLayer) return
+  markersLayer.clearLayers()
+  const bounds = []
+
+  store.matrizesFiltradas.forEach((arvore) => {
+    const lat = Number(arvore.latitude)
+    const lng = Number(arvore.longitude)
+    if (Number.isNaN(lat) || Number.isNaN(lng)) return
+
+    const marker = L.marker([lat, lng], { icon: iconeArvore })
+    marker.bindPopup(popupHtml(arvore))
+    marker.on('click', () => store.selecionar(arvore))
+    markersLayer.addLayer(marker)
+    bounds.push([lat, lng])
+  })
+
+  if (bounds.length === 1) {
+    map.setView(bounds[0], 12)
+  } else if (bounds.length > 1) {
+    map.fitBounds(bounds, { padding: [40, 40] })
+  }
+}
 
 onMounted(() => {
-  if (mapContainer.value) {
-    // Inicializar o mapa
-    map = L.map(mapContainer.value, {
-      center: [-15.7801, -47.9292], // Brasil central
-      zoom: 4,
-      zoomControl: false
-    })
+  if (!mapContainer.value) return
 
-    // Adicionar o layer de tiles
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-    }).addTo(map)
+  map = L.map(mapContainer.value, {
+    center: [-15.7801, -47.9292],
+    zoom: 4,
+    zoomControl: false
+  })
 
-    // Adicionar controles de zoom
-    L.control.zoom({
-      position: 'topright'
-    }).addTo(map)
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; OpenStreetMap'
+  }).addTo(map)
 
-    // Adicionar marcadores de árvores
-    store.arvoresMatriz.forEach(arvore => {
-      if (arvore.latitude && arvore.longitude) {
-        const marker = L.marker([arvore.latitude, arvore.longitude]).addTo(map)
-
-        // Adicionar popup
-        const popupContent = `
-          <div class="popup-content">
-            <h3>${arvore.especie}</h3>
-            <p><strong>Nome:</strong> ${arvore.nome}</p>
-            <p><strong>Latitude:</strong> ${arvore.latitude}</p>
-            <p><strong>Longitude:</strong> ${arvore.longitude}</p>
-            <p><strong>Sementes Coletadas:</strong> ${arvore.sementes_coletadas}</p>
-            <p><strong>Taxa de Germinação:</strong> ${arvore.taxa_germinacao}%</p>
-          </div>
-        `
-        marker.bindPopup(popupContent)
-        markers.push(marker)
-      }
-    })
-
-    // Ajustar o zoom para mostrar todos os marcadores
-    if (markers.length > 0) {
-      const group = new L.featureGroup(markers)
-      map.fitBounds(group.getBounds().pad(0.1))
-    }
-  }
+  L.control.zoom({ position: 'topright' }).addTo(map)
+  markersLayer = L.layerGroup().addTo(map)
+  atualizarMarcadores()
 })
+
+watch(() => store.matrizesFiltradas, atualizarMarcadores, { deep: true })
 
 onUnmounted(() => {
   if (map) {
@@ -82,9 +120,10 @@ onUnmounted(() => {
 })
 </script>
 
-<style>
+<style scoped>
 .card {
   background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow);
   padding: var(--spacing-lg);
@@ -93,7 +132,14 @@ onUnmounted(() => {
 
 .mapa-card {
   position: relative;
-  height: 600px !important;
+  min-height: 600px;
+}
+
+.mapa-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--spacing-md);
 }
 
 .card-title {
@@ -101,8 +147,7 @@ onUnmounted(() => {
   align-items: center;
   font-size: 1.125rem;
   font-weight: 600;
-  color: var(--color-text-primary);
-  margin-bottom: var(--spacing-md);
+  margin: 0;
 }
 
 .icon {
@@ -111,11 +156,22 @@ onUnmounted(() => {
   margin-right: 0.5rem;
 }
 
+.contador {
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+}
+
+.mapa-layout {
+  display: flex;
+  gap: 1rem;
+  height: calc(600px - 3rem);
+}
+
 .mapa-container {
-  position: relative;
-  height: calc(100% - 3rem);
+  flex: 1;
   border-radius: 0.375rem;
   overflow: hidden;
+  min-height: 0;
 }
 
 .mapa-content {
@@ -123,47 +179,30 @@ onUnmounted(() => {
   height: 100%;
 }
 
-/* Estilos do Leaflet */
-:deep(.leaflet-control-zoom) {
-  margin-top: 10px;
-  margin-right: 10px;
-  border: none;
-}
-
-:deep(.leaflet-control-zoom a) {
-  background-color: white;
-  color: var(--color-text-secondary);
-  border: 1px solid var(--color-border);
-}
-
-:deep(.leaflet-control-zoom a:hover) {
-  background-color: var(--color-background);
-}
-
 :deep(.leaflet-popup-content-wrapper) {
   border-radius: var(--radius-md);
 }
 
-:deep(.leaflet-popup-content) {
-  margin: 0;
-  padding: 1rem;
-  min-width: 200px;
-}
-
-:deep(.leaflet-popup-tip) {
-  background-color: white;
-}
-
 :deep(.popup-content h3) {
   font-weight: 700;
-  font-size: 1rem;
-  color: var(--color-text-primary);
-  margin-bottom: 0.5rem;
+  font-size: 0.9375rem;
+  margin-bottom: 0.35rem;
 }
 
 :deep(.popup-content p) {
-  font-size: 0.875rem;
-  color: var(--color-text-secondary);
-  margin-bottom: 0.25rem;
+  font-size: 0.8125rem;
+  margin: 0.15rem 0;
+}
+
+@media (max-width: 900px) {
+  .mapa-layout {
+    flex-direction: column;
+    height: auto;
+  }
+
+  .mapa-container {
+    height: 420px;
+  }
+
 }
 </style>

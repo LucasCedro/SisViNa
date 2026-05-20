@@ -1,5 +1,5 @@
 # app/models/vendas.py
-from sqlalchemy import Column, Integer, String, Text, Date, DateTime, Numeric, ForeignKey, Enum, func
+from sqlalchemy import Column, Integer, String, Text, Date, DateTime, Numeric, ForeignKey, func
 from sqlalchemy.orm import relationship
 
 from app.database import Base
@@ -13,7 +13,7 @@ class Venda(Base):
     data_venda = Column(DateTime, nullable=False)
     valor_total = Column(Numeric(10, 2), nullable=False)
     forma_pagamento = Column(String(20))
-    status = Column(Enum('PENDENTE', 'PAGO', 'CANCELADO', name='status_venda'))
+    status = Column(String(20))
     observacoes = Column(Text)
     data_registro = Column(DateTime, default=func.now())
 

@@ -1,0 +1,62 @@
+import api from './api'
+
+const API_V1 = '/api/v1'
+
+export async function listPlantas(params = {}) {
+  const { data } = await api.get(`${API_V1}/plantas/`, { params })
+  return data
+}
+
+export async function listPlantasComRelacoes(params = {}) {
+  const { data } = await api.get(`${API_V1}/plantas/with-relations`, { params })
+  return data
+}
+
+export async function getEstoqueResumo() {
+  const { data } = await api.get(`${API_V1}/plantas/estoque-resumo`)
+  return data
+}
+
+export async function atualizarPrecoEspecie(idEspecie, precoVenda) {
+  const { data } = await api.patch(`${API_V1}/plantas/preco-especie/${idEspecie}`, {
+    preco_venda: precoVenda
+  })
+  return data
+}
+
+export async function createPlanta(payload) {
+  const { data } = await api.post(`${API_V1}/plantas/`, payload)
+  return data
+}
+
+export async function createPlantasBulk(payload, quantidade) {
+  const { data } = await api.post(`${API_V1}/plantas/bulk`, payload, {
+    params: { quantidade }
+  })
+  return data
+}
+
+export async function updatePlanta(id, payload) {
+  const { data } = await api.put(`${API_V1}/plantas/${id}`, payload)
+  return data
+}
+
+export async function deletePlanta(id) {
+  const { data } = await api.delete(`${API_V1}/plantas/${id}`)
+  return data
+}
+
+export async function listPendentesTransferencia(params = {}) {
+  const { data } = await api.get(`${API_V1}/plantas/pendentes-transferencia`, { params })
+  return data
+}
+
+export async function promoverMudas(payload) {
+  const { data } = await api.post(`${API_V1}/plantas/promover-mudas`, payload)
+  return data
+}
+
+export async function cadastroLotePlantas(payload) {
+  const { data } = await api.post(`${API_V1}/plantas/cadastro-lote`, payload)
+  return data
+}

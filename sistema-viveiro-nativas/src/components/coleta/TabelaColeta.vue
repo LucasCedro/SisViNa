@@ -5,34 +5,55 @@
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
           d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
       </svg>
-      Dados de Coleta
+      Árvores matrizes
     </h3>
     <div class="tabela-container">
       <table class="tabela">
         <thead>
           <tr>
             <th>Espécie</th>
-            <th>Nome da Árvore</th>
-            <th>Sementes Coletadas</th>
-            <th>Taxa de Germinação</th>
-            <th>Tempo de Armazenamento</th>
-            <th>Data da Coleta</th>
-            <th>Observações</th>
+            <th>Nome</th>
+            <th>Cidade / UF</th>
+            <th>Coordenadas</th>
+            <th>Sementes</th>
+            <th>Germinação</th>
+            <th>Última coleta</th>
+            <th>Ações</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="arvore in store.arvoresMatriz" :key="arvore.id">
-            <td>{{ arvore.especie }}</td>
+          <tr
+            v-for="arvore in store.matrizesFiltradas"
+            :key="arvore.id"
+            class="linha-clicavel"
+            :class="{ selecionada: store.matrizSelecionada?.id === arvore.id }"
+            @click="store.selecionar(arvore)"
+          >
+            <td>{{ arvore.especie_nome || '—' }}</td>
             <td>{{ arvore.nome }}</td>
-            <td>{{ arvore.sementes_coletadas }}</td>
-            <td>{{ arvore.taxa_germinacao }}%</td>
-            <td>{{ calcularTempoArmazenamento(arvore.data_coleta) }}</td>
-            <td>{{ formatarData(arvore.data_coleta) }}</td>
-            <td>{{ arvore.observacoes || '-' }}</td>
+            <td>{{ local(arvore) }}</td>
+            <td class="coord">{{ arvore.latitude }}, {{ arvore.longitude }}</td>
+            <td>{{ arvore.sementes_coletadas ?? 0 }}</td>
+            <td>{{ arvore.taxa_germinacao != null ? `${arvore.taxa_germinacao}%` : '—' }}</td>
+            <td>{{ formatarData(arvore.data_ultima_coleta) }}</td>
+            <td class="acoes">
+              <button type="button" class="btn-coletar" title="Registrar coleta" @click.stop="emit('coletar', arvore)">
+                Coleta
+              </button>
+              <button type="button" class="btn-editar" title="Editar" @click.stop="emit('editar', arvore)">
+                Editar
+              </button>
+              <button type="button" class="btn-excluir" title="Excluir" @click.stop="excluir(arvore)">×</button>
+            </td>
           </tr>
-          <tr v-if="store.arvoresMatriz.length === 0">
-            <td colspan="7" class="text-center py-4 text-gray-500">
-              Nenhum dado de coleta disponível
+          <tr v-if="!store.carregando && store.matrizesFiltradas.length === 0">
+            <td colspan="8" class="vazio">
+              <template v-if="store.temFiltroAtivo">
+                Nenhuma matriz com os filtros atuais.
+              </template>
+              <template v-else>
+                Nenhuma matriz cadastrada. Use «Cadastrar matriz».
+              </template>
             </td>
           </tr>
         </tbody>
@@ -42,31 +63,35 @@
 </template>
 
 <script setup>
-import { useColetaStore } from '../../store/coleta'
+import { useColetaStore } from '@/store/coleta'
 
+const emit = defineEmits(['editar', 'coletar'])
 const store = useColetaStore()
 
-const formatarData = (data) => {
-  if (!data) return '-'
+function formatarData(data) {
+  if (!data) return '—'
   return new Date(data).toLocaleDateString('pt-BR')
 }
 
-const calcularTempoArmazenamento = (dataColeta) => {
-  if (!dataColeta) return '-'
+function local(arvore) {
+  const p = [arvore.cidade, arvore.estado].filter(Boolean)
+  return p.length ? p.join(' / ') : '—'
+}
 
-  const hoje = new Date()
-  const coleta = new Date(dataColeta)
-  const diff = Math.floor((hoje - coleta) / (1000 * 60 * 60 * 24))
-
-  if (diff < 30) return `${diff} dias`
-  if (diff < 365) return `${Math.floor(diff / 30)} meses`
-  return `${Math.floor(diff / 365)} anos`
+async function excluir(arvore) {
+  if (!confirm(`Excluir matriz "${arvore.nome}"?`)) return
+  try {
+    await store.remover(arvore.id)
+  } catch (e) {
+    alert(e.response?.data?.detail || 'Erro ao excluir')
+  }
 }
 </script>
 
-<style>
+<style scoped>
 .card {
   background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow);
   padding: var(--spacing-lg);
@@ -78,7 +103,6 @@ const calcularTempoArmazenamento = (dataColeta) => {
   align-items: center;
   font-size: 1.125rem;
   font-weight: 600;
-  color: var(--color-text-primary);
   margin-bottom: var(--spacing-md);
 }
 
@@ -113,24 +137,64 @@ const calcularTempoArmazenamento = (dataColeta) => {
 .tabela td {
   padding: var(--spacing-md);
   font-size: 0.875rem;
-  color: var(--color-text-primary);
   border-bottom: 1px solid var(--color-border);
 }
 
-.tabela tbody tr:last-child td {
-  border-bottom: none;
+.coord {
+  font-family: ui-monospace, monospace;
+  font-size: 0.75rem;
 }
 
-.tabela tbody tr:hover {
+.linha-clicavel {
+  cursor: pointer;
+}
+
+.linha-clicavel:hover,
+.linha-clicavel.selecionada {
   background-color: var(--color-background);
 }
 
-@media (max-width: 768px) {
+.acoes {
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+}
 
-  .tabela th,
-  .tabela td {
-    padding: var(--spacing-sm);
-    font-size: 0.75rem;
-  }
+.btn-coletar,
+.btn-editar {
+  border: none;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-coletar {
+  background: #fff3e0;
+  color: #e65100;
+}
+
+.btn-editar {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.btn-excluir {
+  border: none;
+  background: #fee2e2;
+  color: #b91c1c;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1.125rem;
+  line-height: 1;
+}
+
+.vazio {
+  text-align: center;
+  color: var(--color-text-secondary);
+  padding: 2rem !important;
 }
 </style>

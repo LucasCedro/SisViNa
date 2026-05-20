@@ -68,13 +68,30 @@
         <form @submit.prevent="salvarMuda" class="formulario-muda">
           <div class="form-row">
             <div class="form-group">
-              <label for="nome-popular">Nome Popular:</label>
-              <input type="text" id="nome-popular" v-model="formMuda.nomePopular" required>
+              <label for="especie">Espécie:</label>
+              <select id="especie" v-model.number="formMuda.id_especie" required>
+                <option value="">Selecione</option>
+                <option v-for="e in especies" :key="e.id" :value="e.id">
+                  {{ e.nome_popular || e.nome_cientifico }}
+                </option>
+              </select>
             </div>
-            
             <div class="form-group">
-              <label for="nome-cientifico">Nome Científico:</label>
-              <input type="text" id="nome-cientifico" v-model="formMuda.nomeCientifico" required>
+              <label for="status">Status:</label>
+              <select id="status" v-model="formMuda.status" required @change="filtrarCanteiros">
+                <option value="SEMENTE">Semente</option>
+                <option value="MUDA">Muda</option>
+                <option value="JOVEM">Jovem</option>
+                <option value="ADULTA">Adulta</option>
+              </select>
+            </div>
+            <div v-if="!modoEdicao" class="form-group">
+              <label for="origem">Origem:</label>
+              <select id="origem" v-model="formMuda.origem">
+                <option value="compra">Compra / estoque inicial</option>
+                <option value="doacao">Doação</option>
+                <option value="ajuste">Ajuste de inventário</option>
+              </select>
             </div>
           </div>
           
@@ -86,10 +103,10 @@
             
             <div class="form-group">
               <label for="canteiro">Canteiro:</label>
-              <select id="canteiro" v-model="formMuda.canteiro" required>
-                <option value="">Selecione um canteiro</option>
-                <option v-for="canteiro in canteiros" :key="canteiro.id" :value="canteiro.nome">
-                  {{ canteiro.nome }}
+              <select id="canteiro" v-model.number="formMuda.id_canteiro" required>
+                <option value="">Selecione</option>
+                <option v-for="canteiro in canteirosFiltrados" :key="canteiro.id" :value="canteiro.id">
+                  {{ canteiro.nome }} ({{ canteiro.tipo_local }})
                 </option>
               </select>
             </div>
@@ -175,175 +192,158 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue'
+import { listEspecies } from '@/services/especies'
+import { listCanteiros } from '@/services/canteiros'
+import {
+  listPlantasComRelacoes,
+  cadastroLotePlantas,
+  updatePlanta
+} from '@/services/plantas'
 
-// Lista de canteiros (mock)
-const canteiros = ref([
-  { id: 1, nome: 'Canteiro A1' },
-  { id: 2, nome: 'Canteiro A2' },
-  { id: 3, nome: 'Canteiro B1' },
-  { id: 4, nome: 'Canteiro B2' },
-  { id: 5, nome: 'Canteiro C1' },
-  { id: 6, nome: 'Canteiro C2' }
-]);
+const STATUS_MAP = {
+  SEMENTE: 'Emergência',
+  MUDA: 'Crescimento',
+  JOVEM: 'Rustificação',
+  ADULTA: 'Adulta'
+}
 
-// Dados de mudas (mock)
-const mudas = ref([
-  {
-    id: 1,
-    nomePopular: 'Ipê Amarelo',
-    nomeCientifico: 'Handroanthus albus',
-    dataSemeadura: '2023-08-15',
-    canteiro: 'Canteiro A1',
-    quantidade: 50,
-    tamanho: 'Pequena',
-    substrato: 'Terra vegetal com vermiculita',
-    procedencia: 'Árvore Matriz',
-    taxaGerminacao: 75,
-    estagio: 'Emergência',
-    observacoes: 'Primeiras folhas começando a aparecer',
-    imagem: 'https://via.placeholder.com/200x150?text=Ipe+Amarelo'
-  },
-  {
-    id: 2,
-    nomePopular: 'Jatobá',
-    nomeCientifico: 'Hymenaea courbaril',
-    dataSemeadura: '2023-07-10',
-    canteiro: 'Canteiro B2',
-    quantidade: 30,
-    tamanho: 'Média',
-    substrato: 'Substrato florestal',
-    procedencia: 'Lote',
-    taxaGerminacao: 60,
-    estagio: 'Crescimento',
-    observacoes: 'Desenvolvimento rápido após quebra de dormência',
-    imagem: 'https://via.placeholder.com/200x150?text=Jatoba'
-  },
-  {
-    id: 3,
-    nomePopular: 'Peroba Rosa',
-    nomeCientifico: 'Aspidosperma polyneuron',
-    dataSemeadura: '2023-06-05',
-    canteiro: 'Canteiro C1',
-    quantidade: 40,
-    tamanho: 'Grande',
-    substrato: 'Terra vegetal com casca de pinus',
-    procedencia: 'Fornecedor',
-    taxaGerminacao: 80,
-    estagio: 'Rustificação',
-    observacoes: 'Pronta para transplante em breve',
-    imagem: 'https://via.placeholder.com/200x150?text=Peroba+Rosa'
-  }
-]);
+const canteiros = ref([])
+const canteirosFiltrados = ref([])
+const especies = ref([])
+const mudas = ref([])
 
-// Estado do modal
-const modalAberto = ref(false);
-const modoEdicao = ref(false);
-const imagemPreview = ref(null);
+const modalAberto = ref(false)
+const modoEdicao = ref(false)
 
-// Formulário
 const formMuda = ref({
   id: null,
-  nomePopular: '',
-  nomeCientifico: '',
+  id_especie: '',
+  id_canteiro: '',
   dataSemeadura: '',
-  canteiro: '',
-  quantidade: 0,
-  tamanho: 'Pequena',
-  substrato: '',
-  procedencia: 'Árvore Matriz',
-  taxaGerminacao: 70,
-  estagio: 'Emergência',
-  observacoes: '',
-  imagem: ''
-});
+  quantidade: 1,
+  status: 'MUDA',
+  origem: 'compra',
+  observacoes: ''
+})
 
-// Funções
+function filtrarCanteiros() {
+  const tipo = formMuda.value.status === 'SEMENTE' ? 'sementeira' : 'canteiro'
+  canteirosFiltrados.value = canteiros.value.filter((c) => c.tipo_local === tipo)
+  if (
+    formMuda.value.id_canteiro &&
+    !canteirosFiltrados.value.some((c) => c.id === formMuda.value.id_canteiro)
+  ) {
+    formMuda.value.id_canteiro = canteirosFiltrados.value[0]?.id || ''
+  }
+}
+
+function mapPlanta(p) {
+  const parts = (p.especie_nome || '').split(' ')
+  return {
+    id: p.id,
+    nomePopular: parts[0] || p.especie_nome,
+    nomeCientifico: p.especie_nome,
+    dataSemeadura: p.data_plantio,
+    canteiro: p.nome_canteiro || '—',
+    quantidade: 1,
+    tamanho: p.status,
+    estagio: STATUS_MAP[p.status] || p.status,
+    taxaGerminacao: '—',
+    observacoes: p.observacoes || '',
+    id_especie: p.id_especie,
+    id_canteiro: p.id_canteiro,
+    status: p.status
+  }
+}
+
+async function carregar() {
+  const [pl, esp, cant] = await Promise.all([
+    listPlantasComRelacoes({ limit: 500 }),
+    listEspecies(),
+    listCanteiros({ ativo: true })
+  ])
+  mudas.value = pl.filter((p) => !['VENDIDA', 'MORTA'].includes(p.status)).map(mapPlanta)
+  especies.value = esp
+  canteiros.value = cant
+  filtrarCanteiros()
+}
+
+onMounted(carregar)
+
 function abrirModalCadastro() {
-  modoEdicao.value = false;
-  resetarFormulario();
-  modalAberto.value = true;
+  modoEdicao.value = false
+  resetarFormulario()
+  modalAberto.value = true
 }
 
 function editarMuda(muda) {
-  modoEdicao.value = true;
-  formMuda.value = { ...muda };
-  if (muda.imagem) {
-    imagemPreview.value = muda.imagem;
-  } else {
-    imagemPreview.value = null;
+  modoEdicao.value = true
+  formMuda.value = {
+    id: muda.id,
+    id_especie: muda.id_especie,
+    id_canteiro: muda.id_canteiro || '',
+    dataSemeadura: muda.dataSemeadura,
+    quantidade: 1,
+    status: muda.status,
+    observacoes: muda.observacoes
   }
-  modalAberto.value = true;
+  modalAberto.value = true
 }
 
 function fecharModal() {
-  modalAberto.value = false;
+  modalAberto.value = false
 }
 
 function resetarFormulario() {
   formMuda.value = {
     id: null,
-    nomePopular: '',
-    nomeCientifico: '',
+    id_especie: especies.value[0]?.id || '',
+    id_canteiro: canteiros.value[0]?.id || '',
     dataSemeadura: formatarDataAtual(),
-    canteiro: '',
-    quantidade: 0,
-    tamanho: 'Pequena',
-    substrato: '',
-    procedencia: 'Árvore Matriz',
-    taxaGerminacao: 70,
-    estagio: 'Emergência',
-    observacoes: '',
-    imagem: ''
-  };
-  imagemPreview.value = null;
-}
-
-function salvarMuda() {
-  if (modoEdicao.value) {
-    // Atualizar muda existente
-    const index = mudas.value.findIndex(m => m.id === formMuda.value.id);
-    if (index !== -1) {
-      mudas.value[index] = {
-        ...formMuda.value,
-        imagem: imagemPreview.value || formMuda.value.imagem
-      };
-    }
-  } else {
-    // Adicionar nova muda
-    const novoId = mudas.value.length > 0
-      ? Math.max(...mudas.value.map(m => m.id)) + 1
-      : 1;
-    
-    mudas.value.push({
-      ...formMuda.value,
-      id: novoId,
-      imagem: imagemPreview.value || 'https://via.placeholder.com/200x150?text=Sem+Imagem'
-    });
+    quantidade: 1,
+    status: 'MUDA',
+    origem: 'compra',
+    observacoes: ''
   }
-  
-  fecharModal();
+  filtrarCanteiros()
 }
 
-function previewImagem(event) {
-  const file = event.target.files[0];
-  if (file) {
-    const reader = new FileReader();
-    reader.onload = e => {
-      imagemPreview.value = e.target.result;
-    };
-    reader.readAsDataURL(file);
+async function salvarMuda() {
+  try {
+    if (modoEdicao.value) {
+      await updatePlanta(formMuda.value.id, {
+        id_especie: Number(formMuda.value.id_especie),
+        id_canteiro: formMuda.value.id_canteiro ? Number(formMuda.value.id_canteiro) : null,
+        data_plantio: formMuda.value.dataSemeadura,
+        status: formMuda.value.status,
+        observacoes: formMuda.value.observacoes
+      })
+    } else {
+      await cadastroLotePlantas({
+        id_especie: Number(formMuda.value.id_especie),
+        id_canteiro: Number(formMuda.value.id_canteiro),
+        quantidade: Number(formMuda.value.quantidade),
+        data_plantio: formMuda.value.dataSemeadura,
+        status: formMuda.value.status,
+        origem: formMuda.value.origem,
+        observacoes: formMuda.value.observacoes
+      })
+    }
+    fecharModal()
+    await carregar()
+  } catch (e) {
+    alert(e.response?.data?.detail || 'Erro ao salvar muda.')
   }
 }
 
 function formatarData(dataString) {
-  const data = new Date(dataString);
-  return data.toLocaleDateString('pt-BR');
+  if (!dataString) return '—'
+  return new Date(dataString + (String(dataString).includes('T') ? '' : 'T12:00:00')).toLocaleDateString('pt-BR')
 }
 
 function formatarDataAtual() {
-  const hoje = new Date();
-  return hoje.toISOString().substr(0, 10); // Formato YYYY-MM-DD
+  return new Date().toISOString().substr(0, 10)
 }
 </script>
 
