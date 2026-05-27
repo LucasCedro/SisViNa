@@ -171,19 +171,19 @@ async function excluir(arvore) {
 }
 
 .btn-coletar {
-  background: #fff3e0;
-  color: #e65100;
+  background: var(--color-attention-bg);
+  color: var(--color-complement-dark);
 }
 
 .btn-editar {
-  background: #e8f5e9;
-  color: #2e7d32;
+  background: var(--color-success-bg);
+  color: var(--color-success);
 }
 
 .btn-excluir {
   border: none;
-  background: #fee2e2;
-  color: #b91c1c;
+  background: var(--color-error-bg);
+  color: var(--color-error);
   width: 1.75rem;
   height: 1.75rem;
   border-radius: 4px;

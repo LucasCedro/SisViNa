@@ -157,7 +157,7 @@ async function salvar() {
   padding: 1rem;
 }
 .modal-card {
-  background: #fff;
+  background: var(--color-surface);
   border-radius: 12px;
   width: 100%;
   max-width: 520px;
@@ -168,7 +168,7 @@ async function salvar() {
   display: flex;
   justify-content: space-between;
   padding: 1rem 1.25rem;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--color-border);
 }
 .modal-header h2 {
   margin: 0;
@@ -189,7 +189,7 @@ async function salvar() {
   font-size: 0.875rem;
 }
 .rastreio {
-  color: #6b7280;
+  color: var(--color-text-muted);
   margin-bottom: 1rem;
 }
 .field-row {
@@ -210,7 +210,7 @@ async function salvar() {
 .field textarea {
   font-weight: 400;
   padding: 0.5rem;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--color-border);
   border-radius: 6px;
 }
 .check {
@@ -233,14 +233,14 @@ async function salvar() {
   cursor: pointer;
 }
 .btn-sec {
-  background: #f3f4f6;
+  background: var(--color-surface-muted);
 }
 .btn-prim {
-  background: #6ca234;
-  color: #fff;
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
   font-weight: 600;
 }
 .erro {
-  color: #b91c1c;
+  color: var(--color-error);
 }
 </style>

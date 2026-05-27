@@ -15,19 +15,19 @@
         <!-- Legenda -->
         <div class="legenda">
             <div class="legenda-item">
-                <div class="cor-amostra" style="background-color: #8BC34A;"></div>
+                <div class="cor-amostra" style="background-color: #596247;"></div>
                 <span>Canteiro</span>
             </div>
             <div class="legenda-item">
-                <div class="cor-amostra" style="background-color: #FF9800;"></div>
+                <div class="cor-amostra" style="background-color: #C8A84B;"></div>
                 <span>Sementeira</span>
             </div>
             <div class="legenda-item">
-                <div class="cor-amostra" style="background-color: #FFEB3B;"></div>
+                <div class="cor-amostra" style="background-color: #A4B39A;"></div>
                 <span>Área de Trabalho</span>
             </div>
             <div class="legenda-item">
-                <div class="cor-amostra" style="background-color: #9E9E9E;"></div>
+                <div class="cor-amostra" style="background-color: #8E9089;"></div>
                 <span>Armazenamento</span>
             </div>
         </div>
@@ -75,17 +75,17 @@ const selecionarElemento = (elementoId) => {
 .planta-baixa-container {
     width: 100%;
     overflow: auto;
-    background-color: #f8f8f8;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    padding: 16px;
+    background-color: var(--color-surface-muted);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow);
+    padding: var(--spacing-md);
 }
 
 .planta-baixa {
     position: relative;
     margin: 0 auto;
-    background-color: #ffffff;
-    border: 1px solid #e0e0e0;
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
 }
 
 .elemento {
@@ -109,7 +109,7 @@ const selecionarElemento = (elementoId) => {
 }
 
 .elemento.selecionado {
-    box-shadow: 0 0 0 3px #1976D2, 0 4px 8px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 0 0 3px var(--color-info), 0 4px 8px rgba(0, 0, 0, 0.2);
     z-index: 10;
 }
 
@@ -126,8 +126,8 @@ const selecionarElemento = (elementoId) => {
     right: 8px;
     width: 20px;
     height: 20px;
-    background-color: #f44336;
-    color: white;
+    background-color: var(--color-error);
+    color: var(--color-text-inverse);
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -160,7 +160,7 @@ const selecionarElemento = (elementoId) => {
     gap: 16px;
     margin-top: 16px;
     padding: 8px;
-    background-color: white;
+    background-color: var(--color-text-inverse);
     border-radius: 4px;
 }
 

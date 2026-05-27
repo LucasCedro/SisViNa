@@ -7,6 +7,8 @@ from app.models.funcionarios import Funcionario
 from app.models.compradores import Comprador
 from app.models.compradores import Comprador
 
+ALL_PERFIS = ["admin", "gestor", "campo", "financeiro", "rh", "consulta"]
+
 DEFAULT_ADMIN = {
     "nome": "Administrador",
     "cpf": "000.000.000-00",
@@ -14,6 +16,7 @@ DEFAULT_ADMIN = {
     "senha_plana": "Admin@123",
     "cargo": "Administrador",
     "email": "admin@viveiro.com",
+    "perfis": ALL_PERFIS,
 }
 
 
@@ -22,7 +25,11 @@ async def ensure_default_admin() -> None:
         result = await db.execute(
             select(Funcionario).where(Funcionario.usuario == DEFAULT_ADMIN["usuario"])
         )
-        if result.scalars().first():
+        admin = result.scalars().first()
+        if admin:
+            if not admin.perfis:
+                admin.perfis = list(ALL_PERFIS)
+                await db.commit()
             return
 
         db.add(
@@ -33,6 +40,7 @@ async def ensure_default_admin() -> None:
                 senha=gerar_senha_hash(DEFAULT_ADMIN["senha_plana"]),
                 cargo=DEFAULT_ADMIN["cargo"],
                 email=DEFAULT_ADMIN["email"],
+                perfis=list(ALL_PERFIS),
                 ativo=True,
             )
         )

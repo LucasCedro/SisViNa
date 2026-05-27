@@ -1,7 +1,5 @@
 <template>
   <div class="prescricao-container">
-    <h1 class="page-title">Prescrição Técnica</h1>
-    
     <div class="instrucao-card">
       <div class="instrucao-header">
         <svg xmlns="http://www.w3.org/2000/svg" class="icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -10,13 +8,12 @@
         <h3>Como funciona</h3>
       </div>
       <p>
-        Este módulo fornece recomendações técnicas para fertilização e controle fitossanitário 
-        das principais espécies nativas. Selecione uma espécie da lista e clique em "Gerar prescrição" 
-        para visualizar as recomendações específicas para cada fase do desenvolvimento.
+        Consulte os dados cadastrados de cada espécie (germinação, crescimento, descrição técnica).
+        Selecione uma espécie e clique em "Ver ficha" para gerar o PDF com as informações do banco.
       </p>
       <p class="disclaimer">
-        <strong>Nota:</strong> Estas prescrições são baseadas em dados gerais e literatura técnica. 
-        Para casos específicos ou problemas graves, consulte um engenheiro florestal ou agrônomo.
+        <strong>Nota:</strong> Campos de prescrição detalhada (adubação por fase, fitossanidade) devem ser
+        cadastrados na espécie no banco. Enquanto não houver, a ficha exibe apenas os dados disponíveis.
       </p>
     </div>
 
@@ -37,8 +34,10 @@
       </div>
     </div>
 
+    <p v-if="carregando" class="status-msg">Carregando espécies...</p>
+
     <!-- Lista de espécies -->
-    <div class="especies-grid">
+    <div v-else class="especies-grid">
       <div v-for="especie in especiesFiltradas" :key="especie.id" class="especie-card">
         <div class="especie-header">
           <h3 class="especie-nome">{{ especie.nome }}</h3>
@@ -49,17 +48,17 @@
             <span class="info-label">Família:</span>
             <span class="info-value">{{ especie.familia }}</span>
           </div>
-          <div class="info-item">
-            <span class="info-label">Bioma:</span>
-            <span class="info-value">{{ especie.bioma }}</span>
+          <div v-if="especie.tempoGerminacao" class="info-item">
+            <span class="info-label">Germinação:</span>
+            <span class="info-value">~{{ especie.tempoGerminacao }} dias</span>
           </div>
-          <div class="info-item">
-            <span class="info-label">Ciclo de vida:</span>
-            <span class="info-value">{{ especie.cicloViveiro }} dias no viveiro</span>
+          <div v-if="especie.tempoCrescimento" class="info-item">
+            <span class="info-label">Crescimento no viveiro:</span>
+            <span class="info-value">~{{ especie.tempoCrescimento }} dias</span>
           </div>
         </div>
         <button class="gerar-prescricao-btn" @click="selecionarEspecie(especie)">
-          Gerar prescrição
+          Ver ficha
         </button>
       </div>
     </div>
@@ -79,133 +78,36 @@
             <p class="prescricao-data">Data: {{ dataAtual }}</p>
           </div>
 
-          <!-- Informações da espécie -->
           <div class="prescricao-section">
-            <h3 class="section-titulo">
-              <svg xmlns="http://www.w3.org/2000/svg" class="section-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              Informações da Espécie
-            </h3>
+            <h3 class="section-titulo">Dados cadastrados</h3>
             <div class="info-grid">
               <div class="info-item">
                 <span class="info-label">Família:</span>
-                <span class="info-value">{{ especieSelecionada?.familia }}</span>
+                <span class="info-value">{{ especieSelecionada?.familia || '—' }}</span>
               </div>
               <div class="info-item">
-                <span class="info-label">Bioma:</span>
-                <span class="info-value">{{ especieSelecionada?.bioma }}</span>
+                <span class="info-label">Tempo de germinação:</span>
+                <span class="info-value">
+                  {{ especieSelecionada?.tempoGerminacao != null ? `${especieSelecionada.tempoGerminacao} dias` : '—' }}
+                </span>
               </div>
               <div class="info-item">
-                <span class="info-label">Ciclo no viveiro:</span>
-                <span class="info-value">{{ especieSelecionada?.cicloViveiro }} dias</span>
+                <span class="info-label">Tempo de crescimento:</span>
+                <span class="info-value">
+                  {{ especieSelecionada?.tempoCrescimento != null ? `${especieSelecionada.tempoCrescimento} dias` : '—' }}
+                </span>
               </div>
               <div class="info-item">
-                <span class="info-label">Exigência nutricional:</span>
-                <span class="info-value">{{ especieSelecionada?.exigenciaNutricional }}</span>
+                <span class="info-label">Altura máxima:</span>
+                <span class="info-value">
+                  {{ especieSelecionada?.alturaMaxima != null ? `${especieSelecionada.alturaMaxima} m` : '—' }}
+                </span>
               </div>
-              <div class="info-item">
-                <span class="info-label">Sensibilidade a pragas:</span>
-                <span class="info-value">{{ especieSelecionada?.sensibilidadePragas }}</span>
+              <div class="info-item full-width">
+                <span class="info-label">Descrição / prescrição:</span>
+                <span class="info-value">{{ especieSelecionada?.descricao || 'Nenhuma prescrição cadastrada para esta espécie.' }}</span>
               </div>
             </div>
-          </div>
-
-          <!-- Recomendações de fertilização -->
-          <div class="prescricao-section">
-            <h3 class="section-titulo">
-              <svg xmlns="http://www.w3.org/2000/svg" class="section-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
-              </svg>
-              Recomendações de Fertilização
-            </h3>
-            
-            <div v-if="especieSelecionada?.fertilizacao">
-              <div v-for="(fase, index) in especieSelecionada.fertilizacao" :key="index" class="fase-card">
-                <h4 class="fase-titulo">{{ fase.estagio }}</h4>
-                <div class="fase-info">
-                  <div class="info-item full-width">
-                    <span class="info-label">Fertilizante recomendado:</span>
-                    <span class="info-value">{{ fase.fertilizante }}</span>
-                  </div>
-                  <div class="info-item">
-                    <span class="info-label">Dose:</span>
-                    <span class="info-value">{{ fase.dose }}</span>
-                  </div>
-                  <div class="info-item">
-                    <span class="info-label">Frequência:</span>
-                    <span class="info-value">{{ fase.frequencia }}</span>
-                  </div>
-                  <div class="info-item full-width">
-                    <span class="info-label">Observações:</span>
-                    <span class="info-value">{{ fase.observacoes }}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Recomendações fitossanitárias -->
-          <div class="prescricao-section">
-            <h3 class="section-titulo">
-              <svg xmlns="http://www.w3.org/2000/svg" class="section-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-              </svg>
-              Recomendações Fitossanitárias
-            </h3>
-            
-            <div v-if="especieSelecionada?.fitossanidade">
-              <div class="fitossanidade-card">
-                <h4>Condições ideais de cultivo</h4>
-                <div class="info-item">
-                  <span class="info-label">Temperatura:</span>
-                  <span class="info-value">{{ especieSelecionada.fitossanidade.temperatura }}</span>
-                </div>
-                <div class="info-item">
-                  <span class="info-label">Umidade:</span>
-                  <span class="info-value">{{ especieSelecionada.fitossanidade.umidade }}</span>
-                </div>
-                <div class="info-item">
-                  <span class="info-label">Sombreamento:</span>
-                  <span class="info-value">{{ especieSelecionada.fitossanidade.sombreamento }}</span>
-                </div>
-              </div>
-
-              <div class="fitossanidade-card">
-                <h4>Monitoramento e Prevenção</h4>
-                <div class="info-item full-width">
-                  <span class="info-label">Periodicidade:</span>
-                  <span class="info-value">{{ especieSelecionada.fitossanidade.periodicidadeMonitoramento }}</span>
-                </div>
-                <div class="info-item full-width">
-                  <span class="info-label">Medidas preventivas:</span>
-                  <ul class="medidas-lista">
-                    <li v-for="(medida, i) in especieSelecionada.fitossanidade.medidasPreventivas" :key="i">
-                      {{ medida }}
-                    </li>
-                  </ul>
-                </div>
-              </div>
-
-              <div class="fitossanidade-card">
-                <h4>Problemas mais comuns</h4>
-                <div v-for="(problema, i) in especieSelecionada.fitossanidade.problemasComuns" :key="i" class="problema-item">
-                  <h5>{{ problema.nome }}</h5>
-                  <p>{{ problema.descricao }}</p>
-                  <div class="info-item full-width">
-                    <span class="info-label">Tratamento recomendado:</span>
-                    <span class="info-value">{{ problema.tratamento }}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Notas e observações gerais -->
-          <div class="prescricao-section">
-            <h3 class="section-titulo">Notas Adicionais</h3>
-            <p>As recomendações acima são baseadas em informações técnicas gerais para a espécie. Ajustes podem ser necessários conforme as condições específicas do seu viveiro, incluindo tipo de solo, clima local e estágio de desenvolvimento das mudas.</p>
-            <p>Para aplicação de defensivos, sempre utilize EPI adequado e siga as instruções do fabricante.</p>
           </div>
         </div>
 
@@ -236,20 +138,27 @@ const especieSelecionada = ref(null);
 // Formatação da data atual
 const dataAtual = new Date().toLocaleDateString('pt-BR');
 
-// Dados mockados de espécies
 const especies = ref([])
+const carregando = ref(true)
 
 onMounted(async () => {
   try {
     const data = await listEspecies()
-    especies.value = data.map(e => ({
+    especies.value = data.map((e) => ({
       id: e.id,
       nome: e.nome_popular || e.nome_cientifico,
       nomeCientifico: e.nome_cientifico,
-      familia: e.familia,
-      descricao: e.descricao
+      familia: e.familia || '—',
+      descricao: e.descricao,
+      tempoGerminacao: e.tempo_germinacao,
+      tempoCrescimento: e.tempo_crescimento,
+      alturaMaxima: e.altura_maxima != null ? Number(e.altura_maxima) : null,
     }))
-  } catch (e) { console.error(e) }
+  } catch (e) {
+    console.error(e)
+  } finally {
+    carregando.value = false
+  }
 })
 
 
@@ -302,16 +211,16 @@ const exportarPDF = () => {
   font-size: 1.75rem;
   font-weight: 600;
   margin-bottom: 1.5rem;
-  color: #333;
+  color: var(--color-text-primary);
 }
 
 /* Instrução card */
 .instrucao-card {
-  background-color: #e8f4f8;
+  background-color: var(--color-info-bg);
   border-radius: 0.5rem;
   padding: 1.25rem;
   margin-bottom: 2rem;
-  border-left: 4px solid #2196F3;
+  border-left: 4px solid var(--color-info);
 }
 
 .instrucao-header {
@@ -324,20 +233,20 @@ const exportarPDF = () => {
   width: 1.5rem;
   height: 1.5rem;
   margin-right: 0.5rem;
-  color: #2196F3;
+  color: var(--color-info);
 }
 
 .instrucao-header h3 {
   font-size: 1.25rem;
   font-weight: 600;
-  color: #333;
+  color: var(--color-text-primary);
   margin: 0;
 }
 
 .disclaimer {
   margin-top: 1rem;
   font-size: 0.9rem;
-  color: #666;
+  color: var(--color-text-muted);
 }
 
 /* Filtro seção */
@@ -353,15 +262,15 @@ const exportarPDF = () => {
 .search-input {
   flex: 1;
   padding: 0.75rem 1rem;
-  border: 1px solid #ddd;
+  border: 1px solid var(--color-border);
   border-right: none;
   border-radius: 0.25rem 0 0 0.25rem;
   font-size: 1rem;
 }
 
 .search-button {
-  background-color: #4CAF50;
-  color: white;
+  background-color: var(--color-primary);
+  color: var(--color-text-inverse);
   border: none;
   border-radius: 0 0.25rem 0.25rem 0;
   padding: 0 1rem;
@@ -382,7 +291,7 @@ const exportarPDF = () => {
 }
 
 .especie-card {
-  background-color: white;
+  background-color: var(--color-text-inverse);
   border-radius: 0.5rem;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   padding: 1.25rem;
@@ -402,13 +311,13 @@ const exportarPDF = () => {
   font-size: 1.25rem;
   font-weight: 600;
   margin: 0 0 0.25rem 0;
-  color: #333;
+  color: var(--color-text-primary);
 }
 
 .especie-nome-cientifico {
   font-style: italic;
   font-size: 0.9rem;
-  color: #666;
+  color: var(--color-text-muted);
   margin: 0;
 }
 
@@ -429,7 +338,7 @@ const exportarPDF = () => {
 }
 
 .info-value {
-  color: #444;
+  color: var(--color-text-primary);
 }
 
 .full-width {
@@ -439,8 +348,8 @@ const exportarPDF = () => {
 
 .gerar-prescricao-btn {
   width: 100%;
-  background-color: #2196F3;
-  color: white;
+  background-color: var(--color-info);
+  color: var(--color-text-inverse);
   border: none;
   border-radius: 0.25rem;
   padding: 0.75rem 1rem;
@@ -450,7 +359,7 @@ const exportarPDF = () => {
 }
 
 .gerar-prescricao-btn:hover {
-  background-color: #1976D2;
+  background-color: var(--color-info);
 }
 
 /* Modal */
@@ -468,7 +377,7 @@ const exportarPDF = () => {
 }
 
 .modal-content {
-  background-color: white;
+  background-color: var(--color-text-inverse);
   border-radius: 0.5rem;
   width: 100%;
   max-width: 800px;
@@ -482,7 +391,7 @@ const exportarPDF = () => {
   justify-content: space-between;
   align-items: center;
   padding: 1.25rem 1.5rem;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--color-border-subtle);
 }
 
 .modal-title {
@@ -497,7 +406,7 @@ const exportarPDF = () => {
   font-size: 1.5rem;
   line-height: 1;
   cursor: pointer;
-  color: #777;
+  color: var(--color-text-muted);
 }
 
 .modal-body {
@@ -509,13 +418,13 @@ const exportarPDF = () => {
   justify-content: flex-end;
   gap: 1rem;
   padding: 1.25rem 1.5rem;
-  border-top: 1px solid #eee;
+  border-top: 1px solid var(--color-border-subtle);
 }
 
 .btn-cancelar {
-  background-color: #f8f9fa;
-  color: #333;
-  border: 1px solid #ddd;
+  background-color: var(--color-surface-muted);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
   border-radius: 0.25rem;
   padding: 0.5rem 1rem;
   font-weight: 500;
@@ -523,8 +432,8 @@ const exportarPDF = () => {
 }
 
 .btn-exportar {
-  background-color: #4CAF50;
-  color: white;
+  background-color: var(--color-primary);
+  color: var(--color-text-inverse);
   border: none;
   border-radius: 0.25rem;
   padding: 0.5rem 1rem;
@@ -544,26 +453,26 @@ const exportarPDF = () => {
 .prescricao-header {
   margin-bottom: 1.5rem;
   padding-bottom: 1rem;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--color-border-subtle);
 }
 
 .prescricao-header h2 {
   font-size: 1.5rem;
   font-weight: 600;
   margin: 0 0 0.5rem 0;
-  color: #333;
+  color: var(--color-text-primary);
 }
 
 .prescricao-subtitulo {
   font-style: italic;
   font-size: 1rem;
-  color: #666;
+  color: var(--color-text-muted);
   margin: 0 0 0.5rem 0;
 }
 
 .prescricao-data {
   font-size: 0.9rem;
-  color: #666;
+  color: var(--color-text-muted);
   margin: 0;
 }
 
@@ -578,15 +487,15 @@ const exportarPDF = () => {
   font-weight: 600;
   margin: 0 0 1rem 0;
   padding-bottom: 0.5rem;
-  border-bottom: 1px solid #eee;
-  color: #333;
+  border-bottom: 1px solid var(--color-border-subtle);
+  color: var(--color-text-primary);
 }
 
 .section-icon {
   width: 1.5rem;
   height: 1.5rem;
   margin-right: 0.5rem;
-  color: #2196F3;
+  color: var(--color-info);
 }
 
 .info-grid {
@@ -596,7 +505,7 @@ const exportarPDF = () => {
 }
 
 .fase-card {
-  background-color: #f8f9fa;
+  background-color: var(--color-surface-muted);
   border-radius: 0.5rem;
   padding: 1rem;
   margin-bottom: 1rem;
@@ -606,7 +515,7 @@ const exportarPDF = () => {
   font-size: 1.1rem;
   font-weight: 600;
   margin: 0 0 0.75rem 0;
-  color: #444;
+  color: var(--color-text-primary);
 }
 
 .fase-info {
@@ -616,7 +525,7 @@ const exportarPDF = () => {
 }
 
 .fitossanidade-card {
-  background-color: #f8f9fa;
+  background-color: var(--color-surface-muted);
   border-radius: 0.5rem;
   padding: 1rem;
   margin-bottom: 1rem;
@@ -626,7 +535,7 @@ const exportarPDF = () => {
   font-size: 1.1rem;
   font-weight: 600;
   margin: 0 0 0.75rem 0;
-  color: #444;
+  color: var(--color-text-primary);
 }
 
 .medidas-lista {
@@ -639,7 +548,7 @@ const exportarPDF = () => {
 }
 
 .problema-item {
-  border-left: 3px solid #2196F3;
+  border-left: 3px solid var(--color-info);
   padding-left: 1rem;
   margin-bottom: 1rem;
 }
@@ -648,12 +557,12 @@ const exportarPDF = () => {
   font-size: 1rem;
   font-weight: 600;
   margin: 0 0 0.5rem 0;
-  color: #333;
+  color: var(--color-text-primary);
 }
 
 .problema-item p {
   margin: 0 0 0.75rem 0;
-  color: #666;
+  color: var(--color-text-muted);
 }
 
 /* Responsividade */

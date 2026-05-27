@@ -1,20 +1,22 @@
 <template>
   <div class="login-page">
     <div class="login-card">
-      <h1>SisViNa</h1>
-      <p class="subtitle">Gestão de Viveiro de Plantas Nativas</p>
+      <div class="login-brand">
+        <h1>SisViNa</h1>
+        <p class="subtitle">Gestão de Viveiro de Plantas Nativas</p>
+      </div>
 
       <form @submit.prevent="onSubmit">
-        <label>
+        <label class="form-label">
           Usuário
-          <input v-model="username" type="text" autocomplete="username" required />
+          <input v-model="username" type="text" class="form-input" autocomplete="username" required />
         </label>
-        <label>
+        <label class="form-label">
           Senha
-          <input v-model="password" type="password" autocomplete="current-password" required />
+          <input v-model="password" type="password" class="form-input" autocomplete="current-password" required />
         </label>
-        <p v-if="error" class="error">{{ error }}</p>
-        <button type="submit" :disabled="loading">
+        <p v-if="error" class="alert alert-error">{{ error }}</p>
+        <button type="submit" class="btn btn-primary login-submit" :disabled="loading">
           {{ loading ? 'Entrando...' : 'Entrar' }}
         </button>
       </form>
@@ -59,28 +61,34 @@ async function onSubmit() {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #e8f4fc 0%, #f5f7fa 100%);
+  background: linear-gradient(145deg, var(--color-primary-subtle) 0%, var(--color-background) 45%, var(--color-complement-light) 100%);
   padding: 1rem;
 }
 
 .login-card {
   width: 100%;
   max-width: 400px;
-  background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+  background: var(--color-surface);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
   padding: 2rem;
+  border: 1px solid var(--color-border-subtle);
+}
+
+.login-brand {
+  margin-bottom: 1.5rem;
 }
 
 h1 {
   font-size: 1.75rem;
   margin-bottom: 0.25rem;
-  color: #2c3e50;
+  color: var(--color-primary);
+  font-weight: 700;
+  letter-spacing: -0.02em;
 }
 
 .subtitle {
-  color: #6c7a89;
-  margin-bottom: 1.5rem;
+  color: var(--color-text-secondary);
   font-size: 0.95rem;
 }
 
@@ -90,59 +98,23 @@ form {
   gap: 1rem;
 }
 
-label {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: #2c3e50;
-}
-
-input {
-  padding: 0.65rem 0.75rem;
-  border: 1px solid #e1e5eb;
-  border-radius: 8px;
-  font-size: 1rem;
-}
-
-input:focus {
-  outline: none;
-  border-color: #3498db;
-}
-
-button {
+.login-submit {
+  width: 100%;
   margin-top: 0.5rem;
   padding: 0.75rem;
-  background: #3498db;
-  color: #fff;
-  border: none;
-  border-radius: 8px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-button:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
-}
-
-.error {
-  color: #e74c3c;
-  font-size: 0.875rem;
-  margin: 0;
 }
 
 .hint {
   margin-top: 1.25rem;
   font-size: 0.8rem;
-  color: #6c7a89;
+  color: var(--color-text-muted);
   text-align: center;
 }
 
 code {
-  background: #f0f2f5;
+  background: var(--color-surface-muted);
   padding: 0.1rem 0.35rem;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
 }
 </style>

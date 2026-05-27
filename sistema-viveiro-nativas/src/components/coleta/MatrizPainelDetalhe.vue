@@ -183,7 +183,7 @@ async function excluirColeta(c) {
   background: none;
   font-size: 1.25rem;
   cursor: pointer;
-  color: #6b7280;
+  color: var(--color-text-muted);
 }
 
 .painel-detalhe h4 {
@@ -207,7 +207,7 @@ async function excluirColeta(c) {
 
 .tabs button {
   border: none;
-  background: #fff;
+  background: var(--color-surface);
   padding: 0.25rem 0.45rem;
   font-size: 0.68rem;
   border-radius: 4px;
@@ -216,8 +216,8 @@ async function excluirColeta(c) {
 }
 
 .tabs button.ativo {
-  background: #6ca234;
-  color: #fff;
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
   font-weight: 600;
 }
 
@@ -243,7 +243,7 @@ async function excluirColeta(c) {
 
 .legal {
   font-size: 0.75rem;
-  color: #6b7280;
+  color: var(--color-text-muted);
   margin-bottom: 0.75rem;
 }
 
@@ -262,7 +262,7 @@ async function excluirColeta(c) {
 
 .lista li {
   padding: 0.5rem 0;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--color-border);
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
@@ -277,19 +277,19 @@ async function excluirColeta(c) {
 }
 
 .muted {
-  color: #9ca3af;
+  color: var(--color-text-muted);
   font-size: 0.75rem;
 }
 
 .tag {
-  color: #2e7d32;
+  color: var(--color-success);
   font-size: 0.75rem;
 }
 
 .link {
   border: none;
   background: none;
-  color: #6ca234;
+  color: var(--color-primary);
   font-size: 0.75rem;
   font-weight: 600;
   cursor: pointer;
@@ -297,7 +297,7 @@ async function excluirColeta(c) {
 }
 
 .link.danger {
-  color: #b91c1c;
+  color: var(--color-error);
 }
 
 .li-acoes {
@@ -329,13 +329,13 @@ async function excluirColeta(c) {
 }
 
 .btn-coletar {
-  background: #fff3e0;
-  color: #e65100;
+  background: var(--color-attention-bg);
+  color: var(--color-complement-dark);
 }
 
 .btn-editar {
-  background: #6ca234;
-  color: #fff;
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
 }
 
 @media (max-width: 900px) {

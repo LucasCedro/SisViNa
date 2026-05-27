@@ -16,6 +16,11 @@ from app.schemas.producao import (
     PromoverMudasRequest,
     PromoverMudasResponse,
     PlantaPendenteTransferencia,
+    PlantaEmCrescimento,
+    AtualizarEstagioRequest,
+    AtualizarEstagioResponse,
+    TransferirRustificacaoRequest,
+    TransferirRustificacaoResponse,
     CadastroLotePlantasRequest,
     CadastroLotePlantasResponse,
 )
@@ -32,11 +37,12 @@ async def read_plantas(
     id_especie: Optional[int] = None,
     id_canteiro: Optional[int] = None,
     status: Optional[str] = None,
+    estagio_producao: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
     current_user: FuncionarioOut = Depends(get_current_user)
 ):
     """
-    Recupera todas as plantas com opção de filtrar por espécie, canteiro e status.
+    Recupera todas as plantas com opção de filtrar por espécie, canteiro, status e estágio.
     """
     plantas = await crud_plantas.get_plantas(
         db, 
@@ -44,7 +50,8 @@ async def read_plantas(
         limit=limit, 
         id_especie=id_especie,
         id_canteiro=id_canteiro,
-        status=status
+        status=status,
+        estagio_producao=estagio_producao,
     )
     return plantas
 
@@ -84,6 +91,84 @@ async def read_pendentes_transferencia(
     )
 
 
+@router.get("/em-desenvolvimento-sementeira", response_model=List[PlantaPendenteTransferencia])
+async def read_em_desenvolvimento_sementeira(
+    id_canteiro: Optional[int] = None,
+    id_especie: Optional[int] = None,
+    limit: int = Query(500, le=1000),
+    db: AsyncSession = Depends(get_db),
+    current_user: FuncionarioOut = Depends(get_current_user),
+):
+    return await crud_plantas.get_plantas_em_desenvolvimento_sementeira(
+        db, id_canteiro=id_canteiro, id_especie=id_especie, limit=limit
+    )
+
+
+@router.get("/em-crescimento-canteiro", response_model=List[PlantaEmCrescimento])
+async def read_em_crescimento_canteiro(
+    id_canteiro: Optional[int] = None,
+    id_especie: Optional[int] = None,
+    limit: int = Query(500, le=1000),
+    db: AsyncSession = Depends(get_db),
+    current_user: FuncionarioOut = Depends(get_current_user),
+):
+    return await crud_plantas.get_plantas_em_crescimento_canteiro(
+        db, id_canteiro=id_canteiro, id_especie=id_especie, limit=limit
+    )
+
+
+@router.get("/aptas-rustificacao-canteiro", response_model=List[PlantaEmCrescimento])
+async def read_aptas_rustificacao_canteiro(
+    id_canteiro: Optional[int] = None,
+    id_especie: Optional[int] = None,
+    limit: int = Query(500, le=1000),
+    db: AsyncSession = Depends(get_db),
+    current_user: FuncionarioOut = Depends(get_current_user),
+):
+    return await crud_plantas.get_plantas_aptas_rustificacao_canteiro(
+        db, id_canteiro=id_canteiro, id_especie=id_especie, limit=limit
+    )
+
+
+@router.post("/atualizar-estagio", response_model=AtualizarEstagioResponse)
+async def atualizar_estagio(
+    body: AtualizarEstagioRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: FuncionarioOut = Depends(get_current_user),
+):
+    try:
+        return await crud_plantas.atualizar_estagio_producao(db, body)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+
+@router.get("/em-rustificacao", response_model=List[PlantaEmCrescimento])
+async def read_em_rustificacao(
+    id_canteiro: Optional[int] = None,
+    id_especie: Optional[int] = None,
+    limit: int = Query(500, le=1000),
+    db: AsyncSession = Depends(get_db),
+    current_user: FuncionarioOut = Depends(get_current_user),
+):
+    return await crud_plantas.get_plantas_em_rustificacao(
+        db, id_canteiro=id_canteiro, id_especie=id_especie, limit=limit
+    )
+
+
+@router.post("/transferir-rustificacao", response_model=TransferirRustificacaoResponse)
+async def transferir_rustificacao(
+    body: TransferirRustificacaoRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: FuncionarioOut = Depends(get_current_user),
+):
+    try:
+        return await crud_plantas.transferir_para_rustificacao(
+            db, body, id_funcionario=current_user.id
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+
 @router.post("/promover-mudas", response_model=PromoverMudasResponse)
 async def promover_mudas(
     body: PromoverMudasRequest,
@@ -113,7 +198,21 @@ async def read_estoque_resumo(
     db: AsyncSession = Depends(get_db),
     current_user: FuncionarioOut = Depends(get_current_user),
 ):
+    """Estoque comercial: apenas mudas apta_venda (baixa exclusiva via vendas)."""
     return await crud_plantas.get_estoque_resumo(db)
+
+
+@router.get("/disponiveis-venda", response_model=List[Planta])
+async def read_plantas_disponiveis_venda(
+    id_especie: int = Query(..., description="Espécie para listar unidades vendáveis"),
+    limit: int = Query(500, le=500),
+    db: AsyncSession = Depends(get_db),
+    current_user: FuncionarioOut = Depends(get_current_user),
+):
+    """Plantas individuais aptas à venda (estagio apta_venda)."""
+    return await crud_plantas.listar_plantas_disponiveis_venda(
+        db, id_especie=id_especie, limit=limit
+    )
 
 
 @router.patch("/preco-especie/{id_especie}")
@@ -180,7 +279,10 @@ async def update_planta(
     """
     Atualiza uma planta existente.
     """
-    db_planta = await crud_plantas.update_planta(db, planta_id, planta)
+    try:
+        db_planta = await crud_plantas.update_planta(db, planta_id, planta)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
     if db_planta is None:
         raise HTTPException(status_code=404, detail="Planta não encontrada")
     return db_planta

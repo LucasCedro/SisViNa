@@ -2,7 +2,6 @@
   <div class="financeiro-container">
     <!-- Cabeçalho e Tipo de Viveiro -->
     <div class="cabecalho">
-      <h1 class="titulo">Financeiro do Viveiro</h1>
       <div class="tipo-viveiro">
         <label for="tipoViveiro" class="label">Tipo de Viveiro:</label>
         <select id="tipoViveiro" v-model="tipoViveiro" class="select-tipo">
@@ -149,8 +148,8 @@
                 <svg width="100%" height="200" viewBox="0 0 1200 200" preserveAspectRatio="none">
                   <!-- Área sombreada sob a linha -->
                   <linearGradient id="areaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                    <stop offset="0%" stop-color="#2c5282" stop-opacity="0.3" />
-                    <stop offset="100%" stop-color="#2c5282" stop-opacity="0.05" />
+                    <stop offset="0%" :stop-color="CHART_INFO" stop-opacity="0.3" />
+                    <stop offset="100%" :stop-color="CHART_INFO" stop-opacity="0.05" />
                   </linearGradient>
                   <path :d="`M0,${200 - (evolucaoGastos[0].valor / 50000 * 200)} ${pontosGraficoLinha} 1200,200 0,200`" 
                         fill="url(#areaGradient)" />
@@ -159,7 +158,7 @@
                   <polyline 
                     :points="pontosGraficoLinha" 
                     fill="none" 
-                    stroke="#2c5282" 
+                    :stroke="CHART_INFO" 
                     stroke-width="3"
                     stroke-linecap="round"
                     stroke-linejoin="round" 
@@ -437,6 +436,7 @@ import {
   deleteLancamento
 } from '@/services/lancamentosFinanceiros'
 import { getResumoFinanceiro } from '@/services/dashboard'
+import { CHART_PALETTE, CHART_INFO } from '@/constants/chartColors'
 
 // Configuração inicial
 const tipoViveiro = ref('mecanizado');
@@ -674,10 +674,7 @@ const distribuicaoOpex = computed(() => {
   });
   
   // Paleta de cores profissional
-  const cores = [
-    '#1f4e79', '#2c5282', '#3d6a97', '#4a7aab', '#587ba0',
-    '#6a6f6c', '#505f66', '#384c54', '#2e3e48', '#253746'
-  ];
+  const cores = CHART_PALETTE
   
   const resultado = Object.keys(categorias).map((categoria, index) => {
     const valor = categorias[categoria];
@@ -711,10 +708,7 @@ const comparacaoCapex = computed(() => {
   });
   
   // Paleta de cores profissional
-  const cores = [
-    '#1f4e79', '#2c5282', '#3d6a97', '#4a7aab', '#587ba0',
-    '#6a6f6c', '#505f66', '#384c54', '#2e3e48', '#253746'
-  ];
+  const cores = CHART_PALETTE
   
   const resultado = Object.keys(categorias).map((categoria, index) => {
     const valor = categorias[categoria];
@@ -822,7 +816,7 @@ const formatarData = (dataStr) => {
 
 <style scoped>
 .financeiro-container {
-  @apply w-full max-w-7xl mx-auto p-6 bg-white min-h-[calc(100vh-64px)];
+  @apply w-full max-w-7xl mx-auto p-6 bg-surface min-h-[calc(100vh-64px)];
 }
 
 .cabecalho {
@@ -830,7 +824,7 @@ const formatarData = (dataStr) => {
 }
 
 .titulo {
-  @apply text-2xl font-bold text-gray-800;
+  @apply text-2xl font-bold text-text-primary;
 }
 
 .tipo-viveiro {
@@ -838,11 +832,11 @@ const formatarData = (dataStr) => {
 }
 
 .label {
-  @apply text-sm font-medium text-gray-700;
+  @apply text-sm font-medium text-text-secondary;
 }
 
 .select-tipo {
-  @apply py-1 px-3 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent;
+  @apply py-1 px-3 border border-primary-100 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent;
 }
 
 .secao {
@@ -850,7 +844,7 @@ const formatarData = (dataStr) => {
 }
 
 .subtitulo {
-  @apply text-xl font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200;
+  @apply text-xl font-semibold text-text-primary mb-4 pb-2 border-b border-primary-100;
 }
 
 /* Cards do resumo financeiro */
@@ -859,7 +853,7 @@ const formatarData = (dataStr) => {
 }
 
 .card-resumo {
-  @apply bg-white border border-gray-200 rounded-lg shadow-sm p-4 flex items-center gap-4 hover:shadow-md transition-shadow;
+  @apply bg-surface border border-primary-100 rounded-lg shadow-sm p-4 flex items-center gap-4 hover:shadow-md transition-shadow;
 }
 
 .card-icone {
@@ -867,15 +861,15 @@ const formatarData = (dataStr) => {
 }
 
 .capex {
-  @apply bg-blue-50 text-blue-800;
+  @apply bg-primary-50 text-primary;
 }
 
 .opex {
-  @apply bg-slate-50 text-slate-800;
+  @apply bg-primary-50 text-text-primary;
 }
 
 .mensal {
-  @apply bg-gray-50 text-gray-800;
+  @apply bg-primary-50 text-text-primary;
 }
 
 .anual {
@@ -883,11 +877,11 @@ const formatarData = (dataStr) => {
 }
 
 .muda {
-  @apply bg-slate-50 text-slate-800;
+  @apply bg-primary-50 text-text-primary;
 }
 
 .previsao {
-  @apply bg-blue-50 text-blue-800;
+  @apply bg-primary-50 text-primary;
 }
 
 .icone {
@@ -899,11 +893,11 @@ const formatarData = (dataStr) => {
 }
 
 .card-titulo {
-  @apply text-sm font-medium text-gray-600;
+  @apply text-sm font-medium text-text-secondary;
 }
 
 .card-valor {
-  @apply text-lg font-bold text-gray-900;
+  @apply text-lg font-bold text-text-primary;
 }
 
 /* Estilos dos gráficos */
@@ -912,7 +906,7 @@ const formatarData = (dataStr) => {
 }
 
 .grafico-container {
-  @apply bg-white border border-gray-200 rounded-lg shadow-sm p-4 hover:shadow-md transition-shadow;
+  @apply bg-surface border border-primary-100 rounded-lg shadow-sm p-4 hover:shadow-md transition-shadow;
 }
 
 .grafico-largo {
@@ -920,7 +914,7 @@ const formatarData = (dataStr) => {
 }
 
 .grafico-titulo {
-  @apply text-base font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-100;
+  @apply text-base font-semibold text-text-primary mb-4 pb-2 border-b border-primary-50;
 }
 
 /* Gráfico de barras horizontais (substituindo pizza) */
@@ -937,15 +931,15 @@ const formatarData = (dataStr) => {
 }
 
 .barra-horizontal-label {
-  @apply font-medium text-gray-700 truncate max-w-[70%];
+  @apply font-medium text-text-secondary truncate max-w-[70%];
 }
 
 .barra-horizontal-info .barra-horizontal-valor {
-  @apply text-gray-600 text-right;
+  @apply text-text-secondary text-right;
 }
 
 .barra-horizontal-wrapper {
-  @apply w-full h-6 bg-gray-100 rounded-full overflow-hidden;
+  @apply w-full h-6 bg-primary-50 rounded-full overflow-hidden;
 }
 
 .barra-horizontal-wrapper .barra-horizontal-valor {
@@ -970,7 +964,7 @@ const formatarData = (dataStr) => {
 }
 
 .barra-vertical-tooltip {
-  @apply absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs py-1 px-2 rounded opacity-0 transition-opacity whitespace-nowrap;
+  @apply absolute -top-8 left-1/2 transform -translate-x-1/2 bg-primary-900 text-white text-xs py-1 px-2 rounded opacity-0 transition-opacity whitespace-nowrap;
 }
 
 .group:hover .barra-vertical-tooltip {
@@ -978,7 +972,7 @@ const formatarData = (dataStr) => {
 }
 
 .barra-vertical-label {
-  @apply text-xs text-gray-600 mt-2 text-center w-full truncate;
+  @apply text-xs text-text-secondary mt-2 text-center w-full truncate;
 }
 
 .grafico-legenda {
@@ -994,7 +988,7 @@ const formatarData = (dataStr) => {
 }
 
 .legenda-texto {
-  @apply text-xs text-gray-700;
+  @apply text-xs text-text-secondary;
 }
 
 /* Gráfico de linha melhorado */
@@ -1007,7 +1001,7 @@ const formatarData = (dataStr) => {
 }
 
 .linha-eixoy-valor {
-  @apply text-xs text-gray-500;
+  @apply text-xs text-text-muted;
 }
 
 .grafico-linha-conteudo {
@@ -1019,7 +1013,7 @@ const formatarData = (dataStr) => {
 }
 
 .linha-grid {
-  @apply flex-1 border-l border-gray-100;
+  @apply flex-1 border-l border-primary-50;
 }
 
 .grafico-linha-dados {
@@ -1027,11 +1021,11 @@ const formatarData = (dataStr) => {
 }
 
 .ponto-dados {
-  @apply absolute w-3 h-3 bg-blue-700 rounded-full transform -translate-x-1/2 -translate-y-1/2 hover:w-4 hover:h-4 transition-all duration-200 cursor-pointer z-10;
+  @apply absolute w-3 h-3 bg-primary rounded-full transform -translate-x-1/2 -translate-y-1/2 hover:w-4 hover:h-4 transition-all duration-200 cursor-pointer z-10;
 }
 
 .tooltip-ponto {
-  @apply absolute bottom-full left-1/2 transform -translate-x-1/2 text-xs bg-gray-800 text-white px-2 py-1 rounded opacity-0 pointer-events-none mb-1 whitespace-nowrap;
+  @apply absolute bottom-full left-1/2 transform -translate-x-1/2 text-xs bg-primary-900 text-white px-2 py-1 rounded opacity-0 pointer-events-none mb-1 whitespace-nowrap;
 }
 
 .ponto-dados:hover .tooltip-ponto {
@@ -1043,7 +1037,7 @@ const formatarData = (dataStr) => {
 }
 
 .linha-eixox-valor {
-  @apply flex-1 text-center text-xs text-gray-500;
+  @apply flex-1 text-center text-xs text-text-muted;
 }
 
 /* Estilos das abas */
@@ -1052,7 +1046,7 @@ const formatarData = (dataStr) => {
 }
 
 .abas-navegacao {
-  @apply flex gap-1 border-b border-gray-200;
+  @apply flex gap-1 border-b border-primary-100;
 }
 
 .aba-btn {
@@ -1060,15 +1054,15 @@ const formatarData = (dataStr) => {
 }
 
 .aba-btn.ativo {
-  @apply bg-white text-blue-800 border-l border-t border-r border-gray-200 border-b-0;
+  @apply bg-surface text-primary border-l border-t border-r border-primary-100 border-b-0;
 }
 
 .aba-btn:not(.ativo) {
-  @apply text-gray-600 hover:text-gray-900 hover:bg-gray-50;
+  @apply text-text-secondary hover:text-text-primary hover:bg-primary-50;
 }
 
 .abas-conteudo {
-  @apply bg-white rounded-b-lg;
+  @apply bg-surface rounded-b-lg;
 }
 
 .aba-painel {
@@ -1088,23 +1082,23 @@ const formatarData = (dataStr) => {
 }
 
 .filtro-label {
-  @apply text-xs font-medium text-gray-700;
+  @apply text-xs font-medium text-text-secondary;
 }
 
 .filtro-input {
-  @apply py-1 px-3 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent;
+  @apply py-1 px-3 border border-primary-100 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent;
 }
 
 .btn-aplicar {
-  @apply py-1 px-4 bg-blue-700 text-white rounded-md text-sm hover:bg-blue-800 transition-colors;
+  @apply py-1 px-4 bg-primary text-white rounded-md text-sm hover:bg-primary-600 transition-colors;
 }
 
 .btn-limpar {
-  @apply py-1 px-4 border border-gray-300 bg-white text-gray-700 rounded-md text-sm hover:bg-gray-50 transition-colors;
+  @apply py-1 px-4 border border-primary-100 bg-surface text-text-secondary rounded-md text-sm hover:bg-primary-50 transition-colors;
 }
 
 .btn-adicionar {
-  @apply flex items-center gap-2 py-2 px-4 bg-blue-700 text-white rounded-md text-sm hover:bg-blue-800 transition-colors;
+  @apply flex items-center gap-2 py-2 px-4 bg-primary text-white rounded-md text-sm hover:bg-primary-600 transition-colors;
 }
 
 .btn-icone {
@@ -1120,11 +1114,11 @@ const formatarData = (dataStr) => {
 }
 
 .tabela th {
-  @apply bg-gray-50 text-left text-xs uppercase font-medium text-gray-600 p-3 border-b border-gray-200;
+  @apply bg-primary-50 text-left text-xs uppercase font-medium text-text-secondary p-3 border-b border-primary-100;
 }
 
 .tabela td {
-  @apply text-sm p-3 border-b border-gray-200;
+  @apply text-sm p-3 border-b border-primary-100;
 }
 
 .coluna-valor {
@@ -1140,11 +1134,11 @@ const formatarData = (dataStr) => {
 }
 
 .editar {
-  @apply text-blue-700 hover:bg-blue-50;
+  @apply text-primary hover:bg-primary-50;
 }
 
 .excluir {
-  @apply text-gray-700 hover:bg-gray-50;
+  @apply text-text-secondary hover:bg-primary-50;
 }
 
 .icone-acao {
@@ -1152,11 +1146,11 @@ const formatarData = (dataStr) => {
 }
 
 .mensagem-vazia {
-  @apply text-center py-8 text-gray-500;
+  @apply text-center py-8 text-text-muted;
 }
 
 .total-label {
-  @apply text-right font-medium text-gray-700;
+  @apply text-right font-medium text-text-secondary;
 }
 
 .total-valor {
@@ -1169,23 +1163,23 @@ const formatarData = (dataStr) => {
 }
 
 .modal-conteudo {
-  @apply bg-white rounded-xl shadow-xl w-full max-w-lg;
+  @apply bg-surface rounded-xl shadow-xl w-full max-w-lg;
 }
 
 .modal-cabecalho {
-  @apply p-6 border-b border-gray-200 flex justify-between items-center;
+  @apply p-6 border-b border-primary-100 flex justify-between items-center;
 }
 
 .modal-titulo {
-  @apply text-xl font-bold text-gray-800;
+  @apply text-xl font-bold text-text-primary;
 }
 
 .btn-fechar {
-  @apply p-2 rounded-full hover:bg-gray-100 transition-colors;
+  @apply p-2 rounded-full hover:bg-primary-50 transition-colors;
 }
 
 .icone-fechar {
-  @apply w-5 h-5 text-gray-500;
+  @apply w-5 h-5 text-text-muted;
 }
 
 .modal-corpo {
@@ -1201,15 +1195,15 @@ const formatarData = (dataStr) => {
 }
 
 .form-label {
-  @apply text-sm font-medium text-gray-700;
+  @apply text-sm font-medium text-text-secondary;
 }
 
 .form-input {
-  @apply w-full px-3 py-2 border border-gray-300 rounded-lg text-sm transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent;
+  @apply w-full px-3 py-2 border border-primary-100 rounded-lg text-sm transition-all focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent;
 }
 
 .form-textarea {
-  @apply w-full px-3 py-2 border border-gray-300 rounded-lg text-sm transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent min-h-[100px] resize-none;
+  @apply w-full px-3 py-2 border border-primary-100 rounded-lg text-sm transition-all focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent min-h-[100px] resize-none;
 }
 
 .form-acoes {
@@ -1217,10 +1211,10 @@ const formatarData = (dataStr) => {
 }
 
 .btn-cancelar {
-  @apply px-4 py-2 border border-gray-300 bg-white text-gray-700 rounded-md text-sm hover:bg-gray-50 transition-colors;
+  @apply px-4 py-2 border border-primary-100 bg-surface text-text-secondary rounded-md text-sm hover:bg-primary-50 transition-colors;
 }
 
 .btn-salvar {
-  @apply px-4 py-2 bg-blue-700 text-white rounded-md text-sm hover:bg-blue-800 transition-colors;
+  @apply px-4 py-2 bg-primary text-white rounded-md text-sm hover:bg-primary-600 transition-colors;
 }
 </style> 

@@ -1,7 +1,5 @@
 <template>
   <div class="fitossanidade-container">
-    <h1 class="page-title">Monitoramento Fitossanitário</h1>
-    
     <!-- Seção de filtros -->
     <div class="filters-section">
       <div class="filter-group">
@@ -291,6 +289,14 @@ import { listCanteiros } from '@/services/canteiros'
 import { listPragasPlantas, listTiposPragas, createPragaPlanta } from '@/services/pragas'
 import { listPlantasComRelacoes } from '@/services/plantas'
 import { useAuthStore } from '@/store/auth'
+import {
+  CHART_PRIMARY,
+  CHART_PRIMARY_DARK,
+  CHART_INFO,
+  CHART_WARNING,
+  CHART_DANGER,
+  withAlpha,
+} from '@/constants/chartColors'
 
 const auth = useAuthStore()
 const canteiros = ref([])
@@ -544,8 +550,8 @@ const criarGraficoOcorrenciasPorMes = () => {
       datasets: [{
         label: 'Ocorrências',
         data: dadosPorMes,
-        backgroundColor: 'rgba(54, 162, 235, 0.7)',
-        borderColor: 'rgba(54, 162, 235, 1)',
+        backgroundColor: withAlpha(CHART_PRIMARY, 0.8),
+        borderColor: CHART_PRIMARY_DARK,
         borderWidth: 1
       }]
     },
@@ -598,18 +604,18 @@ const criarGraficoPragasMaisComuns = () => {
         label: 'Ocorrências',
         data: dados,
         backgroundColor: [
-          'rgba(255, 99, 132, 0.7)',
-          'rgba(54, 162, 235, 0.7)',
-          'rgba(255, 206, 86, 0.7)',
-          'rgba(75, 192, 192, 0.7)',
-          'rgba(153, 102, 255, 0.7)'
+          withAlpha(CHART_PRIMARY, 0.9),
+          withAlpha(CHART_INFO, 0.9),
+          withAlpha(CHART_WARNING, 0.9),
+          withAlpha(CHART_DANGER, 0.9),
+          withAlpha(CHART_PRIMARY_DARK, 0.9),
         ],
         borderColor: [
-          'rgba(255, 99, 132, 1)',
-          'rgba(54, 162, 235, 1)',
-          'rgba(255, 206, 86, 1)',
-          'rgba(75, 192, 192, 1)',
-          'rgba(153, 102, 255, 1)'
+          CHART_PRIMARY_DARK,
+          CHART_INFO,
+          CHART_WARNING,
+          CHART_DANGER,
+          CHART_PRIMARY_DARK,
         ],
         borderWidth: 1
       }]
@@ -660,10 +666,11 @@ const criarGraficoCustoMensal = () => {
       datasets: [{
         label: 'Custo (R$)',
         data: custoPorMes,
-        backgroundColor: 'rgba(75, 192, 192, 0.2)',
-        borderColor: 'rgba(75, 192, 192, 1)',
+        backgroundColor: withAlpha(CHART_DANGER, 0.18),
+        borderColor: CHART_DANGER,
         borderWidth: 2,
-        tension: 0.1
+        tension: 0.15,
+        fill: true,
       }]
     },
     options: {
@@ -681,11 +688,6 @@ const criarGraficoCustoMensal = () => {
 const atualizarGraficos = () => {
   criarGraficos();
 };
-
-// Montar componente
-onMounted(() => {
-  criarGraficos();
-});
 </script>
 
 <style scoped>
@@ -699,7 +701,7 @@ onMounted(() => {
   font-size: 1.75rem;
   font-weight: 600;
   margin-bottom: 1.5rem;
-  color: #333;
+  color: var(--color-text-primary);
 }
 
 /* Seção de filtros */
@@ -709,7 +711,7 @@ onMounted(() => {
   gap: 1rem;
   margin-bottom: 1.5rem;
   padding: 1rem;
-  background-color: #f8f9fa;
+  background-color: var(--color-surface-muted);
   border-radius: 0.5rem;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
@@ -723,13 +725,13 @@ onMounted(() => {
 .filter-group label {
   font-size: 0.875rem;
   font-weight: 500;
-  color: #555;
+  color: var(--color-text-secondary);
 }
 
 .filter-group select,
 .filter-group input {
   padding: 0.5rem;
-  border: 1px solid #ddd;
+  border: 1px solid var(--color-border);
   border-radius: 0.25rem;
   font-size: 0.875rem;
   min-width: 200px;
@@ -747,14 +749,14 @@ onMounted(() => {
 }
 
 .btn-aplicar-filtro {
-  background-color: #4CAF50;
-  color: white;
+  background-color: var(--color-primary);
+  color: var(--color-text-inverse);
 }
 
 .btn-limpar-filtro {
-  background-color: #f8f9fa;
-  color: #333;
-  border: 1px solid #ddd;
+  background-color: var(--color-surface-muted);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
   margin-left: 0.5rem;
 }
 
@@ -773,7 +775,7 @@ onMounted(() => {
 }
 
 .dashboard-card {
-  background-color: #fff;
+  background-color: var(--color-surface);
   border-radius: 0.5rem;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   padding: 1.25rem;
@@ -787,7 +789,7 @@ onMounted(() => {
   align-items: center;
   font-size: 1rem;
   font-weight: 600;
-  color: #333;
+  color: var(--color-text-primary);
   margin-bottom: 1rem;
 }
 
@@ -795,7 +797,7 @@ onMounted(() => {
   width: 1.25rem;
   height: 1.25rem;
   margin-right: 0.5rem;
-  color: #1976D2;
+  color: var(--color-info);
 }
 
 .chart-container {
@@ -816,8 +818,8 @@ onMounted(() => {
   align-items: center;
   gap: 0.5rem;
   padding: 0.75rem 1.25rem;
-  background-color: #1976D2;
-  color: white;
+  background-color: var(--color-info);
+  color: var(--color-text-inverse);
   border: none;
   border-radius: 0.375rem;
   font-weight: 500;
@@ -826,7 +828,7 @@ onMounted(() => {
 }
 
 .btn-nova-ocorrencia:hover {
-  background-color: #1565C0;
+  background-color: var(--color-info-dark);
 }
 
 /* Seção de tabela */
@@ -838,7 +840,7 @@ onMounted(() => {
   font-size: 1.25rem;
   font-weight: 600;
   margin-bottom: 1rem;
-  color: #333;
+  color: var(--color-text-primary);
 }
 
 .table-container {
@@ -857,17 +859,17 @@ onMounted(() => {
 .ocorrencias-table td {
   padding: 0.75rem 1rem;
   text-align: left;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--color-border-subtle);
 }
 
 .ocorrencias-table th {
-  background-color: #f8f9fa;
+  background-color: var(--color-surface-muted);
   font-weight: 600;
-  color: #444;
+  color: var(--color-text-primary);
 }
 
 .ocorrencias-table tbody tr:hover {
-  background-color: #f8f9fa;
+  background-color: var(--color-surface-muted);
 }
 
 .tag {
@@ -880,18 +882,18 @@ onMounted(() => {
 }
 
 .severidade-leve {
-  background-color: #e3f2fd;
-  color: #1976D2;
+  background-color: var(--color-info-bg);
+  color: var(--color-info);
 }
 
 .severidade-moderada {
-  background-color: #fff8e1;
-  color: #FFA000;
+  background-color: var(--color-attention-bg);
+  color: var(--color-attention);
 }
 
 .severidade-grave {
-  background-color: #ffebee;
-  color: #D32F2F;
+  background-color: var(--color-error-bg);
+  color: var(--color-error);
 }
 
 .acoes {
@@ -908,12 +910,12 @@ onMounted(() => {
 }
 
 .btn-acao:hover {
-  background-color: #f0f0f0;
+  background-color: var(--color-surface-muted);
 }
 
 .btn-deletar:hover {
-  background-color: #ffebee;
-  color: #D32F2F;
+  background-color: var(--color-error-bg);
+  color: var(--color-error);
 }
 
 .icon-small {
@@ -936,7 +938,7 @@ onMounted(() => {
 }
 
 .modal-content {
-  background-color: white;
+  background-color: var(--color-text-inverse);
   border-radius: 0.5rem;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   width: 100%;
@@ -950,13 +952,13 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   padding: 1rem 1.5rem;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--color-border-subtle);
 }
 
 .modal-title {
   font-size: 1.25rem;
   font-weight: 600;
-  color: #333;
+  color: var(--color-text-primary);
   margin: 0;
 }
 
@@ -965,7 +967,7 @@ onMounted(() => {
   border: none;
   font-size: 1.5rem;
   cursor: pointer;
-  color: #777;
+  color: var(--color-text-muted);
 }
 
 /* Formulário */
@@ -993,14 +995,14 @@ onMounted(() => {
 .form-group label {
   font-size: 0.875rem;
   font-weight: 500;
-  color: #555;
+  color: var(--color-text-secondary);
 }
 
 .form-group input,
 .form-group select,
 .form-group textarea {
   padding: 0.625rem;
-  border: 1px solid #ddd;
+  border: 1px solid var(--color-border);
   border-radius: 0.25rem;
   font-size: 0.875rem;
 }
@@ -1011,7 +1013,7 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   height: 100px;
-  border: 2px dashed #ddd;
+  border: 2px dashed var(--color-border);
   border-radius: 0.25rem;
   margin-bottom: 1rem;
 }
@@ -1029,7 +1031,7 @@ onMounted(() => {
   flex-direction: column;
   align-items: center;
   gap: 0.5rem;
-  color: #777;
+  color: var(--color-text-muted);
 }
 
 .imagem-preview {
@@ -1054,9 +1056,9 @@ onMounted(() => {
 
 .btn-cancelar {
   padding: 0.625rem 1.25rem;
-  background-color: #f8f9fa;
-  color: #333;
-  border: 1px solid #ddd;
+  background-color: var(--color-surface-muted);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
   border-radius: 0.25rem;
   font-weight: 500;
   cursor: pointer;
@@ -1064,8 +1066,8 @@ onMounted(() => {
 
 .btn-salvar {
   padding: 0.625rem 1.25rem;
-  background-color: #1976D2;
-  color: white;
+  background-color: var(--color-info);
+  color: var(--color-text-inverse);
   border: none;
   border-radius: 0.25rem;
   font-weight: 500;
@@ -1073,7 +1075,7 @@ onMounted(() => {
 }
 
 .btn-salvar:hover {
-  background-color: #1565C0;
+  background-color: var(--color-info-dark);
 }
 
 /* Detalhes ocorrência */
@@ -1122,7 +1124,7 @@ onMounted(() => {
   margin-top: 0;
   margin-bottom: 0.75rem;
   padding-bottom: 0.375rem;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--color-border-subtle);
 }
 
 /* Responsividade */

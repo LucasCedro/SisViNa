@@ -1,7 +1,5 @@
 <template>
   <div class="fertilizacao-container">
-    <h1 class="page-title">Registro de Fertilização</h1>
-
     <!-- Seção de filtros -->
     <div class="filters-section">
       <div class="filter-group">
@@ -288,6 +286,14 @@ import { listCanteiros } from '@/services/canteiros'
 import { listPlantasComRelacoes } from '@/services/plantas'
 import { listAtividades, listTiposAtividades, createAtividade } from '@/services/atividades'
 import { useAuthStore } from '@/store/auth'
+import {
+  CHART_PRIMARY,
+  CHART_PRIMARY_DARK,
+  CHART_SUCCESS,
+  CHART_WARNING,
+  CHART_INFO,
+  withAlpha,
+} from '@/constants/chartColors'
 
 const auth = useAuthStore()
 const canteiros = ref([])
@@ -522,10 +528,11 @@ const criarGraficoCustoMensal = () => {
       datasets: [{
         label: 'Custo (R$)',
         data: custoPorMes,
-        backgroundColor: 'rgba(75, 192, 192, 0.2)',
-        borderColor: 'rgba(75, 192, 192, 1)',
+        backgroundColor: withAlpha(CHART_INFO, 0.18),
+        borderColor: CHART_INFO,
         borderWidth: 2,
-        tension: 0.1
+        tension: 0.15,
+        fill: true,
       }]
     },
     options: {
@@ -563,23 +570,23 @@ const criarGraficoQuantidadePorTipo = () => {
     {
       label: 'kg',
       data: tiposFertilizantes.map(tipo => quantidadePorTipo[tipo].kg),
-      backgroundColor: 'rgba(54, 162, 235, 0.7)',
-      borderColor: 'rgba(54, 162, 235, 1)',
-      borderWidth: 1
+      backgroundColor: withAlpha(CHART_PRIMARY, 0.8),
+      borderColor: CHART_PRIMARY_DARK,
+      borderWidth: 1,
     },
     {
       label: 'L',
       data: tiposFertilizantes.map(tipo => quantidadePorTipo[tipo].L),
-      backgroundColor: 'rgba(255, 206, 86, 0.7)',
-      borderColor: 'rgba(255, 206, 86, 1)',
-      borderWidth: 1
+      backgroundColor: withAlpha(CHART_SUCCESS, 0.85),
+      borderColor: CHART_SUCCESS,
+      borderWidth: 1,
     },
     {
       label: 'g',
       data: tiposFertilizantes.map(tipo => quantidadePorTipo[tipo].g),
-      backgroundColor: 'rgba(75, 192, 192, 0.7)',
-      borderColor: 'rgba(75, 192, 192, 1)',
-      borderWidth: 1
+      backgroundColor: withAlpha(CHART_WARNING, 0.85),
+      borderColor: CHART_WARNING,
+      borderWidth: 1,
     }
   ];
   
@@ -653,8 +660,8 @@ const criarGraficoFrequenciaPorEspecie = () => {
       datasets: [{
         label: 'Número de Aplicações',
         data: dados,
-        backgroundColor: 'rgba(153, 102, 255, 0.7)',
-        borderColor: 'rgba(153, 102, 255, 1)',
+        backgroundColor: withAlpha(CHART_PRIMARY, 0.8),
+        borderColor: CHART_PRIMARY_DARK,
         borderWidth: 1
       }]
     },
@@ -677,11 +684,6 @@ const criarGraficoFrequenciaPorEspecie = () => {
 const atualizarGraficos = () => {
   criarGraficos();
 };
-
-// Montar componente
-onMounted(() => {
-  criarGraficos();
-});
 </script>
 
 <style scoped>
@@ -694,7 +696,7 @@ onMounted(() => {
   font-size: 1.75rem;
   font-weight: 600;
   margin-bottom: 1.5rem;
-  color: #333;
+  color: var(--color-text-primary);
 }
 
 /* Seção de filtros */
@@ -704,7 +706,7 @@ onMounted(() => {
   gap: 1rem;
   margin-bottom: 1.5rem;
   padding: 1rem;
-  background-color: #f8f9fa;
+  background-color: var(--color-surface-muted);
   border-radius: 0.5rem;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
@@ -718,13 +720,13 @@ onMounted(() => {
 .filter-group label {
   font-size: 0.875rem;
   font-weight: 500;
-  color: #555;
+  color: var(--color-text-secondary);
 }
 
 .filter-group select,
 .filter-group input {
   padding: 0.5rem;
-  border: 1px solid #ddd;
+  border: 1px solid var(--color-border);
   border-radius: 0.25rem;
   font-size: 0.875rem;
   min-width: 200px;
@@ -742,14 +744,14 @@ onMounted(() => {
 }
 
 .btn-aplicar-filtro {
-  background-color: #4CAF50;
-  color: white;
+  background-color: var(--color-primary);
+  color: var(--color-text-inverse);
 }
 
 .btn-limpar-filtro {
-  background-color: #f8f9fa;
-  color: #333;
-  border: 1px solid #ddd;
+  background-color: var(--color-surface-muted);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
   margin-left: 0.5rem;
 }
 
@@ -765,7 +767,7 @@ onMounted(() => {
 }
 
 .dashboard-card {
-  background-color: white;
+  background-color: var(--color-text-inverse);
   border-radius: 0.5rem;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   padding: 1rem;
@@ -778,7 +780,7 @@ onMounted(() => {
   align-items: center;
   font-size: 1rem;
   font-weight: 600;
-  color: #333;
+  color: var(--color-text-primary);
   margin-bottom: 1rem;
 }
 
@@ -786,7 +788,7 @@ onMounted(() => {
   width: 1.25rem;
   height: 1.25rem;
   margin-right: 0.5rem;
-  color: #1976D2;
+  color: var(--color-info);
 }
 
 .chart-container {
@@ -807,8 +809,8 @@ onMounted(() => {
   align-items: center;
   gap: 0.5rem;
   padding: 0.75rem 1.25rem;
-  background-color: #1976D2;
-  color: white;
+  background-color: var(--color-info);
+  color: var(--color-text-inverse);
   border: none;
   border-radius: 0.375rem;
   font-weight: 500;
@@ -817,7 +819,7 @@ onMounted(() => {
 }
 
 .btn-nova-aplicacao:hover {
-  background-color: #1565C0;
+  background-color: var(--color-info-dark);
 }
 
 /* Seção de tabela */
@@ -829,11 +831,11 @@ onMounted(() => {
   font-size: 1.25rem;
   font-weight: 600;
   margin-bottom: 1rem;
-  color: #333;
+  color: var(--color-text-primary);
 }
 
 .table-container {
-  background-color: white;
+  background-color: var(--color-text-inverse);
   border-radius: 0.5rem;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   overflow-x: auto;
@@ -848,17 +850,17 @@ onMounted(() => {
 .aplicacoes-table td {
   padding: 0.75rem 1rem;
   text-align: left;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--color-border-subtle);
 }
 
 .aplicacoes-table th {
-  background-color: #f8f9fa;
+  background-color: var(--color-surface-muted);
   font-weight: 600;
-  color: #444;
+  color: var(--color-text-primary);
 }
 
 .aplicacoes-table tbody tr:hover {
-  background-color: #f8f9fa;
+  background-color: var(--color-surface-muted);
 }
 
 .acoes {
@@ -875,12 +877,12 @@ onMounted(() => {
 }
 
 .btn-acao:hover {
-  background-color: #f0f0f0;
+  background-color: var(--color-surface-muted);
 }
 
 .btn-deletar:hover {
-  background-color: #ffebee;
-  color: #D32F2F;
+  background-color: var(--color-error-bg);
+  color: var(--color-error);
 }
 
 .icon-small {
@@ -903,7 +905,7 @@ onMounted(() => {
 }
 
 .modal-content {
-  background-color: white;
+  background-color: var(--color-text-inverse);
   border-radius: 0.5rem;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   width: 100%;
@@ -917,13 +919,13 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   padding: 1rem 1.5rem;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--color-border-subtle);
 }
 
 .modal-title {
   font-size: 1.25rem;
   font-weight: 600;
-  color: #333;
+  color: var(--color-text-primary);
   margin: 0;
 }
 
@@ -932,7 +934,7 @@ onMounted(() => {
   border: none;
   font-size: 1.5rem;
   cursor: pointer;
-  color: #777;
+  color: var(--color-text-muted);
 }
 
 /* Formulário */
@@ -960,14 +962,14 @@ onMounted(() => {
 .form-group label {
   font-size: 0.875rem;
   font-weight: 500;
-  color: #555;
+  color: var(--color-text-secondary);
 }
 
 .form-group input,
 .form-group select,
 .form-group textarea {
   padding: 0.625rem;
-  border: 1px solid #ddd;
+  border: 1px solid var(--color-border);
   border-radius: 0.25rem;
   font-size: 0.875rem;
 }
@@ -998,9 +1000,9 @@ onMounted(() => {
 
 .btn-cancelar {
   padding: 0.625rem 1.25rem;
-  background-color: #f8f9fa;
-  color: #333;
-  border: 1px solid #ddd;
+  background-color: var(--color-surface-muted);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
   border-radius: 0.25rem;
   font-weight: 500;
   cursor: pointer;
@@ -1008,8 +1010,8 @@ onMounted(() => {
 
 .btn-salvar {
   padding: 0.625rem 1.25rem;
-  background-color: #1976D2;
-  color: white;
+  background-color: var(--color-info);
+  color: var(--color-text-inverse);
   border: none;
   border-radius: 0.25rem;
   font-weight: 500;
@@ -1017,7 +1019,7 @@ onMounted(() => {
 }
 
 .btn-salvar:hover {
-  background-color: #1565C0;
+  background-color: var(--color-info-dark);
 }
 
 /* Detalhes aplicação */
@@ -1047,7 +1049,7 @@ onMounted(() => {
   margin-top: 0;
   margin-bottom: 0.75rem;
   padding-bottom: 0.375rem;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--color-border-subtle);
 }
 
 /* Responsividade */

@@ -1,5 +1,5 @@
 <template>
-    <div class="coleta-view">
+    <PageLayout>
         <div class="coleta-page">
             <section class="coleta-panel coleta-toolbar">
                 <div class="toolbar-info">
@@ -91,11 +91,12 @@
             @fechar="fecharSemeadura"
             @salvo="aoSalvarSemeadura"
         />
-    </div>
+    </PageLayout>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import PageLayout from '@/components/layout/PageLayout.vue'
 import MapaColeta from '@/components/coleta/MapaColeta.vue'
 import GraficosColeta from '@/components/coleta/GraficosColeta.vue'
 import TabelaColeta from '@/components/coleta/TabelaColeta.vue'
@@ -199,16 +200,10 @@ function aoSalvarSemeadura() {
 </script>
 
 <style scoped>
-.coleta-view {
-    width: 100%;
-    min-height: 100%;
-    background: var(--color-background);
-}
-
 .coleta-page {
     max-width: 1600px;
     margin: 0 auto;
-    padding: var(--spacing-lg) var(--spacing-xl) var(--spacing-xl);
+    width: 100%;
     display: flex;
     flex-direction: column;
     gap: var(--spacing-lg);
@@ -262,34 +257,10 @@ function aoSalvarSemeadura() {
     flex-shrink: 0;
 }
 
-.btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    padding: 0.55rem 1.125rem;
-    border-radius: 8px;
-    font-weight: 600;
-    font-size: 0.875rem;
-    cursor: pointer;
-    white-space: nowrap;
-}
-
 .btn-icon {
     font-size: 1.05rem;
     line-height: 1;
     font-weight: 700;
-}
-
-.btn-primary {
-    border: none;
-    background: #6ca234;
-    color: #fff;
-}
-
-.btn-outline {
-    border: 1px solid #6ca234;
-    background: #fff;
-    color: #5d9130;
 }
 
 .coleta-alerta {
@@ -300,9 +271,9 @@ function aoSalvarSemeadura() {
 }
 
 .coleta-alerta-erro {
-    background: #fef2f2;
-    color: #b91c1c;
-    border: 1px solid #fecaca;
+    background: var(--color-error-bg);
+    color: var(--color-error);
+    border: 1px solid var(--color-primary-100);
 }
 
 .coleta-body {
@@ -316,10 +287,6 @@ function aoSalvarSemeadura() {
 }
 
 @media (max-width: 768px) {
-    .coleta-page {
-        padding: var(--spacing-md);
-    }
-
     .coleta-toolbar {
         flex-direction: column;
         align-items: stretch;

@@ -54,8 +54,8 @@ const dataGeracao = new Date().toLocaleString('pt-BR')
   padding: 24px;
   font-family: Arial, sans-serif;
   font-size: 12px;
-  color: #111;
-  background: #fff;
+  color: var(--color-text-primary);
+  background: var(--color-surface);
 }
 .pdf-root h1 {
   font-size: 18px;
@@ -66,7 +66,7 @@ const dataGeracao = new Date().toLocaleString('pt-BR')
   margin: 16px 0 8px;
 }
 .meta {
-  color: #666;
+  color: var(--color-text-muted);
   margin-bottom: 16px;
 }
 table {
@@ -75,7 +75,7 @@ table {
 }
 th,
 td {
-  border: 1px solid #ccc;
+  border: 1px solid var(--color-border);
   padding: 4px 6px;
   text-align: left;
 }

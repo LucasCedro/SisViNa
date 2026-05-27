@@ -141,6 +141,7 @@ async def create_semeadura(db: AsyncSession, payload: SemeaduraCreate, id_funcio
                     codigo_rastreio=codigo[:20],
                     data_plantio=dados["data_semeadura"],
                     status="SEMENTE",
+                    estagio_producao="em_desenvolvimento",
                     origem="semeadura",
                     observacoes=f"Origem lote {lote.codigo_lote}",
                 )

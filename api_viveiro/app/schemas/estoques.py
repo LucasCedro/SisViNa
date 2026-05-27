@@ -25,12 +25,24 @@ class EstoqueInsumoItem(BaseModel):
     fornecedor: Optional[str] = None
 
 
+class EstoqueComercialItem(BaseModel):
+    id_especie: int
+    nome_popular: Optional[str] = None
+    nome_cientifico: str
+    quantidade: int
+    valor_unitario: float
+    localizacao: Optional[str] = None
+    status_predominante: Optional[str] = None
+    estagio_comercial: str = "apta_venda"
+
+
 class EstoqueResumoGeral(BaseModel):
     total_lotes_sementes_ativos: int
     total_sementes_disponiveis: int
     total_plantas_sementeira: int
     total_plantas_canteiro: int
     total_insumos: int
+    total_mudas_aptas_venda: int = 0
+    estoque_comercial: List[EstoqueComercialItem] = []
     lotes_sementes: List[EstoqueSementesItem]
     insumos: List[EstoqueInsumoItem]
-

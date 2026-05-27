@@ -1,6 +1,5 @@
 <template>
-    <div class="biblioteca-view">
-        <div class="content-wrapper">
+    <PageLayout>
             <div class="pesquisa-section">
                 <div class="card search-card">
                     <div class="search-container">
@@ -42,12 +41,12 @@
             <div v-else-if="!carregando && !erro" class="vazio">
                 Nenhuma espécie encontrada.
             </div>
-        </div>
-    </div>
+    </PageLayout>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import PageLayout from '@/components/layout/PageLayout.vue'
 import { listEspecies } from '../../services/especies'
 
 const especies = ref([])
@@ -79,18 +78,6 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.biblioteca-view {
-    width: 100%;
-    height: 100%;
-}
-
-.content-wrapper {
-    padding: var(--spacing-xl);
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-xl);
-}
-
 .search-card {
     padding: var(--spacing-lg);
     background: var(--color-surface);
@@ -113,7 +100,7 @@ onMounted(async () => {
 }
 
 .status-msg.erro {
-    color: #e74c3c;
+    color: var(--color-error);
 }
 
 .especies-grid {
@@ -131,7 +118,7 @@ onMounted(async () => {
 
 .placeholder-img {
     height: 120px;
-    background: linear-gradient(135deg, #d4e9f7, #e8f5e9);
+    background: linear-gradient(135deg, var(--color-info-bg), var(--color-success-bg));
 }
 
 .especie-content {

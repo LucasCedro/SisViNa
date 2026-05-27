@@ -1,5 +1,20 @@
-# Vue 3 + Vite
+# SisViNa — Frontend
 
-This template should help get you started developing with Vue 3 in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
+Vue 3 + Vite + Pinia.
 
-Learn more about IDE Support for Vue in the [Vue Docs Scaling up Guide](https://vuejs.org/guide/scaling-up/tooling.html#ide-support).
+## Design System
+
+Paleta de cores, tokens CSS e regras de UI/UX: **[docs/DESIGN_SYSTEM.md](./docs/DESIGN_SYSTEM.md)**
+
+Tokens implementados em `src/assets/main.css`.
+
+## Limpeza / legado
+
+Inventário do que foi removido e dívida técnica restante: **[docs/CLEANUP.md](./docs/CLEANUP.md)**
+
+## Home e perfis de acesso
+
+Cockpit da página inicial e perfis múltiplos por usuário: **[docs/HOME_E_PERFIS.md](./docs/HOME_E_PERFIS.md)**
+
+Copie `.env.example` para `.env` e ajuste `VITE_VIVEIRO_NOME`.
+

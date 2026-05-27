@@ -156,8 +156,15 @@ async def update_coleta(
         return None
 
     id_matriz = db_coleta.id_arvore_matriz
-    for field, value in payload.dict(exclude_unset=True).items():
+    update_data = payload.dict(exclude_unset=True)
+    for field, value in update_data.items():
         setattr(db_coleta, field, value)
+
+    if "data_coleta" in update_data:
+        nova_data = update_data["data_coleta"]
+        for lote in db_coleta.lotes or []:
+            if lote.id_coleta_sementes == db_coleta.id:
+                lote.data_formacao_lote = nova_data
 
     await db.commit()
     await _atualizar_agregados_matriz(db, id_matriz)

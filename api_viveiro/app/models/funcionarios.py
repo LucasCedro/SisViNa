@@ -1,5 +1,5 @@
 # app/models/funcionarios.py
-from sqlalchemy import Column, Integer, String, Text, Date, DateTime, Numeric, Boolean, func
+from sqlalchemy import Column, Integer, String, Text, Date, DateTime, Numeric, Boolean, JSON, func
 from sqlalchemy.orm import relationship
 
 from app.database import Base
@@ -21,6 +21,7 @@ class Funcionario(Base):
     usuario = Column(String(50), unique=True, nullable=False)
     senha = Column(String(255), nullable=False)
     ativo = Column(Boolean, default=True)
+    perfis = Column(JSON, nullable=True)
     data_cadastro = Column(DateTime, default=func.now())
 
     # Relacionamentos

@@ -1,7 +1,14 @@
 <template>
   <div class="vendas-estoque-container">
-    <h1 class="page-title">Vendas e Estoque de Mudas</h1>
-    
+    <aside class="estoque-aviso" role="note">
+      <strong>Estoque comercial</strong> — só entram mudas marcadas como
+      <em>aptas p/ venda</em> em Produção. A venda aqui dá baixa automática (planta →
+      <code>VENDIDA</code>), reduz o estoque e registra receita para o financeiro.
+      Não é possível vender pela tela de Produção.
+    </aside>
+
+    <p v-if="erro" class="alert-erro">{{ erro }}</p>
+
     <!-- Seção de registro de vendas -->
     <div class="secao">
       <div class="secao-header">
@@ -48,6 +55,7 @@
     <div class="secao">
       <div class="secao-header">
         <h2 class="secao-titulo">Controle de Estoque</h2>
+        <span class="estoque-total">{{ totalUnidadesEstoque }} unidade(s) aptas p/ venda</span>
       </div>
       
       <div class="tabela-container">
@@ -95,7 +103,7 @@
     <div class="modal-overlay" v-if="modalEstoqueAberto" @click.self="fecharModalEstoque">
       <div class="modal-content">
         <div class="modal-header">
-          <h2 class="modal-title">Editar Estoque</h2>
+          <h2 class="modal-title">Preço de venda da espécie</h2>
           <button class="btn-fechar" @click="fecharModalEstoque">×</button>
         </div>
         <form @submit.prevent="salvarEstoque" class="formulario-estoque">
@@ -122,8 +130,14 @@
             </div>
             
             <div class="form-group">
-              <label for="quantidade">Quantidade:</label>
-              <input type="number" id="quantidade" v-model.number="formEstoque.quantidade" min="0" required>
+              <label for="quantidade">Quantidade (estoque real):</label>
+              <input
+                type="number"
+                id="quantidade"
+                v-model.number="formEstoque.quantidade"
+                disabled
+                title="Quantidade vem das plantas aptas; altere em Produção ou registre vendas"
+              >
             </div>
           </div>
           
@@ -135,7 +149,7 @@
             
             <div class="form-group">
               <label for="localizacao">Localização:</label>
-              <input type="text" id="localizacao" v-model="formEstoque.localizacao" required>
+              <input type="text" id="localizacao" v-model="formEstoque.localizacao" disabled>
             </div>
           </div>
           
@@ -234,7 +248,11 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '@/store/auth'
-import { getEstoqueResumo, atualizarPrecoEspecie, listPlantas } from '@/services/plantas'
+import {
+  getEstoqueResumo,
+  atualizarPrecoEspecie,
+  listPlantasDisponiveisVenda,
+} from '@/services/plantas'
 import { listVendas, createVenda } from '@/services/vendas'
 import { listCompradores } from '@/services/compradores'
 
@@ -271,8 +289,12 @@ const formVenda = ref({
 
 // Computed properties
 const estoqueDisponivel = computed(() => {
-  return estoqueItems.value.filter(item => item.quantidade > 0);
-});
+  return estoqueItems.value.filter((item) => item.quantidade > 0)
+})
+
+const totalUnidadesEstoque = computed(() =>
+  estoqueItems.value.reduce((s, i) => s + (i.quantidade || 0), 0)
+)
 
 const especieSelecionada = computed(() => {
   if (!formVenda.value.especieId) return null
@@ -350,13 +372,12 @@ async function salvarVenda() {
     return
   }
   try {
-    const todas = await listPlantas({
-      id_especie: especieSelecionada.value.id_especie,
-      limit: 500
-    })
-    const plantas = todas.filter((p) => !['VENDIDA', 'MORTA'].includes(p.status))
+    const plantas = await listPlantasDisponiveisVenda(
+      especieSelecionada.value.id_especie,
+      Math.max(formVenda.value.quantidade, 500)
+    )
     if (plantas.length < formVenda.value.quantidade) {
-      alert('Plantas insuficientes no estoque.')
+      alert('Plantas insuficientes no estoque comercial (aptas p/ venda).')
       return
     }
     const valorUnit = especieSelecionada.value.valorUnitario
@@ -409,6 +430,37 @@ function formatarData(dataString) {
 </script>
 
 <style>
+.estoque-aviso {
+  margin: 0 0 1.25rem;
+  padding: 0.85rem 1rem;
+  background: var(--color-primary-subtle);
+  border: 1px solid var(--color-primary-100);
+  border-radius: var(--radius-lg);
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  line-height: 1.45;
+}
+
+.estoque-aviso code {
+  font-size: 0.8125rem;
+  color: var(--color-primary-700);
+}
+
+.alert-erro {
+  margin: 0 0 1rem;
+  padding: 0.75rem 1rem;
+  background: var(--color-error-bg);
+  color: var(--color-error);
+  border-radius: var(--radius-lg);
+  font-size: 0.875rem;
+}
+
+.estoque-total {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
 .vendas-estoque-container {
   width: 100%;
   padding: 1.5rem;
@@ -422,7 +474,7 @@ function formatarData(dataString) {
 }
 
 .secao {
-  background-color: white;
+  background-color: var(--color-text-inverse);
   border-radius: 0.5rem;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   margin-bottom: 2rem;
@@ -431,7 +483,7 @@ function formatarData(dataString) {
 
 .secao-header {
   padding: 1rem 1.5rem;
-  border-bottom: 1px solid #eeeeee;
+  border-bottom: 1px solid var(--color-border-subtle);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -461,19 +513,19 @@ function formatarData(dataString) {
 .tabela-vendas td {
   padding: 0.75rem 1rem;
   text-align: left;
-  border-bottom: 1px solid #eeeeee;
+  border-bottom: 1px solid var(--color-border-subtle);
 }
 
 .tabela-estoque th,
 .tabela-vendas th {
   font-weight: 600;
   color: var(--color-text-primary);
-  background-color: #f8f9fa;
+  background-color: var(--color-surface-muted);
 }
 
 .tabela-estoque tbody tr:hover,
 .tabela-vendas tbody tr:hover {
-  background-color: #f8f9fa;
+  background-color: var(--color-surface-muted);
 }
 
 .especie-info {
@@ -497,7 +549,7 @@ function formatarData(dataString) {
 }
 
 .qtd-alerta {
-  color: #e53935;
+  color: var(--color-error);
   font-weight: 600;
 }
 
@@ -526,7 +578,7 @@ function formatarData(dataString) {
   gap: 0.5rem;
   padding: 0.5rem 1rem;
   background-color: var(--color-primary);
-  color: white;
+  color: var(--color-text-inverse);
   border: none;
   border-radius: 0.25rem;
   font-weight: 500;
@@ -552,8 +604,8 @@ function formatarData(dataString) {
 }
 
 .pagamento-tag {
-  background-color: #e3f2fd;
-  color: #1976d2;
+  background-color: var(--color-info-bg);
+  color: var(--color-info);
 }
 
 /* Estilos para o modal */
@@ -571,7 +623,7 @@ function formatarData(dataString) {
 }
 
 .modal-content {
-  background-color: white;
+  background-color: var(--color-text-inverse);
   border-radius: 0.5rem;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   width: 90%;
@@ -582,7 +634,7 @@ function formatarData(dataString) {
 
 .modal-header {
   padding: 1rem 1.5rem;
-  border-bottom: 1px solid #eeeeee;
+  border-bottom: 1px solid var(--color-border-subtle);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -599,7 +651,7 @@ function formatarData(dataString) {
   border: none;
   font-size: 1.5rem;
   line-height: 1;
-  color: #666;
+  color: var(--color-text-muted);
   cursor: pointer;
 }
 
@@ -634,7 +686,7 @@ function formatarData(dataString) {
 .form-group select,
 .form-group textarea {
   padding: 0.5rem;
-  border: 1px solid #ddd;
+  border: 1px solid var(--color-border);
   border-radius: 0.25rem;
   font-size: 1rem;
 }
@@ -648,8 +700,8 @@ function formatarData(dataString) {
 
 .btn-cancelar {
   padding: 0.5rem 1rem;
-  background-color: #f5f5f5;
-  border: 1px solid #ddd;
+  background-color: var(--color-surface-muted);
+  border: 1px solid var(--color-border);
   border-radius: 0.25rem;
   font-weight: 500;
   cursor: pointer;
@@ -658,7 +710,7 @@ function formatarData(dataString) {
 .btn-salvar {
   padding: 0.5rem 1rem;
   background-color: var(--color-primary);
-  color: white;
+  color: var(--color-text-inverse);
   border: none;
   border-radius: 0.25rem;
   font-weight: 500;
@@ -667,7 +719,7 @@ function formatarData(dataString) {
 
 .info-texto {
   font-size: 0.75rem;
-  color: #666;
+  color: var(--color-text-muted);
   margin-top: 0.25rem;
 }
 

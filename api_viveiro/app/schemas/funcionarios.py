@@ -3,6 +3,9 @@ from datetime import date, datetime
 from typing import Optional, List
 from pydantic import BaseModel, Field, EmailStr, validator
 
+VALID_PERFIS = frozenset({"admin", "gestor", "campo", "financeiro", "rh", "consulta"})
+
+
 class FuncionarioBase(BaseModel):
     nome: str
     cpf: str
@@ -16,6 +19,16 @@ class FuncionarioBase(BaseModel):
     salario: Optional[float] = None
     usuario: str
     ativo: Optional[bool] = True
+    perfis: Optional[List[str]] = None
+
+    @validator("perfis")
+    def validate_perfis(cls, v):
+        if v is None:
+            return v
+        invalid = [p for p in v if p not in VALID_PERFIS]
+        if invalid:
+            raise ValueError(f"Perfis inválidos: {', '.join(invalid)}")
+        return list(dict.fromkeys(v))
 
 class FuncionarioCreate(FuncionarioBase):
     senha: str
@@ -45,6 +58,16 @@ class FuncionarioUpdate(BaseModel):
     usuario: Optional[str] = None
     senha: Optional[str] = None
     ativo: Optional[bool] = None
+    perfis: Optional[List[str]] = None
+
+    @validator("perfis")
+    def validate_perfis_update(cls, v):
+        if v is None:
+            return v
+        invalid = [p for p in v if p not in VALID_PERFIS]
+        if invalid:
+            raise ValueError(f"Perfis inválidos: {', '.join(invalid)}")
+        return list(dict.fromkeys(v))
 
     @validator('cpf')
     def validate_cpf(cls, v):
@@ -68,7 +91,7 @@ class FuncionarioInDBBase(FuncionarioBase):
         orm_mode = True
 
 class FuncionarioOut(FuncionarioInDBBase):
-    pass
+    perfis: List[str] = []
 
 class FuncionarioWithStats(FuncionarioInDBBase):
     total_atividades: int = 0

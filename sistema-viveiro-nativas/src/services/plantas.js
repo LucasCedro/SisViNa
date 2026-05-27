@@ -17,6 +17,14 @@ export async function getEstoqueResumo() {
   return data
 }
 
+/** Plantas individuais aptas à venda (única origem para itens de venda). */
+export async function listPlantasDisponiveisVenda(idEspecie, limit = 500) {
+  const { data } = await api.get(`${API_V1}/plantas/disponiveis-venda`, {
+    params: { id_especie: idEspecie, limit },
+  })
+  return data
+}
+
 export async function atualizarPrecoEspecie(idEspecie, precoVenda) {
   const { data } = await api.patch(`${API_V1}/plantas/preco-especie/${idEspecie}`, {
     preco_venda: precoVenda
@@ -48,6 +56,39 @@ export async function deletePlanta(id) {
 
 export async function listPendentesTransferencia(params = {}) {
   const { data } = await api.get(`${API_V1}/plantas/pendentes-transferencia`, { params })
+  return data
+}
+
+export async function listEmDesenvolvimentoSementeira(params = {}) {
+  const { data } = await api.get(`${API_V1}/plantas/em-desenvolvimento-sementeira`, { params })
+  return data
+}
+
+export async function listEmCrescimentoCanteiro(params = {}) {
+  const { data } = await api.get(`${API_V1}/plantas/em-crescimento-canteiro`, { params })
+  return data
+}
+
+export async function listEmRustificacao(params = {}) {
+  const { data } = await api.get(`${API_V1}/plantas/em-rustificacao`, { params })
+  return data
+}
+
+export async function listAptasRustificacaoCanteiro(params = {}) {
+  const { data } = await api.get(
+    `${API_V1}/plantas/aptas-rustificacao-canteiro`,
+    { params },
+  )
+  return data
+}
+
+export async function transferirRustificacao(payload) {
+  const { data } = await api.post(`${API_V1}/plantas/transferir-rustificacao`, payload)
+  return data
+}
+
+export async function atualizarEstagioProducao(payload) {
+  const { data } = await api.post(`${API_V1}/plantas/atualizar-estagio`, payload)
   return data
 }
 

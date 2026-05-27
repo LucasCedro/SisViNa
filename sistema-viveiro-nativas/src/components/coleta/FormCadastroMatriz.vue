@@ -340,7 +340,7 @@ async function salvar() {
 }
 
 .modal-card {
-  background: #fff;
+  background: var(--color-surface);
   border-radius: 12px;
   width: 100%;
   max-width: 560px;
@@ -354,7 +354,7 @@ async function salvar() {
   justify-content: space-between;
   align-items: center;
   padding: 1rem 1.25rem;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .modal-header h2 {
@@ -367,7 +367,7 @@ async function salvar() {
   background: none;
   font-size: 1.5rem;
   cursor: pointer;
-  color: #6b7280;
+  color: var(--color-text-muted);
 }
 
 .modal-body {
@@ -388,7 +388,7 @@ async function salvar() {
 .field textarea {
   font-weight: 400;
   padding: 0.5rem 0.65rem;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--color-border);
   border-radius: 6px;
 }
 
@@ -400,7 +400,7 @@ async function salvar() {
 
 .secao-fieldset,
 .coord-fieldset {
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--color-border);
   border-radius: 8px;
   padding: 0.75rem 1rem;
   margin-bottom: 1rem;
@@ -427,7 +427,7 @@ async function salvar() {
 
 .preview-coord {
   font-size: 0.8125rem;
-  color: #6b7280;
+  color: var(--color-text-muted);
   margin: 0;
 }
 
@@ -447,12 +447,12 @@ async function salvar() {
 }
 
 .btn-sec {
-  background: #f3f4f6;
+  background: var(--color-surface-muted);
 }
 
 .btn-prim {
-  background: #6ca234;
-  color: #fff;
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
   font-weight: 600;
 }
 
@@ -463,13 +463,13 @@ async function salvar() {
 
 .dica-coleta {
   font-size: 0.8125rem;
-  color: #6b7280;
+  color: var(--color-text-muted);
   margin: 0 0 1rem;
   line-height: 1.4;
 }
 
 .erro {
-  color: #b91c1c;
+  color: var(--color-error);
   font-size: 0.875rem;
 }
 </style>

@@ -1,7 +1,8 @@
 <template>
     <header class="app-header">
         <div class="header-content">
-            <h1 class="page-title">{{ title }}</h1>
+            <h1 v-if="!hideTitle" class="page-title">{{ title }}</h1>
+            <span v-else class="page-title page-title--subtle">SisViNa</span>
             <div class="header-actions">
                 <span v-if="auth.user" class="user-label">{{ auth.user.nome }}</span>
                 <button v-if="auth.isAuthenticated" type="button" class="logout-btn" @click="onLogout">
@@ -40,6 +41,10 @@ defineProps({
     title: {
         type: String,
         required: true
+    },
+    hideTitle: {
+        type: Boolean,
+        default: false
     }
 })
 
@@ -75,6 +80,12 @@ function onLogout() {
     color: var(--color-text-primary);
 }
 
+.page-title--subtle {
+    font-size: 1rem;
+    font-weight: 500;
+    color: var(--color-text-muted);
+}
+
 .header-actions {
     display: flex;
     align-items: center;
@@ -90,9 +101,12 @@ function onLogout() {
     padding: 0.4rem 0.75rem;
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
-    background: #fff;
+    background: var(--color-surface);
     cursor: pointer;
     font-size: 0.875rem;
+    color: var(--color-text-secondary);
+    font-family: inherit;
+    transition: background-color 0.2s;
 }
 
 .logout-btn:hover {

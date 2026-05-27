@@ -102,19 +102,19 @@ async function gerarPdf() {
   font-size: 0.75rem;
   border: 1px solid var(--color-border);
   border-radius: 6px;
-  background: #fff;
+  background: var(--color-surface);
   cursor: pointer;
 }
 .btn-exp:hover:not(:disabled) {
-  border-color: #6ca234;
-  color: #5d9130;
+  border-color: var(--color-primary);
+  color: var(--color-primary-dark);
 }
 .btn-exp:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 .btn-pdf {
-  background: #f0f7eb;
-  border-color: #6ca234;
+  background: var(--color-success-bg);
+  border-color: var(--color-primary);
 }
 </style>

@@ -2,37 +2,66 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ═══════════════════════════════════════════════════════════════
+   SisViNa Design Tokens — ver docs/DESIGN_SYSTEM.md
+   Regra 60-30-10: background/surface (60) · primary (30) · accent (10)
+   ═══════════════════════════════════════════════════════════════ */
+
 :root {
-    /* Paleta de cores principal */
-    --color-primary: #4CAF50;
-    --color-primary-dark: #388E3C;
-    --color-primary-light: #A5D6A7;
+    /* ── Primary scale ── */
+    --color-primary-50: #EEF0EA;
+    --color-primary-100: #CBD3C3;
+    --color-primary-200: #A4B39A;
+    --color-primary-500: #596247;
+    --color-primary-600: #47503A;
+    --color-primary-700: #353D2B;
+    --color-primary-900: #222A1C;
 
-    --color-secondary: #2196F3;
-    --color-secondary-dark: #1976D2;
-    --color-secondary-light: #BBDEFB;
+    --color-primary: var(--color-primary-500);
+    --color-primary-dark: var(--color-primary-600);
+    --color-primary-light: var(--color-primary-100);
+    --color-primary-subtle: var(--color-primary-50);
 
-    --color-accent: #FF9800;
-    --color-accent-dark: #F57C00;
-    --color-accent-light: #FFE0B2;
+    /* ── Harmonic palette ── */
+    --color-complement-dark: #624E47;
+    --color-complement-light: #F0EAE9;
+    --color-analog-1: #3E6247;
+    --color-analog-2: #625947;
 
-    /* Tons neutros */
-    --color-background: #F9FAFB;
+    /* ── Neutrals (60%) ── */
+    --color-background: #F5F4F2;
     --color-surface: #FFFFFF;
-    --color-border: #E2E8F0;
+    --color-surface-muted: #EEF0EA;
+    --color-border: #CBD3C3;
+    --color-border-subtle: #EEF0EA;
+    --color-neutral-medium: #8E9089;
 
-    /* Texto */
-    --color-text-primary: #1F2937;
-    --color-text-secondary: #4B5563;
-    --color-text-muted: #9CA3AF;
+    /* ── Text ── */
+    --color-text-primary: #2C2D2A;
+    --color-text-secondary: #47503A;
+    --color-text-muted: #8E9089;
+    --color-text-inverse: #FFFFFF;
 
-    /* Feedback */
-    --color-success: #10B981;
-    --color-info: #3B82F6;
-    --color-warning: #F59E0B;
-    --color-error: #EF4444;
+    /* ── Semantic (10%) ── */
+    --color-attention: #C8A84B;
+    --color-attention-bg: #FBF6E8;
+    --color-success: #3E6247;
+    --color-success-bg: #EEF0EA;
+    --color-error: #8E3B2B;
+    --color-error-bg: #F5EDEB;
+    --color-error-dark: #723023;
+    --color-info: #47607B;
+    --color-info-bg: #EDF1F5;
+    --color-info-dark: #3A5066;
 
-    /* Espaçamento */
+    /* ── Sidebar (30%) ── */
+    --color-sidebar-bg: var(--color-primary-900);
+    --color-sidebar-text: rgba(255, 255, 255, 0.72);
+    --color-sidebar-text-active: #FFFFFF;
+    --color-sidebar-hover: rgba(255, 255, 255, 0.08);
+    --color-sidebar-active-accent: var(--color-attention);
+
+    /* ── Spacing ── */
     --spacing-xs: 0.25rem;
     --spacing-sm: 0.5rem;
     --spacing-md: 1rem;
@@ -40,13 +69,13 @@
     --spacing-xl: 2rem;
     --spacing-2xl: 3rem;
 
-    /* Sombras */
-    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-    --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
-    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    /* ── Shadows ── */
+    --shadow-sm: 0 1px 2px 0 rgba(44, 45, 42, 0.05);
+    --shadow: 0 1px 3px 0 rgba(44, 45, 42, 0.08), 0 1px 2px 0 rgba(44, 45, 42, 0.04);
+    --shadow-md: 0 4px 6px -1px rgba(44, 45, 42, 0.08), 0 2px 4px -1px rgba(44, 45, 42, 0.04);
+    --shadow-lg: 0 10px 15px -3px rgba(44, 45, 42, 0.08), 0 4px 6px -2px rgba(44, 45, 42, 0.04);
 
-    /* Raios de borda */
+    /* ── Radius ── */
     --radius-sm: 0.125rem;
     --radius: 0.25rem;
     --radius-md: 0.375rem;
@@ -54,13 +83,13 @@
     --radius-xl: 0.75rem;
     --radius-full: 9999px;
 
-    /* Tipografia */
-    --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    /* ── Typography ── */
+    --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
     --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 }
 
-/* Estilos globais básicos */
+/* ── Base ── */
 body {
     background-color: var(--color-background);
     color: var(--color-text-primary);
@@ -70,7 +99,7 @@ body {
     -moz-osx-font-smoothing: grayscale;
 }
 
-/* Classes utilitárias globais */
+/* ── Cards ── */
 .card {
     background-color: var(--color-surface);
     border-radius: var(--radius-lg);
@@ -93,17 +122,264 @@ body {
     margin-right: var(--spacing-sm);
     height: 1.25rem;
     width: 1.25rem;
+    color: var(--color-primary);
 }
 
-/* Tooltip base global */
+/* ── Buttons ── */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    padding: 0.55rem 1.125rem;
+    border-radius: var(--radius-lg);
+    font-weight: 600;
+    font-size: 0.875rem;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background-color 0.2s, border-color 0.2s, color 0.2s;
+    font-family: inherit;
+}
+
+.btn:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+}
+
+.btn-primary {
+    border: none;
+    background: var(--color-primary);
+    color: var(--color-text-inverse);
+}
+
+.btn-primary:hover:not(:disabled) {
+    background: var(--color-primary-dark);
+}
+
+.btn-outline {
+    border: 1px solid var(--color-primary);
+    background: var(--color-surface);
+    color: var(--color-primary);
+}
+
+.btn-outline:hover:not(:disabled) {
+    background: var(--color-primary-subtle);
+}
+
+.btn-secondary {
+    border: 1px solid var(--color-border);
+    background: var(--color-surface-muted);
+    color: var(--color-text-secondary);
+}
+
+.btn-secondary:hover:not(:disabled) {
+    background: var(--color-primary-100);
+}
+
+.btn-danger {
+    border: none;
+    background: var(--color-error);
+    color: var(--color-text-inverse);
+}
+
+.btn-danger:hover:not(:disabled) {
+    background: var(--color-error-dark);
+}
+
+.btn-info {
+    border: none;
+    background: var(--color-info);
+    color: var(--color-text-inverse);
+}
+
+.btn-info:hover:not(:disabled) {
+    background: var(--color-info-dark);
+}
+
+.btn-sm {
+    padding: 0.35rem 0.75rem;
+    font-size: 0.8125rem;
+}
+
+/* ── Alerts ── */
+.alert {
+    margin: 0;
+    padding: 0.75rem 1rem;
+    border-radius: var(--radius-lg);
+    font-size: 0.875rem;
+}
+
+.alert-error {
+    background: var(--color-error-bg);
+    color: var(--color-error);
+    border: 1px solid var(--color-primary-100);
+}
+
+.alert-success {
+    background: var(--color-success-bg);
+    color: var(--color-success);
+    border: 1px solid var(--color-primary-100);
+}
+
+.alert-warning {
+    background: var(--color-attention-bg);
+    color: var(--color-complement-dark);
+    border: 1px solid var(--color-primary-100);
+}
+
+.alert-info {
+    background: var(--color-info-bg);
+    color: var(--color-info);
+    border: 1px solid var(--color-primary-100);
+}
+
+/* ── Badges ── */
+.badge {
+    display: inline-block;
+    padding: 0.2rem 0.55rem;
+    border-radius: var(--radius-full);
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.badge-success {
+    background: var(--color-success-bg);
+    color: var(--color-success);
+}
+
+.badge-error {
+    background: var(--color-error-bg);
+    color: var(--color-error);
+}
+
+.badge-warning {
+    background: var(--color-attention-bg);
+    color: var(--color-complement-dark);
+}
+
+.badge-info {
+    background: var(--color-info-bg);
+    color: var(--color-info);
+}
+
+/* ── Forms ── */
+.form-label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--color-text-primary);
+}
+
+.form-input,
+input.form-input,
+select.form-input,
+textarea.form-input {
+    padding: 0.65rem 0.75rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    font-size: 1rem;
+    font-family: inherit;
+    color: var(--color-text-primary);
+    background: var(--color-surface);
+    transition: border-color 0.2s;
+}
+
+.form-input:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(89, 98, 71, 0.15);
+}
+
+.form-input::placeholder {
+    color: var(--color-text-muted);
+}
+
+/* ── Page layout ── */
+.page-lead {
+    margin: 0;
+    color: var(--color-text-secondary);
+    font-size: 0.9375rem;
+    line-height: 1.5;
+}
+
+.content-wrapper {
+    padding: var(--spacing-xl);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xl);
+}
+
+.secao {
+    background-color: var(--color-surface);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+}
+
+.secao-header {
+    padding: var(--spacing-lg);
+    border-bottom: 1px solid var(--color-border-subtle);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.secao-titulo {
+    display: flex;
+    align-items: center;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin: 0;
+}
+
+.secao-icon {
+    width: 1.5rem;
+    height: 1.5rem;
+    margin-right: var(--spacing-md);
+    color: var(--color-primary);
+}
+
+/* ── Tabs / Guias ── */
+.guias-navegacao {
+    display: flex;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.guia {
+    padding: var(--spacing-md) var(--spacing-lg);
+    background: none;
+    border: none;
+    border-bottom: 3px solid transparent;
+    font-size: 1rem;
+    font-weight: 500;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: inherit;
+}
+
+.guia:hover {
+    color: var(--color-primary);
+}
+
+.guia.ativa {
+    color: var(--color-primary);
+    border-bottom-color: var(--color-primary);
+    font-weight: 600;
+}
+
+/* ── Tooltip ── */
 .tooltip {
     position: absolute;
     visibility: hidden;
     z-index: 50;
-    background-color: var(--color-surface);
-    color: var(--color-text-primary);
+    background-color: var(--color-primary-900);
+    color: var(--color-text-inverse);
     padding: var(--spacing-sm) var(--spacing-md);
-    border-radius: var(--radius);
+    border-radius: var(--radius-md);
     box-shadow: var(--shadow-md);
     font-size: 0.875rem;
     max-width: 300px;
@@ -112,4 +388,11 @@ body {
 
 .has-tooltip:hover .tooltip {
     visibility: visible;
+}
+
+@media (max-width: 768px) {
+    .content-wrapper {
+        padding: var(--spacing-md);
+        gap: var(--spacing-md);
+    }
 }

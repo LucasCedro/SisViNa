@@ -3,6 +3,8 @@ from datetime import date, datetime
 from typing import Optional, List
 from pydantic import BaseModel, Field, validator
 
+from app.constants.estagios_producao import ESTAGIOS_VALIDOS
+
 
 class PlantaBase(BaseModel):
     id_especie: int
@@ -15,6 +17,7 @@ class PlantaBase(BaseModel):
     coordenada_x: Optional[float] = None
     coordenada_y: Optional[float] = None
     status: Optional[str] = "SEMENTE"
+    estagio_producao: Optional[str] = "em_desenvolvimento"
     origem: Optional[str] = "semeadura"
     observacoes: Optional[str] = None
     preco_venda: Optional[float] = None
@@ -29,6 +32,12 @@ class PlantaCreate(PlantaBase):
             raise ValueError(f'Status deve ser um dos seguintes: {", ".join(allowed_status)}')
         return v
 
+    @validator("estagio_producao")
+    def validate_estagio(cls, v):
+        if v is not None and v not in ESTAGIOS_VALIDOS:
+            raise ValueError(f'Estágio deve ser um de: {", ".join(ESTAGIOS_VALIDOS)}')
+        return v
+
 
 class PlantaUpdate(BaseModel):
     id_especie: Optional[int] = None
@@ -41,6 +50,7 @@ class PlantaUpdate(BaseModel):
     coordenada_x: Optional[float] = None
     coordenada_y: Optional[float] = None
     status: Optional[str] = None
+    estagio_producao: Optional[str] = None
     observacoes: Optional[str] = None
     preco_venda: Optional[float] = None
 
@@ -50,6 +60,12 @@ class PlantaUpdate(BaseModel):
             allowed_status = ["SEMENTE", "MUDA", "JOVEM", "ADULTA", "VENDIDA", "MORTA"]
             if v not in allowed_status:
                 raise ValueError(f'Status deve ser um dos seguintes: {", ".join(allowed_status)}')
+        return v
+
+    @validator("estagio_producao")
+    def validate_estagio(cls, v):
+        if v is not None and v not in ESTAGIOS_VALIDOS:
+            raise ValueError(f'Estágio deve ser um de: {", ".join(ESTAGIOS_VALIDOS)}')
         return v
 
 
@@ -73,6 +89,8 @@ class PlantaWithEspecie(PlantaInDBBase):
 
 
 class EstoqueResumoItem(BaseModel):
+    """Agregado do estoque comercial (plantas em estagio apta_venda)."""
+
     id_especie: int
     nome_popular: Optional[str] = None
     nome_cientifico: str
@@ -80,6 +98,7 @@ class EstoqueResumoItem(BaseModel):
     valor_unitario: float
     localizacao: Optional[str] = None
     status_predominante: Optional[str] = None
+    estagio_comercial: str = "apta_venda"
 
 
 class AtualizarPrecoEspecie(BaseModel):

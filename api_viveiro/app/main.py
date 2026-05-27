@@ -25,6 +25,7 @@ from app.routes import (
     dashboard,
     lancamentos_financeiros,
     estoques,
+    producao,
 )
 from app.auth.router import router as auth_router
 
@@ -181,4 +182,10 @@ app.include_router(
     estoques.router,
     prefix=f"{settings.API_V1_STR}/estoques",
     tags=["estoques"],
+)
+
+app.include_router(
+    producao.router,
+    prefix=f"{settings.API_V1_STR}/producao",
+    tags=["producao"],
 )

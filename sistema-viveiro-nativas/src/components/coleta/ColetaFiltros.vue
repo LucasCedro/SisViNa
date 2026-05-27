@@ -124,14 +124,14 @@ const store = useColetaStore()
   border: 1px solid var(--color-border);
   border-radius: 6px;
   font-size: 0.875rem;
-  background: #fff;
+  background: var(--color-surface);
   color: var(--color-text-primary);
 }
 
 .filtro input:focus,
 .filtro select:focus {
   outline: none;
-  border-color: #6ca234;
+  border-color: var(--color-primary);
   box-shadow: 0 0 0 2px rgba(108, 162, 52, 0.15);
 }
 
@@ -146,7 +146,7 @@ const store = useColetaStore()
   padding: 0.5rem 0.85rem;
   border: 1px solid var(--color-border);
   border-radius: 6px;
-  background: #fff;
+  background: var(--color-surface);
   font-size: 0.8125rem;
   font-weight: 500;
   cursor: pointer;

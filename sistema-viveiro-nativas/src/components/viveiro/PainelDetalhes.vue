@@ -76,11 +76,11 @@
                         </div>
                         <div class="campo">
                             <span class="campo-label">Teor de Umidade:</span>
-                            <span class="campo-valor">{{ mudaSelecionada.teorUmidade }}%</span>
+                            <span class="campo-valor">{{ formatarMedicao(mudaSelecionada.teorUmidade, '%') }}</span>
                         </div>
                         <div class="campo">
                             <span class="campo-label">Tempo de Permanência:</span>
-                            <span class="campo-valor">{{ mudaSelecionada.tempoPermanencia }} dias</span>
+                            <span class="campo-valor">{{ formatarMedicao(mudaSelecionada.tempoPermanencia, ' dias') }}</span>
                         </div>
                         <div class="campo">
                             <span class="campo-label">Tipo de Substrato:</span>
@@ -88,11 +88,11 @@
                         </div>
                         <div class="campo">
                             <span class="campo-label">Temperatura do Ar:</span>
-                            <span class="campo-valor">{{ mudaSelecionada.temperaturaAr }}°C</span>
+                            <span class="campo-valor">{{ formatarMedicao(mudaSelecionada.temperaturaAr, '°C') }}</span>
                         </div>
                         <div class="campo">
                             <span class="campo-label">Temperatura do Solo:</span>
-                            <span class="campo-valor">{{ mudaSelecionada.temperaturaSolo }}°C</span>
+                            <span class="campo-valor">{{ formatarMedicao(mudaSelecionada.temperaturaSolo, '°C') }}</span>
                         </div>
                         <div class="campo">
                             <span class="campo-label">Status:</span>
@@ -217,6 +217,11 @@ const modoEdicao = ref(false);
 const dadosEditados = ref({});
 
 // Funções
+const formatarMedicao = (valor, sufixo = '') => {
+    if (valor === null || valor === undefined || valor === '') return '—'
+    return `${valor}${sufixo}`
+}
+
 const formatarData = (dataString) => {
     const data = new Date(dataString);
     return data.toLocaleDateString('pt-BR');
@@ -267,7 +272,7 @@ const salvarEdicao = () => {
 <style scoped>
 .painel-detalhes {
     position: relative;
-    background-color: #ffffff;
+    background-color: var(--color-surface);
     border-radius: 8px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     overflow: hidden;
@@ -292,20 +297,20 @@ const salvarEdicao = () => {
     align-items: center;
     margin-bottom: 1rem;
     padding-bottom: 0.5rem;
-    border-bottom: 1px solid #e0e0e0;
+    border-bottom: 1px solid var(--color-border);
 }
 
 .titulo {
     font-size: 1.25rem;
     font-weight: 600;
-    color: #333;
+    color: var(--color-text-primary);
     margin: 0;
 }
 
 .btn-fechar {
     background: transparent;
     border: none;
-    color: #666;
+    color: var(--color-text-muted);
     cursor: pointer;
     width: 30px;
     height: 30px;
@@ -317,8 +322,8 @@ const salvarEdicao = () => {
 }
 
 .btn-fechar:hover {
-    background-color: #f0f0f0;
-    color: #333;
+    background-color: var(--color-surface-muted);
+    color: var(--color-text-primary);
 }
 
 .btn-fechar svg {
@@ -333,7 +338,7 @@ const salvarEdicao = () => {
 .subtitulo {
     font-size: 1rem;
     font-weight: 600;
-    color: #555;
+    color: var(--color-text-secondary);
     margin-bottom: 0.75rem;
 }
 
@@ -344,12 +349,12 @@ const salvarEdicao = () => {
 
 .campo-label {
     font-weight: 500;
-    color: #666;
+    color: var(--color-text-muted);
     width: 40%;
 }
 
 .campo-valor {
-    color: #333;
+    color: var(--color-text-primary);
     flex: 1;
 }
 
@@ -367,21 +372,21 @@ const salvarEdicao = () => {
 
 .item-muda {
     padding: 0.75rem;
-    background-color: #f8f8f8;
+    background-color: var(--color-surface-muted);
     border-radius: 6px;
     cursor: pointer;
     transition: all 0.2s ease;
     position: relative;
-    border-left: 4px solid #4CAF50;
+    border-left: 4px solid var(--color-primary);
 }
 
 .item-muda:hover {
-    background-color: #f0f0f0;
+    background-color: var(--color-surface-muted);
     transform: translateY(-2px);
 }
 
 .item-muda.alerta {
-    border-left-color: #FF9800;
+    border-left-color: var(--color-attention);
 }
 
 .muda-nome {
@@ -391,7 +396,7 @@ const salvarEdicao = () => {
 
 .muda-info {
     font-size: 0.8rem;
-    color: #666;
+    color: var(--color-text-muted);
     margin-top: 0.25rem;
 }
 
@@ -402,14 +407,14 @@ const salvarEdicao = () => {
     font-size: 0.75rem;
     padding: 2px 8px;
     border-radius: 10px;
-    background-color: #e8f5e9;
-    color: #2e7d32;
+    background-color: var(--color-success-bg);
+    color: var(--color-success);
 }
 
 .muda-chip.alerta-umidade,
 .muda-chip.alerta-temperatura {
-    background-color: #fff3e0;
-    color: #e65100;
+    background-color: var(--color-attention-bg);
+    color: var(--color-complement-dark);
 }
 
 .chip {
@@ -420,19 +425,19 @@ const salvarEdicao = () => {
 }
 
 .chip.saudável {
-    background-color: #e8f5e9;
-    color: #2e7d32;
+    background-color: var(--color-success-bg);
+    color: var(--color-success);
 }
 
 .chip.alerta-umidade,
 .chip.alerta-temperatura {
-    background-color: #fff3e0;
-    color: #e65100;
+    background-color: var(--color-attention-bg);
+    color: var(--color-complement-dark);
 }
 
 .chip.em-tratamento {
-    background-color: #e3f2fd;
-    color: #1565c0;
+    background-color: var(--color-info-bg);
+    color: var(--color-info-dark);
 }
 
 .header-muda {
@@ -442,7 +447,7 @@ const salvarEdicao = () => {
 .btn-voltar {
     background: transparent;
     border: none;
-    color: #1976D2;
+    color: var(--color-info);
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -453,7 +458,7 @@ const salvarEdicao = () => {
 }
 
 .btn-voltar:hover {
-    background-color: #f0f0f0;
+    background-color: var(--color-surface-muted);
 }
 
 .btn-voltar svg {
@@ -469,8 +474,8 @@ const salvarEdicao = () => {
 
 .btn-editar {
     margin-top: 1rem;
-    background-color: #1976D2;
-    color: white;
+    background-color: var(--color-info);
+    color: var(--color-text-inverse);
     border: none;
     border-radius: 4px;
     padding: 8px 16px;
@@ -480,7 +485,7 @@ const salvarEdicao = () => {
 }
 
 .btn-editar:hover {
-    background-color: #1565C0;
+    background-color: var(--color-info-dark);
 }
 
 .modo-edicao {
@@ -498,19 +503,19 @@ const salvarEdicao = () => {
 .campo-form label {
     font-size: 0.9rem;
     font-weight: 500;
-    color: #555;
+    color: var(--color-text-secondary);
 }
 
 .input {
     padding: 8px 12px;
-    border: 1px solid #ddd;
+    border: 1px solid var(--color-border);
     border-radius: 4px;
     font-size: 0.9rem;
 }
 
 .input:focus {
     outline: none;
-    border-color: #1976D2;
+    border-color: var(--color-info);
     box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.2);
 }
 
@@ -523,9 +528,9 @@ const salvarEdicao = () => {
 .btn-cancelar {
     flex: 1;
     padding: 8px 16px;
-    background-color: #f5f5f5;
-    color: #333;
-    border: 1px solid #ddd;
+    background-color: var(--color-surface-muted);
+    color: var(--color-text-primary);
+    border: 1px solid var(--color-border);
     border-radius: 4px;
     cursor: pointer;
     font-weight: 500;
@@ -534,8 +539,8 @@ const salvarEdicao = () => {
 .btn-salvar {
     flex: 1;
     padding: 8px 16px;
-    background-color: #1976D2;
-    color: white;
+    background-color: var(--color-info);
+    color: var(--color-text-inverse);
     border: none;
     border-radius: 4px;
     cursor: pointer;
@@ -543,11 +548,11 @@ const salvarEdicao = () => {
 }
 
 .btn-cancelar:hover {
-    background-color: #e0e0e0;
+    background-color: var(--color-border);
 }
 
 .btn-salvar:hover {
-    background-color: #1565C0;
+    background-color: var(--color-info-dark);
 }
 
 .sem-selecao {
@@ -556,7 +561,7 @@ const salvarEdicao = () => {
     align-items: center;
     justify-content: center;
     padding: 2rem;
-    color: #999;
+    color: var(--color-text-muted);
     text-align: center;
 }
 </style>

@@ -10,6 +10,8 @@ from app.models.compradores import Comprador
 from app.models.funcionarios import Funcionario
 from app.models.plantas import Planta
 from app.models.especies import Especie
+from app.models.canteiros import Canteiro
+from app.constants.estagios_producao import APTA_VENDA
 from app.schemas.vendas import VendaCreate, VendaUpdate, ItemVendaCreate, ItemVendaUpdate
 
 # Funções CRUD para Venda
@@ -171,7 +173,11 @@ async def create_venda(db: AsyncSession, venda: VendaCreate) -> Dict[str, Any]:
     # Verificar se há itens na venda
     if not venda.itens or len(venda.itens) == 0:
         raise ValueError("A venda deve conter pelo menos um item")
-    
+
+    ids_plantas = [item.id_planta for item in venda.itens]
+    if len(ids_plantas) != len(set(ids_plantas)):
+        raise ValueError("A mesma planta não pode aparecer mais de uma vez na venda")
+
     # Calcular valor total da venda
     valor_total = 0.0
     itens_dict = []
@@ -203,8 +209,28 @@ async def create_venda(db: AsyncSession, venda: VendaCreate) -> Dict[str, Any]:
         planta_result = await db.execute(planta_query)
         planta = planta_result.scalars().first()
         
-        if planta:
-            planta.status = "VENDIDA"
+        if not planta:
+            raise ValueError(f"Planta {item_dict['id_planta']} não encontrada")
+        if planta.status == "VENDIDA":
+            raise ValueError(f"Planta {planta.codigo_rastreio or planta.id} já foi vendida")
+        if planta.status == "MORTA":
+            raise ValueError(f"Planta {planta.codigo_rastreio or planta.id} está morta")
+        if planta.status not in ("MUDA", "JOVEM", "ADULTA"):
+            raise ValueError(
+                f"Planta {planta.codigo_rastreio or planta.id} não está em fase comercializável"
+            )
+        if planta.estagio_producao != APTA_VENDA:
+            raise ValueError(
+                f"Planta {planta.codigo_rastreio or planta.id} ainda não está apta para venda"
+            )
+        if planta.id_canteiro:
+            cant = await db.get(Canteiro, planta.id_canteiro)
+            # Regra operacional: só pode vender após passar pela rustificação.
+            if cant and cant.tipo_local != "rustificacao":
+                raise ValueError(
+                    f"Planta {planta.codigo_rastreio or planta.id} não está em local comercializável"
+                )
+        planta.status = "VENDIDA"
     
     await db.commit()
     await db.refresh(db_venda)
@@ -235,7 +261,8 @@ async def update_venda(
             planta = planta_result.scalars().first()
             
             if planta and planta.status == "VENDIDA":
-                planta.status = "ADULTA"  # Ou outro status apropriado
+                planta.status = "ADULTA"
+                planta.estagio_producao = APTA_VENDA
     
     for field, value in update_data.items():
         setattr(db_venda, field, value)
@@ -263,7 +290,8 @@ async def delete_venda(db: AsyncSession, venda_id: int) -> Optional[Dict[str, An
         planta = planta_result.scalars().first()
         
         if planta and planta.status == "VENDIDA":
-            planta.status = "ADULTA"  # Ou outro status apropriado
+            planta.status = "ADULTA"
+            planta.estagio_producao = APTA_VENDA
         
         # Excluir item
         await db.delete(item)
@@ -377,7 +405,8 @@ async def delete_item_venda(db: AsyncSession, item_id: int) -> Optional[Dict[str
     planta = planta_result.scalars().first()
     
     if planta and planta.status == "VENDIDA":
-        planta.status = "ADULTA"  # Ou outro status apropriado
+        planta.status = "ADULTA"
+        planta.estagio_producao = APTA_VENDA
     
     # Atualizar valor total da venda
     venda_query = select(Venda).where(Venda.id == db_item.id_venda)

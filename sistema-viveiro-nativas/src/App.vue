@@ -10,13 +10,13 @@ const isBlankLayout = computed(() => route.meta.layout === 'blank')
 
 const currentPageTitle = computed(() => {
   const routePath = route.path;
-  if (routePath === '/') return 'Página Inicial';
+  if (routePath === '/') return 'Início';
   if (routePath.includes('/producao')) return 'Produção';
   if (routePath.includes('/estoques')) return 'Estoques';
   if (routePath.includes('/viveiro')) return 'Viveiro';
   if (routePath.includes('/fitossanidade')) return 'Fitossanidade';
   if (routePath.includes('/fertilizacao')) return 'Fertilização';
-  if (routePath.includes('/vendas-estoque')) return 'Vendas e Estoque';
+  if (routePath.includes('/vendas')) return 'Vendas';
   if (routePath.includes('/prescricao')) return 'Prescrição Técnica';
   if (routePath.includes('/coleta')) return 'Coleta de Sementes';
   if (routePath.includes('/biblioteca')) return 'Biblioteca';
@@ -30,7 +30,7 @@ const currentPageTitle = computed(() => {
   <div v-else class="app-container">
     <Sidebar />
     <main class="main-content">
-      <Header :title="currentPageTitle" />
+      <Header :title="currentPageTitle" :hide-title="route.meta.hidePageTitle === true" />
       <div class="page-content">
         <router-view />
       </div>
@@ -62,43 +62,10 @@ const currentPageTitle = computed(() => {
   margin: 0;
 }
 
-/* Estilos globais */
-:root {
-  --color-primary: #3498db;
-  --color-primary-dark: #2980b9;
-  --color-surface: #ffffff;
-  --color-background: #f5f7fa;
-  --color-border: #e1e5eb;
-  --color-text-primary: #2c3e50;
-  --color-text-secondary: #6c7a89;
-
-  --spacing-xs: 0.25rem;
-  --spacing-sm: 0.5rem;
-  --spacing-md: 0.75rem;
-  --spacing-lg: 1rem;
-  --spacing-xl: 1.5rem;
-
-  --radius-sm: 0.25rem;
-  --radius-md: 0.5rem;
-  --radius-lg: 0.75rem;
-  --radius-full: 9999px;
-
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
-  --shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
-  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
-}
-
 * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
-}
-
-body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-  color: var(--color-text-primary);
-  font-size: 16px;
-  line-height: 1.5;
 }
 
 @media (max-width: 768px) {

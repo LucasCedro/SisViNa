@@ -188,7 +188,7 @@ const removerAlerta = (alertaId) => {
 }
 
 .dashboard-card {
-    background-color: #ffffff;
+    background-color: var(--color-surface);
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     padding: 1rem;
@@ -205,7 +205,7 @@ const removerAlerta = (alertaId) => {
     align-items: center;
     font-size: 1rem;
     font-weight: 600;
-    color: #333;
+    color: var(--color-text-primary);
     margin-bottom: 1rem;
 }
 
@@ -213,7 +213,7 @@ const removerAlerta = (alertaId) => {
     width: 1.25rem;
     height: 1.25rem;
     margin-right: 0.5rem;
-    color: #1976D2;
+    color: var(--color-info);
 }
 
 .chart-container {
@@ -232,7 +232,7 @@ const removerAlerta = (alertaId) => {
 .bar-label {
     width: 100px;
     font-size: 0.875rem;
-    color: #555;
+    color: var(--color-text-secondary);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -241,7 +241,7 @@ const removerAlerta = (alertaId) => {
 .bar-container {
     flex-grow: 1;
     height: 1.5rem;
-    background-color: #f0f0f0;
+    background-color: var(--color-surface-muted);
     border-radius: 4px;
     overflow: hidden;
     position: relative;
@@ -249,7 +249,7 @@ const removerAlerta = (alertaId) => {
 
 .bar {
     height: 100%;
-    background-color: #2196F3;
+    background-color: var(--color-info);
     border-radius: 4px;
 }
 
@@ -260,7 +260,7 @@ const removerAlerta = (alertaId) => {
     transform: translateY(-50%);
     font-size: 0.75rem;
     font-weight: 600;
-    color: #333;
+    color: var(--color-text-primary);
 }
 
 .metric-container {
@@ -274,12 +274,12 @@ const removerAlerta = (alertaId) => {
 .big-metric {
     font-size: 3rem;
     font-weight: 700;
-    color: #1976D2;
+    color: var(--color-info);
 }
 
 .metric-label {
     font-size: 1rem;
-    color: #666;
+    color: var(--color-text-muted);
     margin-top: 0.5rem;
 }
 
@@ -297,7 +297,7 @@ const removerAlerta = (alertaId) => {
 
 .temp-label {
     font-size: 0.875rem;
-    color: #666;
+    color: var(--color-text-muted);
     margin-bottom: 0.25rem;
 }
 
@@ -309,23 +309,23 @@ const removerAlerta = (alertaId) => {
 }
 
 .temp-high {
-    background-color: #ffebee;
-    color: #c62828;
+    background-color: var(--color-error-bg);
+    color: var(--color-error);
 }
 
 .temp-normal {
-    background-color: #e8f5e9;
-    color: #2e7d32;
+    background-color: var(--color-success-bg);
+    color: var(--color-success);
 }
 
 .temp-low {
-    background-color: #e3f2fd;
-    color: #1565c0;
+    background-color: var(--color-info-bg);
+    color: var(--color-info-dark);
 }
 
 .temp-neutral {
-    background-color: #f5f5f5;
-    color: #757575;
+    background-color: var(--color-surface-muted);
+    color: var(--color-text-muted);
 }
 
 .alerts-container {
@@ -339,8 +339,8 @@ const removerAlerta = (alertaId) => {
 .no-alerts {
     padding: 1rem;
     text-align: center;
-    color: #757575;
-    background-color: #f5f5f5;
+    color: var(--color-text-muted);
+    background-color: var(--color-surface-muted);
     border-radius: 4px;
 }
 
@@ -353,15 +353,15 @@ const removerAlerta = (alertaId) => {
 }
 
 .alert-temp {
-    background-color: #fff8e1;
+    background-color: var(--color-attention-bg);
 }
 
 .alert-umidade {
-    background-color: #e3f2fd;
+    background-color: var(--color-info-bg);
 }
 
 .alert-generic {
-    background-color: #f5f5f5;
+    background-color: var(--color-surface-muted);
 }
 
 .alert-indicator {
@@ -372,15 +372,15 @@ const removerAlerta = (alertaId) => {
 }
 
 .alert-temp .alert-indicator {
-    background-color: #ff9800;
+    background-color: var(--color-attention);
 }
 
 .alert-umidade .alert-indicator {
-    background-color: #2196f3;
+    background-color: var(--color-info);
 }
 
 .alert-generic .alert-indicator {
-    background-color: #9e9e9e;
+    background-color: var(--color-neutral-medium);
 }
 
 .alert-content {
@@ -389,19 +389,19 @@ const removerAlerta = (alertaId) => {
 
 .alert-message {
     font-size: 0.875rem;
-    color: #333;
+    color: var(--color-text-primary);
 }
 
 .alert-time {
     font-size: 0.75rem;
-    color: #757575;
+    color: var(--color-text-muted);
     margin-top: 0.25rem;
 }
 
 .btn-dismiss {
     background: transparent;
     border: none;
-    color: #757575;
+    color: var(--color-text-muted);
     width: 24px;
     height: 24px;
     display: flex;
@@ -413,7 +413,7 @@ const removerAlerta = (alertaId) => {
 
 .btn-dismiss:hover {
     background-color: rgba(0, 0, 0, 0.05);
-    color: #333;
+    color: var(--color-text-primary);
 }
 
 .btn-dismiss svg {

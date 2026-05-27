@@ -155,19 +155,9 @@ ChartJS.register(
   Filler
 )
 
-const CORES = [
-  '#6ca234',
-  '#2196f3',
-  '#ff9800',
-  '#9c27b0',
-  '#e91e63',
-  '#00bcd4',
-  '#795548',
-  '#607d8b',
-  '#3f51b5',
-  '#cddc39'
-]
+import { CHART_PALETTE, CHART_PRIMARY, CHART_PRIMARY_DARK, CHART_INFO, withAlpha } from '../../constants/chartColors'
 
+const CORES = CHART_PALETTE
 const store = useColetaStore()
 const modoSementes = ref('especie')
 const modoEvolucao = ref('especie')
@@ -253,6 +243,10 @@ const chartOptionsBase = {
   }
 }
 
+function seriesColors(total) {
+  return Array.from({ length: total }, (_, i) => CORES[i % CORES.length])
+}
+
 const chartOptionsComScroll = computed(() => ({
   ...chartOptionsBase,
   scales: {
@@ -270,15 +264,18 @@ const chartOptionsComScroll = computed(() => ({
 
 const sementesChartData = computed(() => {
   if (modoSementes.value === 'matriz') {
+    const colors = seriesColors(lista.value.length)
     return {
       labels: lista.value.map((a) => a.nome),
       datasets: [
         {
           label: 'Sementes coletadas',
           data: lista.value.map((a) => a.sementes_coletadas || 0),
-          backgroundColor: '#6ca234',
-          borderColor: '#5d9130',
-          borderWidth: 1
+          backgroundColor: colors.map((c) => withAlpha(c, 0.82)),
+          borderColor: colors,
+          hoverBackgroundColor: colors.map((c) => withAlpha(c, 0.95)),
+          hoverBorderColor: colors,
+          borderWidth: 1.2
         }
       ]
     }
@@ -290,15 +287,18 @@ const sementesChartData = computed(() => {
     porEspecie[esp] = (porEspecie[esp] || 0) + (a.sementes_coletadas || 0)
   })
   const labels = Object.keys(porEspecie)
+  const colors = seriesColors(labels.length)
   return {
     labels,
     datasets: [
       {
         label: 'Sementes coletadas',
         data: labels.map((l) => porEspecie[l]),
-        backgroundColor: '#6ca234',
-        borderColor: '#5d9130',
-        borderWidth: 1
+        backgroundColor: colors.map((c) => withAlpha(c, 0.82)),
+        borderColor: colors,
+        hoverBackgroundColor: colors.map((c) => withAlpha(c, 0.95)),
+        hoverBorderColor: colors,
+        borderWidth: 1.2
       }
     ]
   }
@@ -312,8 +312,8 @@ const germinacaoData = computed(() => {
       {
         label: 'Taxa de germinação (%)',
         data: comTaxa.map((a) => a.taxa_germinacao),
-        borderColor: '#2196f3',
-        backgroundColor: 'rgba(33, 150, 243, 0.1)',
+        borderColor: CHART_INFO,
+        backgroundColor: '#47607B22',
         tension: 0.2,
         fill: true
       }
@@ -434,8 +434,8 @@ const evolucaoData = computed(() => {
 }
 
 .toggle-group button.ativo {
-  background: #6ca234;
-  color: #fff;
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
   font-weight: 600;
 }
 
@@ -443,8 +443,8 @@ const evolucaoData = computed(() => {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  border: 1px solid #d1d5db;
-  background: #fff;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
   padding: 0.3rem 0.6rem;
   font-size: 0.7rem;
   border-radius: 6px;
@@ -453,13 +453,13 @@ const evolucaoData = computed(() => {
 }
 
 .btn-filtro:hover {
-  border-color: #6ca234;
-  color: #6ca234;
+  border-color: var(--color-primary);
+  color: var(--color-primary);
 }
 
 .badge {
-  background: #e8f5e9;
-  color: #2e7d32;
+  background: var(--color-success-bg);
+  color: var(--color-success);
   font-size: 0.65rem;
   font-weight: 700;
   padding: 0.1rem 0.35rem;
@@ -495,7 +495,7 @@ const evolucaoData = computed(() => {
 }
 
 .modal-filtro {
-  background: #fff;
+  background: var(--color-surface);
   border-radius: 12px;
   width: 100%;
   max-width: 480px;
@@ -510,7 +510,7 @@ const evolucaoData = computed(() => {
   justify-content: space-between;
   align-items: center;
   padding: 1rem 1.25rem;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .modal-filtro-header h2 {
@@ -523,7 +523,7 @@ const evolucaoData = computed(() => {
   background: none;
   font-size: 1.5rem;
   cursor: pointer;
-  color: #6b7280;
+  color: var(--color-text-muted);
 }
 
 .modal-filtro-body {
@@ -538,7 +538,7 @@ const evolucaoData = computed(() => {
 .busca-filtro {
   width: 100%;
   padding: 0.5rem 0.65rem;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--color-border);
   border-radius: 6px;
   font-size: 0.875rem;
 }
@@ -554,7 +554,7 @@ const evolucaoData = computed(() => {
   padding: 0;
   font-size: 0.8125rem;
   font-weight: 600;
-  color: #6ca234;
+  color: var(--color-primary);
   cursor: pointer;
 }
 
@@ -569,12 +569,12 @@ const evolucaoData = computed(() => {
   overflow-y: auto;
   flex: 1;
   max-height: 50vh;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--color-border);
   border-radius: 8px;
 }
 
 .lista-filtro li {
-  border-bottom: 1px solid #f3f4f6;
+  border-bottom: 1px solid var(--color-surface-muted);
 }
 
 .lista-filtro li:last-child {
@@ -591,13 +591,13 @@ const evolucaoData = computed(() => {
 }
 
 .lista-filtro label:hover {
-  background: #f9fafb;
+  background: var(--color-surface-muted);
 }
 
 .lista-vazia {
   padding: 1.5rem;
   text-align: center;
-  color: #6b7280;
+  color: var(--color-text-muted);
   font-size: 0.875rem;
 }
 
@@ -606,7 +606,7 @@ const evolucaoData = computed(() => {
   justify-content: flex-end;
   gap: 0.5rem;
   padding: 1rem 1.25rem;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--color-border);
 }
 
 .btn-sec,
@@ -619,12 +619,12 @@ const evolucaoData = computed(() => {
 }
 
 .btn-sec {
-  background: #f3f4f6;
+  background: var(--color-surface-muted);
 }
 
 .btn-prim {
-  background: #6ca234;
-  color: #fff;
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
   font-weight: 600;
 }
 

@@ -1,7 +1,5 @@
 <template>
   <div class="cadastro-mudas-container">
-    <h1 class="page-title">Cadastro de Mudas</h1>
-    
     <div class="secao">
       <div class="secao-header">
         <h2 class="secao-titulo">Mudas Cadastradas</h2>
@@ -361,7 +359,7 @@ function formatarDataAtual() {
 }
 
 .secao {
-  background-color: white;
+  background-color: var(--color-text-inverse);
   border-radius: 0.5rem;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   margin-bottom: 2rem;
@@ -370,7 +368,7 @@ function formatarDataAtual() {
 
 .secao-header {
   padding: 1rem 1.5rem;
-  border-bottom: 1px solid #eeeeee;
+  border-bottom: 1px solid var(--color-border-subtle);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -397,17 +395,17 @@ function formatarDataAtual() {
 .tabela-mudas td {
   padding: 0.75rem 1rem;
   text-align: left;
-  border-bottom: 1px solid #eeeeee;
+  border-bottom: 1px solid var(--color-border-subtle);
 }
 
 .tabela-mudas th {
   font-weight: 600;
   color: var(--color-text-primary);
-  background-color: #f8f9fa;
+  background-color: var(--color-surface-muted);
 }
 
 .tabela-mudas tbody tr:hover {
-  background-color: #f8f9fa;
+  background-color: var(--color-surface-muted);
 }
 
 .especie-info {
@@ -435,18 +433,18 @@ function formatarDataAtual() {
 }
 
 .estagio-emergência {
-  background-color: #e8f5e9;
-  color: #2e7d32;
+  background-color: var(--color-success-bg);
+  color: var(--color-success);
 }
 
 .estagio-crescimento {
-  background-color: #e3f2fd;
-  color: #1565c0;
+  background-color: var(--color-info-bg);
+  color: var(--color-info-dark);
 }
 
 .estagio-rustificação {
-  background-color: #fff8e1;
-  color: #ff8f00;
+  background-color: var(--color-attention-bg);
+  color: var(--color-attention);
 }
 
 .btn-acao {
@@ -474,7 +472,7 @@ function formatarDataAtual() {
   gap: 0.5rem;
   padding: 0.5rem 1rem;
   background-color: var(--color-primary);
-  color: white;
+  color: var(--color-text-inverse);
   border: none;
   border-radius: 0.25rem;
   font-weight: 500;
@@ -506,7 +504,7 @@ function formatarDataAtual() {
 }
 
 .modal-content {
-  background-color: white;
+  background-color: var(--color-text-inverse);
   border-radius: 0.5rem;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   width: 90%;
@@ -517,7 +515,7 @@ function formatarDataAtual() {
 
 .modal-header {
   padding: 1rem 1.5rem;
-  border-bottom: 1px solid #eeeeee;
+  border-bottom: 1px solid var(--color-border-subtle);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -534,7 +532,7 @@ function formatarDataAtual() {
   border: none;
   font-size: 1.5rem;
   line-height: 1;
-  color: #666;
+  color: var(--color-text-muted);
   cursor: pointer;
 }
 
@@ -569,7 +567,7 @@ function formatarDataAtual() {
 .form-group select,
 .form-group textarea {
   padding: 0.5rem;
-  border: 1px solid #ddd;
+  border: 1px solid var(--color-border);
   border-radius: 0.25rem;
   font-size: 1rem;
 }
@@ -583,8 +581,8 @@ function formatarDataAtual() {
 
 .btn-cancelar {
   padding: 0.5rem 1rem;
-  background-color: #f5f5f5;
-  border: 1px solid #ddd;
+  background-color: var(--color-surface-muted);
+  border: 1px solid var(--color-border);
   border-radius: 0.25rem;
   font-weight: 500;
   cursor: pointer;
@@ -593,7 +591,7 @@ function formatarDataAtual() {
 .btn-salvar {
   padding: 0.5rem 1rem;
   background-color: var(--color-primary);
-  color: white;
+  color: var(--color-text-inverse);
   border: none;
   border-radius: 0.25rem;
   font-weight: 500;
@@ -619,18 +617,18 @@ function formatarDataAtual() {
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem 1rem;
-  background-color: #f5f5f5;
-  border: 1px dashed #ddd;
+  background-color: var(--color-surface-muted);
+  border: 1px dashed var(--color-border);
   border-radius: 0.25rem;
   cursor: pointer;
   font-weight: 500;
-  color: #666;
+  color: var(--color-text-muted);
   transition: all 0.2s;
 }
 
 .file-label:hover {
-  background-color: #e9ecef;
-  border-color: #ced4da;
+  background-color: var(--color-surface-muted);
+  border-color: var(--color-border);
 }
 
 .file-label .icon {
@@ -644,7 +642,7 @@ function formatarDataAtual() {
   max-height: 200px;
   overflow: hidden;
   border-radius: 0.25rem;
-  border: 1px solid #ddd;
+  border: 1px solid var(--color-border);
 }
 
 .imagem-preview img {

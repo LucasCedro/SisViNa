@@ -1,7 +1,9 @@
 <template>
   <div class="analise-recorrencia-container">
     <h2 class="section-title">Análise de Recorrência</h2>
-    
+    <p v-if="carregando" class="status-msg">Carregando dados da API...</p>
+    <p v-else-if="erro" class="alert alert-error">{{ erro }}</p>
+
     <div class="dashboard-section">
       <div class="dashboard-grid">
         <!-- Gráfico de recorrência de pragas -->
@@ -13,7 +15,8 @@
             Recorrência de Problemas Fitossanitários
           </h3>
           <div class="chart-container">
-            <canvas ref="recorrenciaPragasChart"></canvas>
+            <p v-if="!carregando && !dadosPragas.labels.length" class="empty-hint">Sem ocorrências fitossanitárias registradas.</p>
+            <canvas v-show="dadosPragas.labels.length" ref="recorrenciaPragasChart"></canvas>
           </div>
         </div>
         
@@ -26,7 +29,8 @@
             Frequência de Adubação por Espécie
           </h3>
           <div class="chart-container">
-            <canvas ref="frequenciaAdubacaoChart"></canvas>
+            <p v-if="!carregando && !dadosAdubacao.labels.length" class="empty-hint">Sem atividades de fertilização registradas.</p>
+            <canvas v-show="dadosAdubacao.labels.length" ref="frequenciaAdubacaoChart"></canvas>
           </div>
         </div>
       </div>
@@ -74,6 +78,9 @@
             </tr>
           </thead>
           <tbody>
+            <tr v-if="!alertasFiltrados.length">
+              <td colspan="5" class="empty-hint">Nenhum alerta — registre pragas e fertilizações para gerar análise.</td>
+            </tr>
             <tr v-for="alerta in alertasFiltrados" :key="alerta.id" :class="'nivel-' + alerta.nivel">
               <td class="alerta-nivel">
                 <span class="nivel-indicador" :class="'nivel-' + alerta.nivel"></span>
@@ -98,7 +105,8 @@
         Sugestões de Melhoria
       </h3>
       
-      <div class="sugestoes-grid">
+      <p v-if="!sugestoes.length" class="empty-hint">Sugestões aparecem automaticamente a partir dos alertas de alto risco.</p>
+      <div v-else class="sugestoes-grid">
         <div v-for="(sugestao, index) in sugestoes" :key="index" class="sugestao-card">
           <div class="sugestao-header">
             <div class="sugestao-icon" :class="'tipo-' + sugestao.tipo">
@@ -129,100 +137,229 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
-import Chart from 'chart.js/auto';
+import { ref, computed, onMounted, nextTick } from 'vue'
+import Chart from 'chart.js/auto'
+import { listPragasPlantas } from '@/services/pragas'
+import { listAtividades, listTiposAtividades } from '@/services/atividades'
+import { listPlantasComRelacoes } from '@/services/plantas'
+import {
+  CHART_PRIMARY,
+  CHART_PRIMARY_DARK,
+  CHART_WARNING,
+  CHART_DANGER,
+  withAlpha,
+} from '@/constants/chartColors'
 
-// Estados
-const filtroAlerta = ref('todos');
-const filtroTipo = ref('todos');
+const filtroAlerta = ref('todos')
+const filtroTipo = ref('todos')
+const carregando = ref(true)
+const erro = ref('')
 
-// Referências para os gráficos
-const recorrenciaPragasChart = ref(null);
-const frequenciaAdubacaoChart = ref(null);
-let chartInstances = {
-  recorrenciaPragas: null,
-  frequenciaAdubacao: null
-};
+const recorrenciaPragasChart = ref(null)
+const frequenciaAdubacaoChart = ref(null)
+let chartInstances = { recorrenciaPragas: null, frequenciaAdubacao: null }
 
-// Dados mockados - Alertas
-const alertas = ref([
-  {
-    id: 1,
-    nivel: 'alto',
-    tipo: 'praga',
-    canteiro: 'Canteiro A1',
-    descricao: 'Reincidência de Ferrugem detectada 3 vezes em 60 dias no Ipê Amarelo',
-    sugestao: 'Revise o controle de umidade e aumentar ventilação entre mudas. Considere fungicida sistêmico preventivo.'
-  },
-  {
-    id: 2,
-    nivel: 'medio',
-    tipo: 'praga',
-    canteiro: 'Canteiro B2',
-    descricao: 'Cochonilhas detectadas 2 vezes em 45 dias na Aroeira',
-    sugestao: 'Aumente a frequência de monitoramento e aplique óleo de neem preventivamente a cada 15 dias.'
-  },
-  {
-    id: 3,
-    nivel: 'baixo',
-    tipo: 'praga',
-    canteiro: 'Canteiro C1',
-    descricao: 'Lagartas observadas em pequena quantidade no Jatobá',
-    sugestao: 'Monitorar. Considere aplicação de Bacillus thuringiensis caso a infestação aumente.'
-  },
-  {
-    id: 4,
-    nivel: 'alto',
-    tipo: 'adubacao',
-    canteiro: 'Canteiro A2',
-    descricao: 'Sobredosagem de NPK em mudas de Peroba Rosa (4 aplicações em 30 dias)',
-    sugestao: 'Reduza frequência para 1 vez a cada 30 dias. Espécie sensível a excesso de fertilizantes.'
-  },
-  {
-    id: 5,
-    nivel: 'medio',
-    tipo: 'adubacao',
-    canteiro: 'Canteiro B1',
-    descricao: 'Baixa frequência de adubação no Pau-Brasil (apenas 1 aplicação nos últimos 60 dias)',
-    sugestao: 'Aumente a frequência para a cada 20 dias com composto orgânico durante fase de desenvolvimento.'
-  },
-  {
-    id: 6,
-    nivel: 'baixo',
-    tipo: 'adubacao',
-    canteiro: 'Canteiro C2',
-    descricao: 'Deficiência de fósforo observada em análise de solo',
-    sugestao: 'Considere adubação de correção com superfosfato simples (100g/m²).'
+const alertas = ref([])
+const sugestoes = ref([])
+const dadosPragas = ref({ labels: [], unicas: [], r30: [], r60: [] })
+const dadosAdubacao = ref({ labels: [], intervals: [] })
+
+function parseDate(d) {
+  if (!d) return null
+  const s = String(d)
+  return new Date(s.includes('T') ? s : `${s}T12:00:00`)
+}
+
+function diasEntre(a, b) {
+  const da = parseDate(a)
+  const db = parseDate(b)
+  if (!da || !db) return Infinity
+  return Math.abs(db - da) / 86400000
+}
+
+function nivelUiFromInfestacao(nivel) {
+  const n = String(nivel || '').toUpperCase()
+  if (n === 'CRITICO' || n === 'ALTO') return 'alto'
+  if (n === 'MEDIO') return 'medio'
+  return 'baixo'
+}
+
+function buildDadosPragas(pragas) {
+  const byTipo = new Map()
+  const rein30 = new Map()
+  const rein60 = new Map()
+  const groups = new Map()
+
+  for (const p of pragas) {
+    const nome = p.tipo_praga_nome || 'Outro'
+    byTipo.set(nome, (byTipo.get(nome) || 0) + 1)
+    const key = `${p.id_planta}-${p.id_tipo_praga}`
+    if (!groups.has(key)) groups.set(key, [])
+    groups.get(key).push(p)
   }
-]);
 
-// Dados mockados - Sugestões de melhoria
-const sugestoes = ref([
-  {
-    tipo: 'pratica',
-    titulo: 'Ajuste de Sombreamento',
-    descricao: 'Reduza o sombreamento para 30% nos canteiros de Ipê Amarelo e Aroeira para evitar umidade excessiva que favorece doenças fúngicas.',
-    especies: ['Ipê Amarelo', 'Aroeira']
-  },
-  {
-    tipo: 'adubacao',
-    titulo: 'Revisão do Calendário de Adubação',
-    descricao: 'Crie um calendário escalonado de adubação para cada espécie conforme fase de desenvolvimento, priorizando o Pau-Brasil que está com déficit nutricional.',
-    especies: ['Pau-Brasil', 'Jatobá', 'Peroba Rosa']
-  },
-  {
-    tipo: 'controle',
-    titulo: 'Substituição de Produto Fitossanitário',
-    descricao: 'O fungicida atual tem mostrado baixa eficácia contra ferrugem. Considere substituir por produto à base de tebuconazol ou utilizar calda bordalesa na concentração de 1% cada 15 dias como preventivo.',
-    especies: ['Ipê Amarelo']
-  },
-  {
-    tipo: 'pratica',
-    titulo: 'Revisão do Espaçamento entre Mudas',
-    descricao: 'Aumente o espaçamento entre as mudas nos canteiros A1 e B2 para melhorar a ventilação e reduzir a umidade entre as plantas.',
-    especies: []
+  for (const items of groups.values()) {
+    items.sort((a, b) => parseDate(a.data_identificacao) - parseDate(b.data_identificacao))
+    for (let i = 1; i < items.length; i++) {
+      const gap = diasEntre(items[i - 1].data_identificacao, items[i].data_identificacao)
+      const nome = items[i].tipo_praga_nome || 'Outro'
+      if (gap <= 30) rein30.set(nome, (rein30.get(nome) || 0) + 1)
+      if (gap <= 60) rein60.set(nome, (rein60.get(nome) || 0) + 1)
+    }
   }
-]);
+
+  const labels = [...byTipo.keys()].sort()
+  return {
+    labels,
+    unicas: labels.map((l) => byTipo.get(l) || 0),
+    r30: labels.map((l) => rein30.get(l) || 0),
+    r60: labels.map((l) => rein60.get(l) || 0),
+  }
+}
+
+function buildDadosAdubacao(atividades) {
+  const byEsp = new Map()
+  for (const a of atividades) {
+    const esp = a.especie_nome || 'Sem espécie'
+    if (!byEsp.has(esp)) byEsp.set(esp, [])
+    byEsp.get(esp).push(parseDate(a.data_atividade))
+  }
+  const labels = []
+  const intervals = []
+  for (const [esp, dates] of byEsp) {
+    const valid = dates.filter(Boolean).sort((a, b) => a - b)
+    if (valid.length < 2) continue
+    let sum = 0
+    for (let i = 1; i < valid.length; i++) sum += (valid[i] - valid[i - 1]) / 86400000
+    labels.push(esp)
+    intervals.push(Math.round(sum / (valid.length - 1)))
+  }
+  return { labels, intervals }
+}
+
+function buildAlertas(pragas, atividadesFert, plantas) {
+  const plById = new Map(plantas.map((p) => [p.id, p]))
+  const out = []
+  let id = 1
+
+  const pragaGroups = new Map()
+  for (const p of pragas) {
+    const key = `${p.id_planta}-${p.id_tipo_praga}`
+    if (!pragaGroups.has(key)) pragaGroups.set(key, [])
+    pragaGroups.get(key).push(p)
+  }
+
+  for (const items of pragaGroups.values()) {
+    items.sort((a, b) => parseDate(a.data_identificacao) - parseDate(b.data_identificacao))
+    const recent = items.filter((p) => diasEntre(p.data_identificacao, new Date()) <= 60)
+    if (recent.length < 2) continue
+    const last = recent[recent.length - 1]
+    const pl = plById.get(last.id_planta)
+    const tipoNome = last.tipo_praga_nome || 'problema'
+    const nivel = recent.some((p) => ['ALTO', 'CRITICO'].includes(String(p.nivel_infestacao).toUpperCase()))
+      ? 'alto'
+      : recent.length >= 3
+        ? 'medio'
+        : 'baixo'
+    out.push({
+      id: id++,
+      nivel,
+      tipo: 'praga',
+      canteiro: pl?.nome_canteiro || '—',
+      especie: last.especie_nome || pl?.especie_nome || '—',
+      descricao: `${tipoNome}: ${recent.length} ocorrência(s) em 60 dias (${last.especie_nome || 'espécie não informada'})`,
+      sugestao: last.observacoes || 'Revise manejo preventivo e monitoramento no canteiro.',
+    })
+  }
+
+  const ativPorPlanta = new Map()
+  for (const a of atividadesFert) {
+    if (!ativPorPlanta.has(a.id_planta)) ativPorPlanta.set(a.id_planta, [])
+    ativPorPlanta.get(a.id_planta).push(a)
+  }
+
+  for (const [idPlanta, items] of ativPorPlanta) {
+    const recent = items.filter((a) => diasEntre(a.data_atividade, new Date()) <= 30)
+    if (recent.length < 4) continue
+    const pl = plById.get(idPlanta)
+    out.push({
+      id: id++,
+      nivel: 'alto',
+      tipo: 'adubacao',
+      canteiro: pl?.nome_canteiro || '—',
+      especie: pl?.especie_nome || recent[0].especie_nome || '—',
+      descricao: `${recent.length} fertilizações em 30 dias na mesma planta`,
+      sugestao: 'Reduza a frequência de adubação e alinhe ao protocolo da espécie.',
+    })
+  }
+
+  const porEspecie = new Map()
+  for (const a of atividadesFert) {
+    const esp = a.especie_nome || '—'
+    if (!porEspecie.has(esp)) porEspecie.set(esp, [])
+    porEspecie.get(esp).push(a)
+  }
+  for (const [esp, items] of porEspecie) {
+    const recent = items.filter((a) => diasEntre(a.data_atividade, new Date()) <= 60)
+    if (recent.length >= 2) continue
+    if (!items.length) continue
+    const last = [...items].sort((a, b) => parseDate(b.data_atividade) - parseDate(a.data_atividade))[0]
+    if (diasEntre(last.data_atividade, new Date()) <= 45) continue
+    out.push({
+      id: id++,
+      nivel: 'medio',
+      tipo: 'adubacao',
+      canteiro: '—',
+      especie: esp,
+      descricao: `Pouca adubação registrada para ${esp} nos últimos 60 dias`,
+      sugestao: 'Verifique calendário de fertilização desta espécie.',
+    })
+  }
+
+  return out
+}
+
+function buildSugestoes(listaAlertas) {
+  return listaAlertas
+    .filter((a) => a.nivel === 'alto')
+    .slice(0, 6)
+    .map((a) => ({
+      tipo: a.tipo === 'praga' ? 'controle' : 'adubacao',
+      titulo: a.tipo === 'praga' ? 'Atenção fitossanitária' : 'Revisar adubação',
+      descricao: a.descricao,
+      especies: a.especie && a.especie !== '—' ? [a.especie] : [],
+    }))
+}
+
+async function carregar() {
+  carregando.value = true
+  erro.value = ''
+  try {
+    const [pragas, tipos, ativ, plantas] = await Promise.all([
+      listPragasPlantas({ limit: 500 }),
+      listTiposAtividades(),
+      listAtividades({ limit: 500 }),
+      listPlantasComRelacoes({ limit: 500 }),
+    ])
+    const tipoFert = tipos.find((t) => t.nome === 'FERTILIZACAO')
+    const ativFert = tipoFert
+      ? ativ.filter((a) => a.id_tipo_atividade === tipoFert.id)
+      : ativ
+
+    dadosPragas.value = buildDadosPragas(pragas)
+    dadosAdubacao.value = buildDadosAdubacao(ativFert)
+    alertas.value = buildAlertas(pragas, ativFert, plantas)
+    sugestoes.value = buildSugestoes(alertas.value)
+
+    await nextTick()
+    criarGraficos()
+  } catch (e) {
+    console.error(e)
+    erro.value = 'Não foi possível carregar dados para análise. Verifique a API.'
+  } finally {
+    carregando.value = false
+  }
+}
 
 // Filtragem de alertas
 const alertasFiltrados = computed(() => {
@@ -256,29 +393,35 @@ const criarGraficos = () => {
 };
 
 const criarGraficoRecorrenciaPragas = () => {
-  const ctx = recorrenciaPragasChart.value.getContext('2d');
-  
-  // Dados mockados para o gráfico
+  if (!recorrenciaPragasChart.value || !dadosPragas.value.labels.length) return
+  const ctx = recorrenciaPragasChart.value.getContext('2d')
+  const d = dadosPragas.value
   const dados = {
-    labels: ['Ferrugem', 'Cochonilha', 'Oídio', 'Pulgões', 'Antracnose', 'Lagartas'],
+    labels: d.labels,
     datasets: [
       {
-        label: 'Ocorrências Únicas',
-        data: [5, 7, 3, 4, 2, 6],
-        backgroundColor: 'rgba(75, 192, 192, 0.7)'
+        label: 'Ocorrências',
+        data: d.unicas,
+        backgroundColor: withAlpha(CHART_PRIMARY, 0.85),
+        borderColor: CHART_PRIMARY_DARK,
+        borderWidth: 1,
       },
       {
         label: 'Reincidências (30 dias)',
-        data: [3, 2, 1, 2, 0, 1],
-        backgroundColor: 'rgba(255, 206, 86, 0.7)'
+        data: d.r30,
+        backgroundColor: withAlpha(CHART_WARNING, 0.9),
+        borderColor: CHART_WARNING,
+        borderWidth: 1,
       },
       {
         label: 'Reincidências (60 dias)',
-        data: [2, 1, 0, 1, 0, 0],
-        backgroundColor: 'rgba(255, 99, 132, 0.7)'
-      }
-    ]
-  };
+        data: d.r60,
+        backgroundColor: withAlpha(CHART_DANGER, 0.9),
+        borderColor: CHART_DANGER,
+        borderWidth: 1,
+      },
+    ],
+  }
   
   // Criar gráfico
   if (chartInstances.recorrenciaPragas) {
@@ -316,44 +459,21 @@ const criarGraficoRecorrenciaPragas = () => {
 };
 
 const criarGraficoFrequenciaAdubacao = () => {
-  const ctx = frequenciaAdubacaoChart.value.getContext('2d');
-  
-  // Dados mockados para o gráfico
+  if (!frequenciaAdubacaoChart.value || !dadosAdubacao.value.labels.length) return
+  const ctx = frequenciaAdubacaoChart.value.getContext('2d')
+  const d = dadosAdubacao.value
   const dados = {
-    labels: ['Ipê Amarelo', 'Jatobá', 'Pau-Brasil', 'Peroba Rosa', 'Aroeira'],
+    labels: d.labels,
     datasets: [
       {
-        label: 'Frequência Recomendada (dias)',
-        data: [15, 20, 20, 30, 20],
-        backgroundColor: 'rgba(75, 192, 192, 0.2)',
-        borderColor: 'rgba(75, 192, 192, 1)',
-        borderWidth: 2,
-        type: 'line',
-        fill: false,
-        order: 0
-      },
-      {
-        label: 'Frequência Real (dias)',
-        data: [12, 18, 38, 7, 22],
-        backgroundColor: [
-          'rgba(54, 162, 235, 0.7)', // Normal
-          'rgba(54, 162, 235, 0.7)', // Normal
-          'rgba(255, 99, 132, 0.7)', // Déficit (muito alto - vermelho)
-          'rgba(255, 206, 86, 0.7)', // Excesso (muito baixo - amarelo)
-          'rgba(54, 162, 235, 0.7)'  // Normal
-        ],
-        borderColor: [
-          'rgba(54, 162, 235, 1)',
-          'rgba(54, 162, 235, 1)',
-          'rgba(255, 99, 132, 1)',
-          'rgba(255, 206, 86, 1)',
-          'rgba(54, 162, 235, 1)'
-        ],
+        label: 'Intervalo médio entre adubações (dias)',
+        data: d.intervals,
+        backgroundColor: withAlpha(CHART_PRIMARY, 0.85),
+        borderColor: CHART_PRIMARY_DARK,
         borderWidth: 1,
-        order: 1
-      }
-    ]
-  };
+      },
+    ],
+  }
   
   // Criar gráfico
   if (chartInstances.frequenciaAdubacao) {
@@ -385,10 +505,7 @@ const criarGraficoFrequenciaAdubacao = () => {
   });
 };
 
-// Montar componente
-onMounted(() => {
-  criarGraficos();
-});
+onMounted(carregar)
 </script>
 
 <style>
@@ -402,7 +519,7 @@ onMounted(() => {
   font-size: 1.75rem;
   font-weight: 600;
   margin-bottom: 1.5rem;
-  color: #333;
+  color: var(--color-text-primary);
 }
 
 .section-subtitle {
@@ -411,14 +528,14 @@ onMounted(() => {
   font-size: 1.25rem;
   font-weight: 600;
   margin: 2rem 0 1rem 0;
-  color: #333;
+  color: var(--color-text-primary);
 }
 
 .subtitle-icon {
   width: 1.25rem;
   height: 1.25rem;
   margin-right: 0.5rem;
-  color: #2196F3;
+  color: var(--color-info);
 }
 
 /* Dashboard */
@@ -436,7 +553,7 @@ onMounted(() => {
 }
 
 .dashboard-card {
-  background-color: #fff;
+  background-color: var(--color-surface);
   border-radius: 0.5rem;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   padding: 1.25rem;
@@ -451,20 +568,33 @@ onMounted(() => {
   font-size: 1.1rem;
   font-weight: 600;
   margin-bottom: 1rem;
-  color: #333;
+  color: var(--color-text-primary);
 }
 
 .icon {
   width: 1.25rem;
   height: 1.25rem;
   margin-right: 0.5rem;
-  color: #2196F3;
+  color: var(--color-info);
 }
 
 .chart-container {
   position: relative;
   height: 300px;
   width: 100%;
+}
+
+.empty-hint {
+  margin: 0;
+  padding: 1rem 0;
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+.status-msg {
+  margin: 0 0 1rem;
+  color: var(--color-text-secondary);
 }
 
 /* Alertas */
@@ -490,12 +620,12 @@ onMounted(() => {
 .filter-group label {
   font-size: 0.875rem;
   font-weight: 500;
-  color: #555;
+  color: var(--color-text-secondary);
 }
 
 .filter-group select {
   padding: 0.5rem;
-  border: 1px solid #ddd;
+  border: 1px solid var(--color-border);
   border-radius: 0.25rem;
   font-size: 0.875rem;
   min-width: 200px;
@@ -517,17 +647,17 @@ onMounted(() => {
 .alertas-table td {
   padding: 0.75rem 1rem;
   text-align: left;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--color-border-subtle);
 }
 
 .alertas-table th {
-  background-color: #f8f9fa;
+  background-color: var(--color-surface-muted);
   font-weight: 600;
-  color: #444;
+  color: var(--color-text-primary);
 }
 
 .alertas-table tbody tr:hover {
-  background-color: #f8f9fa;
+  background-color: var(--color-surface-muted);
 }
 
 .alerta-nivel {
@@ -544,15 +674,15 @@ onMounted(() => {
 }
 
 .nivel-baixo .nivel-indicador {
-  background-color: #4CAF50;
+  background-color: var(--color-primary);
 }
 
 .nivel-medio .nivel-indicador {
-  background-color: #FFC107;
+  background-color: var(--color-attention);
 }
 
 .nivel-alto .nivel-indicador {
-  background-color: #F44336;
+  background-color: var(--color-error);
 }
 
 /* Sugestões */
@@ -564,7 +694,7 @@ onMounted(() => {
 }
 
 .sugestao-card {
-  background-color: white;
+  background-color: var(--color-text-inverse);
   border-radius: 0.5rem;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   padding: 1.25rem;
@@ -590,19 +720,19 @@ onMounted(() => {
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background-color: #E3F2FD;
+  background-color: var(--color-info-bg);
 }
 
 .sugestao-icon.tipo-adubacao {
-  background-color: #E8F5E9;
+  background-color: var(--color-success-bg);
 }
 
 .sugestao-icon.tipo-pratica {
-  background-color: #FFF8E1;
+  background-color: var(--color-attention-bg);
 }
 
 .sugestao-icon.tipo-controle {
-  background-color: #FFEBEE;
+  background-color: var(--color-error-bg);
 }
 
 .sugestao-icon .icon {
@@ -612,27 +742,27 @@ onMounted(() => {
 }
 
 .tipo-adubacao .icon {
-  color: #4CAF50;
+  color: var(--color-primary);
 }
 
 .tipo-pratica .icon {
-  color: #FFC107;
+  color: var(--color-attention);
 }
 
 .tipo-controle .icon {
-  color: #F44336;
+  color: var(--color-error);
 }
 
 .sugestao-titulo {
   font-size: 1.1rem;
   font-weight: 600;
   margin: 0;
-  color: #333;
+  color: var(--color-text-primary);
 }
 
 .sugestao-descricao {
   margin: 0 0 1rem 0;
-  color: #555;
+  color: var(--color-text-secondary);
   line-height: 1.5;
 }
 
@@ -643,7 +773,7 @@ onMounted(() => {
 .especies-label {
   font-size: 0.875rem;
   font-weight: 600;
-  color: #555;
+  color: var(--color-text-secondary);
   margin-right: 0.5rem;
 }
 
@@ -657,8 +787,8 @@ onMounted(() => {
 .especie-tag {
   display: inline-block;
   padding: 0.25rem 0.5rem;
-  background-color: #E3F2FD;
-  color: #1976D2;
+  background-color: var(--color-info-bg);
+  color: var(--color-info);
   border-radius: 1rem;
   font-size: 0.75rem;
   font-weight: 500;

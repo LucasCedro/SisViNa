@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { login as apiLogin, fetchMe } from '../services/auth'
+import { resolvePerfisFromUser } from '@/constants/roles'
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
@@ -9,7 +10,8 @@ export const useAuthStore = defineStore('auth', {
     error: null
   }),
   getters: {
-    isAuthenticated: (state) => Boolean(state.token)
+    isAuthenticated: (state) => Boolean(state.token),
+    perfis: (state) => resolvePerfisFromUser(state.user),
   },
   actions: {
     async login(username, password) {

@@ -20,6 +20,7 @@ class Planta(Base):
     coordenada_x = Column(Numeric(10, 2))
     coordenada_y = Column(Numeric(10, 2))
     status = Column(String(20))
+    estagio_producao = Column(String(30), nullable=False, default="em_desenvolvimento")
     observacoes = Column(Text)
     data_cadastro = Column(DateTime, default=func.now())
     preco_venda = Column(Numeric(10, 2))

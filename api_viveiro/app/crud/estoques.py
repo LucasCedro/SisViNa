@@ -9,6 +9,7 @@ from app.models.plantas import Planta
 from app.models.canteiros import Canteiro
 from app.models.especies import Especie
 from app.crud.lotes_sementes import get_lotes
+from app.crud import plantas as crud_plantas
 
 
 async def get_resumo_estoques(db: AsyncSession) -> Dict[str, Any]:
@@ -49,6 +50,22 @@ async def get_resumo_estoques(db: AsyncSession) -> Dict[str, Any]:
     total_sementeira = (await db.execute(q_sementeira)).scalar() or 0
     total_canteiro = (await db.execute(q_canteiro)).scalar() or 0
 
+    estoque_comercial_raw = await crud_plantas.get_estoque_resumo(db)
+    estoque_comercial = [
+        {
+            "id_especie": e["id_especie"],
+            "nome_popular": e.get("nome_popular"),
+            "nome_cientifico": e["nome_cientifico"],
+            "quantidade": e["quantidade"],
+            "valor_unitario": e["valor_unitario"],
+            "localizacao": e.get("localizacao"),
+            "status_predominante": e.get("status_predominante"),
+            "estagio_comercial": e.get("estagio_comercial", "apta_venda"),
+        }
+        for e in estoque_comercial_raw
+    ]
+    total_mudas_aptas_venda = sum(e["quantidade"] for e in estoque_comercial)
+
     return {
         "total_lotes_sementes_ativos": len(lotes_ativos),
         "total_sementes_disponiveis": sum(
@@ -57,6 +74,8 @@ async def get_resumo_estoques(db: AsyncSession) -> Dict[str, Any]:
         "total_plantas_sementeira": int(total_sementeira),
         "total_plantas_canteiro": int(total_canteiro),
         "total_insumos": len(insumos),
+        "total_mudas_aptas_venda": int(total_mudas_aptas_venda),
+        "estoque_comercial": estoque_comercial,
         "lotes_sementes": [
             {
                 "id": l["id"],

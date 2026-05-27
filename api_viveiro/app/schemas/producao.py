@@ -16,6 +16,16 @@ class PromoverMudasResponse(BaseModel):
     ids_plantas: List[int]
 
 
+class TransferirRustificacaoRequest(BaseModel):
+    ids_plantas: List[int] = Field(..., min_items=1)
+    observacoes: Optional[str] = None
+
+
+class TransferirRustificacaoResponse(BaseModel):
+    transferidas: int
+    ids_plantas: List[int]
+
+
 class PlantaPendenteTransferencia(BaseModel):
     id: int
     codigo_rastreio: Optional[str] = None
@@ -25,12 +35,52 @@ class PlantaPendenteTransferencia(BaseModel):
     nome_canteiro: Optional[str] = None
     id_lote_sementes: Optional[int] = None
     codigo_lote: Optional[str] = None
+    matriz_nome: Optional[str] = None
     data_plantio: Optional[date] = None
+    estagio_producao: Optional[str] = None
     origem: str
     observacoes: Optional[str] = None
 
     class Config:
         orm_mode = True
+
+
+class PlantaEmCrescimento(BaseModel):
+    id: int
+    codigo_rastreio: Optional[str] = None
+    id_especie: int
+    especie_nome: Optional[str] = None
+    id_canteiro: Optional[int] = None
+    nome_canteiro: Optional[str] = None
+    data_plantio: Optional[date] = None
+    data_germinacao: Optional[date] = None
+    status: Optional[str] = None
+    estagio_producao: Optional[str] = None
+    origem: str
+    observacoes: Optional[str] = None
+
+    class Config:
+        orm_mode = True
+
+
+class AtualizarEstagioRequest(BaseModel):
+    ids_plantas: List[int] = Field(..., min_items=1)
+    estagio_producao: str = Field(
+        ...,
+        description="apta_transferencia | apta_rustificacao | apta_venda",
+    )
+
+    @validator("estagio_producao")
+    def validate_estagio(cls, v):
+        allowed = ["apta_transferencia", "apta_rustificacao", "apta_venda"]
+        if v not in allowed:
+            raise ValueError(f"Estágio deve ser um de: {', '.join(allowed)}")
+        return v
+
+
+class AtualizarEstagioResponse(BaseModel):
+    atualizadas: int
+    ids_plantas: List[int]
 
 
 class CadastroLotePlantasRequest(BaseModel):
