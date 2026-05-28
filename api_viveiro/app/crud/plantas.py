@@ -27,6 +27,16 @@ from app.constants.estagios_producao import (
 from app.schemas.producao import TransferirRustificacaoRequest
 import uuid
 
+from app.services.validacao_producao import (
+    avisos_liberar_venda,
+    avisos_transferir_rustificacao,
+)
+
+
+def _marcar_inicio_estagio(planta: Planta, quando: Optional[date] = None) -> None:
+    planta.data_inicio_estagio_atual = quando or date.today()
+
+
 async def get_planta(db: AsyncSession, planta_id: int) -> Optional[Planta]:
     result = await db.execute(select(Planta).where(Planta.id == planta_id))
     return result.scalars().first()
@@ -164,7 +174,9 @@ ESTOQUE_VENDAVEL_ESTAGIO = APTA_VENDA
 
 
 async def get_estoque_resumo(db: AsyncSession) -> List[Dict[str, Any]]:
-    query = (
+    from app.crud.plantas_estoque import filtro_prontas_venda
+
+    query = filtro_prontas_venda(
         select(
             Especie.id.label("id_especie"),
             Especie.nome_popular,
@@ -174,15 +186,11 @@ async def get_estoque_resumo(db: AsyncSession) -> List[Dict[str, Any]]:
             func.min(Canteiro.nome).label("localizacao"),
             func.max(Planta.status).label("status_predominante"),
         )
+        .select_from(Especie)
         .join(Planta, Planta.id_especie == Especie.id)
         .join(Canteiro, Planta.id_canteiro == Canteiro.id)
-        .where(
-            Planta.status.in_(DISPONIVEIS_VENDA),
-            Planta.estagio_producao == ESTOQUE_VENDAVEL_ESTAGIO,
-            Canteiro.tipo_local == "rustificacao",
-        )
-        .group_by(Especie.id, Especie.nome_popular, Especie.nome_cientifico)
-        .order_by(func.count(Planta.id).desc())
+    ).group_by(Especie.id, Especie.nome_popular, Especie.nome_cientifico).order_by(
+        func.count(Planta.id).desc()
     )
     rows = (await db.execute(query)).all()
     items = []
@@ -206,14 +214,16 @@ async def atualizar_preco_especie(
     db: AsyncSession, id_especie: int, preco_venda: float
 ) -> int:
     from sqlalchemy import update
+    from app.crud.plantas_estoque import filtro_prontas_venda
 
+    subq = filtro_prontas_venda(
+        select(Planta.id).join(Canteiro, Planta.id_canteiro == Canteiro.id).where(
+            Planta.id_especie == id_especie
+        )
+    ).subquery()
     result = await db.execute(
         update(Planta)
-        .where(
-            Planta.id_especie == id_especie,
-            Planta.status.in_(DISPONIVEIS_VENDA),
-            Planta.estagio_producao == ESTOQUE_VENDAVEL_ESTAGIO,
-        )
+        .where(Planta.id.in_(select(subq.c.id)))
         .values(preco_venda=preco_venda)
     )
     await db.commit()
@@ -223,18 +233,13 @@ async def atualizar_preco_especie(
 async def listar_plantas_disponiveis_venda(
     db: AsyncSession, id_especie: int, limit: int = 100
 ) -> List[Planta]:
-    q = (
+    from app.crud.plantas_estoque import filtro_prontas_venda
+
+    q = filtro_prontas_venda(
         select(Planta)
         .join(Canteiro, Planta.id_canteiro == Canteiro.id)
-        .where(
-            Planta.id_especie == id_especie,
-            Planta.status.in_(DISPONIVEIS_VENDA),
-            Planta.estagio_producao == ESTOQUE_VENDAVEL_ESTAGIO,
-            Canteiro.tipo_local == "rustificacao",
-        )
-        .order_by(Planta.id)
-        .limit(limit)
-    )
+        .where(Planta.id_especie == id_especie)
+    ).order_by(Planta.id).limit(limit)
     return (await db.execute(q)).scalars().all()
 
 
@@ -410,6 +415,7 @@ async def atualizar_estagio_producao(
     payload: AtualizarEstagioRequest,
 ) -> Dict[str, Any]:
     atualizadas = []
+    avisos: List[str] = []
     for pid in payload.ids_plantas:
         planta = await get_planta(db, pid)
         if not planta:
@@ -460,6 +466,9 @@ async def atualizar_estagio_producao(
             await _validar_canteiro_tipo(
                 db, planta.id_canteiro, "rustificacao", "Área de rustificação"
             )
+            for msg in await avisos_liberar_venda(db, planta):
+                if msg not in avisos:
+                    avisos.append(msg)
             planta.estagio_producao = APTA_VENDA
         else:
             raise ValueError("Estágio de destino inválido")
@@ -467,7 +476,11 @@ async def atualizar_estagio_producao(
         atualizadas.append(planta.id)
 
     await db.commit()
-    return {"atualizadas": len(atualizadas), "ids_plantas": atualizadas}
+    return {
+        "atualizadas": len(atualizadas),
+        "ids_plantas": atualizadas,
+        "avisos": avisos,
+    }
 
 
 async def get_plantas_em_rustificacao(
@@ -532,6 +545,7 @@ async def transferir_para_rustificacao(
         raise ValueError("Nenhuma área de rustificação cadastrada (tipo_local='rustificacao').")
 
     transferidas = []
+    avisos: List[str] = []
 
     for pid in payload.ids_plantas:
         planta = await get_planta(db, pid)
@@ -548,6 +562,9 @@ async def transferir_para_rustificacao(
         if not planta.id_canteiro:
             raise ValueError(f"Planta {planta.codigo_rastreio or pid} não possui canteiro associado")
         await _validar_canteiro_tipo(db, planta.id_canteiro, "canteiro", "Canteiro de origem")
+        for msg in await avisos_transferir_rustificacao(db, planta):
+            if msg not in avisos:
+                avisos.append(msg)
 
         db.add(
             TransferenciaPlanta(
@@ -562,10 +579,15 @@ async def transferir_para_rustificacao(
         )
         planta.id_canteiro = dest.id
         planta.estagio_producao = ESTAGIO_INICIAL_RUSTIFICACAO
+        _marcar_inicio_estagio(planta)
         transferidas.append(planta.id)
 
     await db.commit()
-    return {"transferidas": len(transferidas), "ids_plantas": transferidas}
+    return {
+        "transferidas": len(transferidas),
+        "ids_plantas": transferidas,
+        "avisos": avisos,
+    }
 
 
 async def get_plantas_aptas_rustificacao_canteiro(
@@ -659,6 +681,7 @@ async def promover_mudas(
         planta.estagio_producao = ESTAGIO_INICIAL_CANTEIRO
         planta.id_canteiro = dest.id
         planta.data_germinacao = data_germ
+        _marcar_inicio_estagio(planta, data_germ)
         transferidas.append(planta.id)
 
     await db.commit()
@@ -695,6 +718,7 @@ async def cadastro_lote_plantas(
             codigo_rastreio=codigo,
             data_plantio=data_plantio,
             data_germinacao=payload.data_germinacao,
+            data_inicio_estagio_atual=data_plantio,
             status=payload.status,
             estagio_producao=(
                 ESTAGIO_INICIAL_SEMENTEIRA

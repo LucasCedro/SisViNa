@@ -1,15 +1,44 @@
-from typing import Dict, Any, List
+from typing import Any, Dict, List, Optional
 
-from sqlalchemy import select, func
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.lotes_sementes import LoteSementes
-from app.models.insumos import Insumo
-from app.models.plantas import Planta
-from app.models.canteiros import Canteiro
-from app.models.especies import Especie
-from app.crud.lotes_sementes import get_lotes
 from app.crud import plantas as crud_plantas
+from app.crud.lotes_sementes import get_lotes
+from app.crud.plantas_estoque import contar_mudas_pipeline
+from app.models.insumos import Insumo
+
+
+def _alerta_insumo(insumo: Insumo) -> Optional[str]:
+    qtd = float(insumo.quantidade_estoque or 0)
+    minimo = float(insumo.estoque_minimo or 0)
+    maximo = float(insumo.estoque_maximo) if insumo.estoque_maximo is not None else None
+    if minimo > 0 and qtd < minimo:
+        return "abaixo_minimo"
+    if maximo is not None and maximo > 0 and qtd > maximo:
+        return "acima_maximo"
+    return None
+
+
+def _insumo_para_resumo(i: Insumo) -> dict:
+    qtd = float(i.quantidade_estoque or 0)
+    preco = float(i.preco_unitario) if i.preco_unitario is not None else None
+    valor = float(i.valor_estoque or 0)
+    if valor <= 0 and preco is not None:
+        valor = qtd * preco
+    return {
+        "id": i.id,
+        "nome": i.nome,
+        "tipo": i.tipo,
+        "unidade_medida": i.unidade_medida,
+        "quantidade_estoque": qtd,
+        "preco_unitario": preco,
+        "valor_estoque": valor,
+        "estoque_minimo": float(i.estoque_minimo or 0),
+        "estoque_maximo": float(i.estoque_maximo) if i.estoque_maximo is not None else None,
+        "fornecedor": i.fornecedor,
+        "alerta_estoque": _alerta_insumo(i),
+    }
 
 
 async def get_resumo_estoques(db: AsyncSession) -> Dict[str, Any]:
@@ -18,37 +47,10 @@ async def get_resumo_estoques(db: AsyncSession) -> Dict[str, Any]:
 
     ins_result = await db.execute(select(Insumo).order_by(Insumo.nome))
     insumos_db = ins_result.scalars().all()
-    insumos = [
-        {
-            "id": i.id,
-            "nome": i.nome,
-            "tipo": i.tipo,
-            "unidade_medida": i.unidade_medida,
-            "quantidade_estoque": float(i.quantidade_estoque or 0),
-            "preco_unitario": float(i.preco_unitario) if i.preco_unitario else None,
-            "fornecedor": i.fornecedor,
-        }
-        for i in insumos_db
-    ]
+    insumos = [_insumo_para_resumo(i) for i in insumos_db]
+    valor_total_insumos = sum(i["valor_estoque"] for i in insumos)
 
-    q_sementeira = (
-        select(func.count(Planta.id))
-        .join(Canteiro, Planta.id_canteiro == Canteiro.id)
-        .where(
-            Planta.status == "SEMENTE",
-            Canteiro.tipo_local == "sementeira",
-        )
-    )
-    q_canteiro = (
-        select(func.count(Planta.id))
-        .join(Canteiro, Planta.id_canteiro == Canteiro.id)
-        .where(
-            Planta.status.in_(("MUDA", "JOVEM", "ADULTA")),
-            Canteiro.tipo_local == "canteiro",
-        )
-    )
-    total_sementeira = (await db.execute(q_sementeira)).scalar() or 0
-    total_canteiro = (await db.execute(q_canteiro)).scalar() or 0
+    pipeline = await contar_mudas_pipeline(db)
 
     estoque_comercial_raw = await crud_plantas.get_estoque_resumo(db)
     estoque_comercial = [
@@ -71,10 +73,12 @@ async def get_resumo_estoques(db: AsyncSession) -> Dict[str, Any]:
         "total_sementes_disponiveis": sum(
             l.get("quantidade_disponivel", 0) for l in lotes_ativos
         ),
-        "total_plantas_sementeira": int(total_sementeira),
-        "total_plantas_canteiro": int(total_canteiro),
+        "total_plantas_sementeira": pipeline["em_desenvolvimento_sementeira"],
+        "total_plantas_canteiro": pipeline["em_desenvolvimento_canteiro"],
         "total_insumos": len(insumos),
         "total_mudas_aptas_venda": int(total_mudas_aptas_venda),
+        "valor_total_insumos": valor_total_insumos,
+        "mudas_pipeline": pipeline,
         "estoque_comercial": estoque_comercial,
         "lotes_sementes": [
             {

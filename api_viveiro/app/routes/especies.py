@@ -4,8 +4,18 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.schemas.especies import Especie, EspecieCreate, EspecieUpdate, EspecieWithPlantasCount
+from app.schemas.especies import (
+    Especie,
+    EspecieCreate,
+    EspecieUpdate,
+    EspecieWithPlantasCount,
+    EspecieBibliotecaOut,
+    ImagensExternasOut,
+    SincronizarImagensExternasOut,
+)
 from app.crud import especies as crud_especies
+from app.crud import especies_imagens as crud_imagens
+from app.models.especie_biblioteca import EspecieBiblioteca
 from app.auth.jwt import get_current_user
 from app.schemas.funcionarios import FuncionarioOut
 
@@ -36,6 +46,65 @@ async def read_especies_with_plantas_count(
     """
     especies = await crud_especies.get_especies_with_plantas_count(db, skip=skip, limit=limit)
     return especies
+
+
+@router.get("/biblioteca", response_model=List[EspecieBibliotecaOut])
+async def read_especies_biblioteca(
+    skip: int = 0,
+    limit: int = 500,
+    db: AsyncSession = Depends(get_db),
+    current_user: FuncionarioOut = Depends(get_current_user)
+):
+    """Lista espécies com dados da biblioteca técnica."""
+    return await crud_especies.get_especies_biblioteca(db, skip=skip, limit=limit)
+
+
+@router.post(
+    "/biblioteca/sincronizar-imagens-externas",
+    response_model=SincronizarImagensExternasOut,
+)
+async def sincronizar_imagens_externas_biblioteca(
+    apenas_sem_cache: bool = Query(True),
+    forcar: bool = Query(False),
+    limite: int = Query(500, ge=1, le=500),
+    db: AsyncSession = Depends(get_db),
+    current_user: FuncionarioOut = Depends(get_current_user),
+):
+    """Busca speciesLink e grava URLs no cache (JSON) da biblioteca."""
+    return await crud_imagens.sincronizar_imagens_biblioteca(
+        db,
+        apenas_sem_cache=apenas_sem_cache,
+        limite=limite,
+        forcar=forcar,
+    )
+
+
+@router.get("/{especie_id}/imagens-externas", response_model=ImagensExternasOut)
+async def read_imagens_externas_especie(
+    especie_id: int,
+    refresh: bool = Query(False),
+    db: AsyncSession = Depends(get_db),
+    current_user: FuncionarioOut = Depends(get_current_user),
+):
+    especie = await crud_especies.get_especie(db, especie_id)
+    if not especie:
+        raise HTTPException(status_code=404, detail="Espécie não encontrada")
+    urls = await crud_imagens.obter_imagens_externas(db, especie_id, refresh=refresh)
+    bib = await db.get(EspecieBiblioteca, especie_id)
+    locais = crud_imagens._urls_locais_biblioteca(bib) if bib else []
+    todas: list[str] = []
+    vistos: set[str] = set()
+    for u in [*urls, *locais]:
+        if u not in vistos:
+            vistos.add(u)
+            todas.append(u)
+    return ImagensExternasOut(
+        id_especie=especie_id,
+        nome_cientifico=especie.nome_cientifico,
+        urls=todas,
+        cache_atualizado_em=bib.imagens_externas_atualizado_em if bib else None,
+    )
+
 
 @router.get("/{especie_id}", response_model=Especie)
 async def read_especie(

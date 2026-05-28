@@ -51,7 +51,8 @@ function formatarData(data) {
 }
 
 function localizacao(arvore) {
-  const partes = [arvore.cidade, arvore.estado].filter(Boolean)
+  const mun = arvore.municipio || arvore.cidade
+  const partes = [mun, arvore.estado].filter(Boolean)
   return partes.length ? partes.join(' / ') : '—'
 }
 

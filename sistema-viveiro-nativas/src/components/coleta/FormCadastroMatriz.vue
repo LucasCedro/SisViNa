@@ -24,28 +24,22 @@
 
         <div class="field-row">
           <label class="field">
-            Cidade
-            <input v-model="form.cidade" type="text" placeholder="Ex.: Curitiba" />
-          </label>
-          <label class="field">
             Município
-            <input v-model="form.municipio" type="text" placeholder="Município do imóvel" />
+            <input v-model="form.municipio" type="text" placeholder="Ex.: Brasília" />
           </label>
-        </div>
-
-        <div class="field-row">
           <label class="field">
             UF
-            <input v-model="form.estado" type="text" maxlength="2" placeholder="PR" />
-          </label>
-          <label class="field">
-            Nome do imóvel
-            <input v-model="form.imovel_nome" type="text" placeholder="Fazenda, fragmento, APP..." />
+            <input v-model="form.estado" type="text" maxlength="2" placeholder="DF" />
           </label>
         </div>
 
+        <label class="field">
+          Nome da fazenda
+          <input v-model="form.imovel_nome" type="text" placeholder="Ex.: Fazenda São João, fragmento, APP..." />
+        </label>
+
         <fieldset class="secao-fieldset">
-          <legend>Procedência / compliance</legend>
+          <legend>Procedência</legend>
           <label class="field">
             Tipo de origem
             <select v-model="form.tipo_origem">
@@ -58,7 +52,7 @@
             <input v-model="form.numero_autorizacao" type="text" placeholder="Licença, AUTEF, termo..." />
           </label>
           <label class="field">
-            Observações legais
+            Observações sobre a matriz
             <textarea v-model="form.observacoes_legais" rows="2" />
           </label>
         </fieldset>
@@ -183,7 +177,6 @@ const modoEdicao = computed(() => Boolean(props.matriz?.id))
 const formPadrao = () => ({
   nome: '',
   id_especie: '',
-  cidade: '',
   estado: '',
   tipo_coordenada: 'geografica',
   latitude: null,
@@ -213,7 +206,6 @@ function preencherForm(matriz) {
   form.value = {
     nome: matriz.nome || '',
     id_especie: matriz.id_especie || '',
-    cidade: matriz.cidade || '',
     estado: matriz.estado || '',
     tipo_coordenada: matriz.tipo_coordenada || 'geografica',
     latitude: matriz.latitude != null ? Number(matriz.latitude) : null,
@@ -221,7 +213,7 @@ function preencherForm(matriz) {
     utm_zona: matriz.utm_zona ?? 22,
     utm_easting: matriz.utm_easting != null ? Number(matriz.utm_easting) : null,
     utm_northing: matriz.utm_northing != null ? Number(matriz.utm_northing) : null,
-    municipio: matriz.municipio || '',
+    municipio: matriz.municipio || matriz.cidade || '',
     imovel_nome: matriz.imovel_nome || '',
     tipo_origem: matriz.tipo_origem || '',
     numero_autorizacao: matriz.numero_autorizacao || '',
@@ -275,10 +267,16 @@ function montarPayload() {
   const payload = {
     nome: form.value.nome.trim(),
     id_especie: Number(form.value.id_especie),
-    cidade: form.value.cidade || null,
     estado: form.value.estado?.toUpperCase() || null,
     tipo_coordenada: form.value.tipo_coordenada,
-    municipio: form.value.municipio || null,
+    municipio: (() => {
+      const m = form.value.municipio?.trim()
+      return m || null
+    })(),
+    cidade: (() => {
+      const m = form.value.municipio?.trim()
+      return m || null
+    })(),
     imovel_nome: form.value.imovel_nome || null,
     tipo_origem: form.value.tipo_origem || null,
     numero_autorizacao: form.value.numero_autorizacao || null,

@@ -14,7 +14,7 @@
         <input
           v-model="store.filtros.busca"
           type="search"
-          placeholder="Nome, cidade ou espécie..."
+          placeholder="Nome, município, fazenda ou espécie..."
         />
       </label>
 

@@ -160,8 +160,22 @@ const blocosFluxo = computed(() => {
     {
       id: 'vendidas',
       titulo: 'Vendidas',
-      valorTotal: r.vendidas,
-      subtitulo: 'Mudas (acumulado)',
+      cards: [
+        {
+          id: 'mtd',
+          valor: r.vendidas_mtd,
+          label: 'MTD (mês)',
+          tom: 'venda',
+          irPara: 'visao',
+        },
+        {
+          id: 'ytd',
+          valor: r.vendidas_ytd,
+          label: 'YTD (ano)',
+          tom: 'neutro',
+          irPara: 'visao',
+        },
+      ],
     },
   ]
 })

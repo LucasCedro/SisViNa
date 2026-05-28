@@ -1,85 +1,123 @@
 <template>
-  <div class="estoque-comercial">
-    <header class="sec-header">
-      <div>
-        <h2 class="sec-titulo">Estoque comercial de mudas</h2>
-        <p class="sec-lead">
-          Apenas mudas marcadas como <strong>aptas p/ venda</strong> em Produção.
-          A baixa ocorre automaticamente ao registrar a venda.
-        </p>
-      </div>
-      <div class="sec-total">
-        <strong>{{ totalUnidades }}</strong>
-        <span>unidades vendáveis</span>
-      </div>
-    </header>
-
-    <div v-if="!items.length" class="empty-box">
-      <p class="empty-box__titulo">Nenhuma muda no estoque comercial</p>
-      <p class="empty-box__texto">
-        Espécies cadastradas só aparecem aqui depois que mudas no canteiro forem liberadas em
-        <router-link to="/producao">Produção → Liberar estágios</router-link>.
-      </p>
-      <div v-if="pipeline" class="pipeline-resumo">
-        <span><strong>{{ pipeline.em_crescimento_canteiro }}</strong> em crescimento no canteiro</span>
-        <span><strong>{{ pipeline.em_desenvolvimento_sementeira }}</strong> na sementeira (desenvolv.)</span>
-      </div>
+  <div class="comercial-panel">
+    <div class="pipeline-mudas" aria-label="Estágios das mudas">
+      <article
+        v-for="etapa in etapas"
+        :key="etapa.id"
+        class="pipeline-etapa"
+        :class="'pipeline-etapa--' + etapa.tom"
+      >
+        <span class="pipeline-etapa__label">{{ etapa.label }}</span>
+        <strong class="pipeline-etapa__valor">{{ etapa.valor }}</strong>
+        <span v-if="etapa.meta" class="pipeline-etapa__meta">{{ etapa.meta }}</span>
+      </article>
+      <div class="pipeline-seta" aria-hidden="true">→</div>
+      <article class="pipeline-etapa pipeline-etapa--venda">
+        <span class="pipeline-etapa__label">Prontas para venda</span>
+        <strong class="pipeline-etapa__valor">{{ totalUnidades }}</strong>
+        <span class="pipeline-etapa__meta">≥ {{ diasRust }} dias em rustificação</span>
+      </article>
     </div>
 
-    <div v-else class="tabela-wrap">
-      <table class="tabela">
+    <p class="estoque-info-box">
+      Listagem apenas de mudas <strong>aptas para venda</strong> que completaram o tempo mínimo na área de
+      rustificação. Preços editáveis por espécie; a baixa ocorre em
+      <router-link to="/vendas">Vendas</router-link>.
+    </p>
+
+    <div v-if="!items.length" class="estoque-empty">
+      <p class="estoque-empty__titulo">Nenhuma muda pronta para venda</p>
+      <p class="estoque-empty__texto">
+        Libere o estágio em Produção e aguarde {{ diasRust }} dias na rustificação. Mudas já aptas mas
+        dentro do prazo aparecem em “aguardando” acima.
+      </p>
+      <div class="estoque-empty__acoes">
+        <router-link to="/producao" class="btn btn-primary">Ir para Produção</router-link>
+        <router-link to="/vendas" class="btn btn-outline">Registrar venda</router-link>
+      </div>
+      <p v-if="pipeline?.aptas_venda_aguardando_tempo" class="alert alert-warning" style="margin-top: 1rem">
+        {{ pipeline.aptas_venda_aguardando_tempo }} muda(s) aptas aguardando completar rustificação.
+      </p>
+    </div>
+
+    <div v-else class="estoque-table-card">
+      <table class="estoque-table">
         <thead>
           <tr>
             <th>Espécie</th>
-            <th>Quantidade</th>
-            <th>Preço unitário</th>
-            <th>Localização</th>
+            <th class="col-num">Quantidade</th>
+            <th class="col-num">Preço unit.</th>
+            <th>Local</th>
             <th>Status</th>
-            <th></th>
+            <th class="col-acoes"></th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="item in items" :key="item.id_especie" :class="{ 'linha-alerta': item.quantidade < 5 }">
+          <tr
+            v-for="item in items"
+            :key="item.id_especie"
+            :class="{ 'estoque-linha--alerta': item.quantidade < 5 }"
+          >
             <td>
-              <div class="especie-nome">{{ item.nomePopular || item.nomeCientifico }}</div>
-              <div v-if="item.nomePopular" class="especie-cient">{{ item.nomeCientifico }}</div>
+              <span class="estoque-especie">{{ item.nomePopular || item.nomeCientifico }}</span>
+              <span v-if="item.nomePopular" class="estoque-especie-cient">{{ item.nomeCientifico }}</span>
             </td>
-            <td><strong class="qtd">{{ item.quantidade }}</strong></td>
-            <td>R$ {{ item.valorUnitario.toFixed(2) }}</td>
+            <td class="col-num">
+              <span class="estoque-qtd-destaque">{{ item.quantidade }}</span>
+            </td>
+            <td class="col-num">R$ {{ item.valorUnitario.toFixed(2) }}</td>
             <td>{{ item.localizacao }}</td>
-            <td>{{ item.tamanho }}</td>
-            <td>
-              <button type="button" class="btn-sec" @click="editarPreco(item)">Editar preço</button>
+            <td><span class="estoque-tag estoque-tag--ok">{{ item.tamanho }}</span></td>
+            <td class="col-acoes">
+              <button type="button" class="btn btn-outline btn-sm" @click="editarPreco(item)">
+                Editar preço
+              </button>
             </td>
           </tr>
         </tbody>
       </table>
     </div>
 
-    <dialog ref="dialogPreco" class="dialog-preco">
-      <form method="dialog" class="dialog-box" @submit.prevent="salvarPreco">
-        <h3>Preço de venda — {{ formPreco.nomePopular || formPreco.nomeCientifico }}</h3>
-        <p class="dialog-hint">{{ formPreco.quantidade }} unidade(s) no estoque comercial</p>
-        <label class="field">
-          Preço unitário (R$)
-          <input v-model.number="formPreco.valorUnitario" type="number" step="0.01" min="0.01" required />
-        </label>
-        <div class="dialog-actions">
-          <button type="button" class="btn-sec" @click="fecharDialog">Cancelar</button>
-          <button type="submit" class="btn-prim">Salvar</button>
+    <dialog ref="dialogPreco" class="estoque-dialog">
+      <form method="dialog" class="estoque-dialog__inner" @submit.prevent="salvarPreco">
+        <header class="estoque-modal__header">
+          <h3>Preço de venda</h3>
+          <p>{{ formPreco.nomePopular || formPreco.nomeCientifico }} — {{ formPreco.quantidade }} un.</p>
+        </header>
+        <div class="estoque-modal__body">
+          <label class="form-label">
+            Preço unitário (R$)
+            <input
+              v-model.number="formPreco.valorUnitario"
+              class="form-input"
+              type="number"
+              step="0.01"
+              min="0.01"
+              required
+            />
+          </label>
         </div>
+        <footer class="estoque-modal__footer">
+          <button type="button" class="btn btn-secondary" @click="fecharDialog">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Salvar</button>
+        </footer>
       </form>
     </dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { getEstoqueResumo, atualizarPrecoEspecie } from '@/services/plantas'
-import { getProducaoResumo } from '@/services/producao'
+import { ref, computed } from 'vue'
+import { atualizarPrecoEspecie } from '@/services/plantas'
+import './estoques-shared.css'
 
-const items = ref([])
-const pipeline = ref(null)
+const emit = defineEmits(['atualizado'])
+
+const props = defineProps({
+  items: { type: Array, default: () => [] },
+  pipeline: { type: Object, default: null },
+})
+
 const dialogPreco = ref(null)
 const formPreco = ref({
   id_especie: null,
@@ -89,29 +127,52 @@ const formPreco = ref({
   valorUnitario: 0,
 })
 
-const totalUnidades = computed(() =>
-  items.value.reduce((s, i) => s + (i.quantidade || 0), 0)
-)
+const diasRust = computed(() => props.pipeline?.dias_minimos_rustificacao ?? 30)
 
-async function carregar() {
-  const [estoque, resumo] = await Promise.all([
-    getEstoqueResumo(),
-    getProducaoResumo().catch(() => null),
-  ])
-  pipeline.value = resumo
-  items.value = estoque.map((e) => ({
+const mappedItems = computed(() =>
+  props.items.map((e) => ({
     id_especie: e.id_especie,
     nomePopular: e.nome_popular,
     nomeCientifico: e.nome_cientifico,
     quantidade: e.quantidade,
     valorUnitario: Number(e.valor_unitario) || 0,
     localizacao: e.localizacao || '—',
-    tamanho: e.status_predominante || '—',
+    tamanho: e.status_predominante || 'MUDA',
   }))
-}
+)
 
-onMounted(carregar)
-defineExpose({ carregar })
+const items = computed(() => mappedItems.value)
+
+const totalUnidades = computed(() =>
+  items.value.reduce((s, i) => s + (i.quantidade || 0), 0)
+)
+
+const etapas = computed(() => {
+  const p = props.pipeline || {}
+  return [
+    {
+      id: 'dev',
+      label: 'Desenvolvimento',
+      valor: p.em_desenvolvimento_total ?? 0,
+      meta: `${p.em_desenvolvimento_sementeira ?? 0} sem. · ${p.em_desenvolvimento_canteiro ?? 0} cant.`,
+      tom: 'dev',
+    },
+    {
+      id: 'rust',
+      label: 'Em rustificação',
+      valor: p.em_rustificacao ?? 0,
+      meta: null,
+      tom: 'rust',
+    },
+    {
+      id: 'wait',
+      label: 'Aguardando prazo',
+      valor: p.aptas_venda_aguardando_tempo ?? 0,
+      meta: `${diasRust.value} dias`,
+      tom: 'wait',
+    },
+  ]
+})
 
 function editarPreco(item) {
   formPreco.value = { ...item }
@@ -125,191 +186,96 @@ function fecharDialog() {
 async function salvarPreco() {
   await atualizarPrecoEspecie(formPreco.value.id_especie, formPreco.value.valorUnitario)
   fecharDialog()
-  await carregar()
+  emit('atualizado')
 }
 </script>
 
 <style scoped>
-.sec-header {
+.comercial-panel {
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
+  flex-direction: column;
   gap: var(--spacing-lg);
-  margin-bottom: var(--spacing-lg);
+}
+
+.pipeline-mudas {
+  display: flex;
+  align-items: stretch;
+  gap: 0.5rem;
   flex-wrap: wrap;
 }
 
-.sec-titulo {
-  margin: 0 0 0.35rem;
-  font-size: 1.25rem;
-  font-weight: 700;
-}
-
-.sec-lead {
-  margin: 0;
-  font-size: 0.9375rem;
-  color: var(--color-text-secondary);
-  max-width: 36rem;
-  line-height: 1.45;
-}
-
-.sec-total {
-  text-align: right;
+.pipeline-etapa {
+  flex: 1 1 7rem;
+  padding: var(--spacing-md);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border-subtle);
+  background: var(--color-surface-muted);
   display: flex;
   flex-direction: column;
-  gap: 0.1rem;
+  gap: 0.15rem;
 }
 
-.sec-total strong {
-  font-size: 2rem;
-  color: var(--color-primary-700);
-  line-height: 1;
+.pipeline-etapa--dev {
+  border-color: var(--color-primary-100);
+  background: var(--color-primary-subtle);
 }
 
-.sec-total span {
-  font-size: 0.875rem;
-  color: var(--color-text-secondary);
+.pipeline-etapa--rust {
+  border-color: var(--color-info-bg);
+  background: var(--color-info-bg);
 }
 
-.empty-box {
-  padding: var(--spacing-xl);
-  background: var(--color-surface-muted);
-  border: 1px dashed var(--color-border);
-  border-radius: var(--radius-lg);
-  text-align: center;
-}
-
-.empty-box__titulo {
-  margin: 0 0 0.5rem;
-  font-size: 1.0625rem;
-  font-weight: 700;
-}
-
-.empty-box__texto {
-  margin: 0;
-  font-size: 0.9375rem;
-  color: var(--color-text-secondary);
-}
-
-.empty-box__texto a {
-  color: var(--color-primary);
-  font-weight: 600;
-}
-
-.pipeline-resumo {
-  display: flex;
-  justify-content: center;
-  gap: var(--spacing-lg);
-  margin-top: var(--spacing-md);
-  font-size: 0.9375rem;
-  color: var(--color-text-secondary);
-}
-
-.tabela-wrap {
-  overflow-x: auto;
-  background: var(--color-surface);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
-  border: 1px solid var(--color-border-subtle);
-}
-
-.tabela {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.9375rem;
-}
-
-.tabela th,
-.tabela td {
-  padding: 0.85rem 1rem;
-  border-bottom: 1px solid var(--color-border-subtle);
-  text-align: left;
-}
-
-.tabela th {
-  font-size: 0.8125rem;
-  font-weight: 600;
-  color: var(--color-text-secondary);
-  background: var(--color-surface-muted);
-}
-
-.qtd {
-  font-size: 1.125rem;
-  color: var(--color-primary-700);
-}
-
-.linha-alerta {
+.pipeline-etapa--wait {
+  border-color: var(--color-attention);
   background: var(--color-attention-bg);
 }
 
-.especie-nome {
+.pipeline-etapa--venda {
+  border-color: var(--color-success);
+  background: var(--color-success-bg);
+  flex: 1.2 1 8rem;
+}
+
+.pipeline-etapa__label {
+  font-size: 0.75rem;
   font-weight: 600;
-}
-
-.especie-cient {
-  font-size: 0.8125rem;
-  color: var(--color-text-muted);
-  font-style: italic;
-}
-
-.btn-sec,
-.btn-prim {
-  padding: 0.45rem 0.85rem;
-  border-radius: var(--radius-sm);
-  font-family: inherit;
-  font-size: 0.875rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.btn-sec {
-  border: 1px solid var(--color-border);
-  background: var(--color-surface);
-}
-
-.btn-prim {
-  border: none;
-  background: var(--color-primary);
-  color: var(--color-text-inverse);
-}
-
-.dialog-preco {
-  border: none;
-  border-radius: var(--radius-lg);
-  padding: 0;
-  max-width: 400px;
-  box-shadow: var(--shadow-lg);
-}
-
-.dialog-box {
-  padding: var(--spacing-lg);
-}
-
-.dialog-hint {
-  margin: 0 0 var(--spacing-md);
-  font-size: 0.875rem;
   color: var(--color-text-secondary);
 }
 
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  font-size: 0.875rem;
-  font-weight: 600;
-  margin-bottom: var(--spacing-md);
+.pipeline-etapa__valor {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-primary-700);
+  line-height: 1.1;
 }
 
-.field input {
-  padding: 0.5rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  font-family: inherit;
+.pipeline-etapa__meta {
+  font-size: 0.6875rem;
+  color: var(--color-text-muted);
 }
 
-.dialog-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.5rem;
+.pipeline-seta {
+  align-self: center;
+  color: var(--color-text-muted);
+  font-size: 1.25rem;
+  padding: 0 0.25rem;
+}
+
+@media (max-width: 640px) {
+  .pipeline-seta {
+    display: none;
+  }
+}
+
+.estoque-dialog {
+  border: none;
+  border-radius: var(--radius-xl);
+  padding: 0;
+  max-width: 420px;
+  box-shadow: var(--shadow-lg);
+}
+
+.estoque-dialog__inner {
+  margin: 0;
 }
 </style>

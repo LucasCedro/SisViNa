@@ -34,7 +34,8 @@ class ProducaoResumoOut(BaseModel):
     prontas_venda_rustificacao: int
     estoque_comercial_unidades: int
     aguardando_transferencia: int
-    vendidas: int
+    vendidas_mtd: int
+    vendidas_ytd: int
     dias_medios_armazem: Optional[float] = None
     dias_medios_sementeira: Optional[float] = None
     dias_medios_canteiro: Optional[float] = None

@@ -84,6 +84,9 @@
       empty="Nenhuma muda na área de rustificação."
     />
 
+    <ul v-if="avisos.length" class="alert alert-warning avisos-list">
+      <li v-for="(a, i) in avisos" :key="i">{{ a }}</li>
+    </ul>
     <p v-if="erro" class="alert alert-error">{{ erro }}</p>
     <p v-if="sucesso" class="alert alert-success">{{ sucesso }}</p>
   </div>
@@ -117,6 +120,7 @@ const marcando = ref(false)
 const transferindo = ref(false)
 const erro = ref('')
 const sucesso = ref('')
+const avisos = ref([])
 
 async function carregar() {
   erro.value = ''
@@ -166,10 +170,12 @@ async function transferirAptasRustificacao() {
   transferindo.value = true
   erro.value = ''
   sucesso.value = ''
+  avisos.value = []
   try {
     const res = await transferirRustificacao({
       ids_plantas: selAptas.value.map(Number),
     })
+    avisos.value = res.avisos || []
     sucesso.value = `${res.transferidas} muda(s) enviada(s) à rustificação.`
     await carregar()
   } catch (e) {

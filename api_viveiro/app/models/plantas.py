@@ -15,6 +15,7 @@ class Planta(Base):
     codigo_rastreio = Column(String(20), unique=True)
     data_plantio = Column(Date)
     data_germinacao = Column(Date)
+    data_inicio_estagio_atual = Column(Date)  # início do estagio_producao atual (métricas)
     altura_atual = Column(Numeric(5, 2))
     diametro_caule = Column(Numeric(5, 2))
     coordenada_x = Column(Numeric(10, 2))

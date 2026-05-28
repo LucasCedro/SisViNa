@@ -1,196 +1,458 @@
 <template>
   <PageLayout>
-    <p class="page-lead">
-      Controle de sementes, insumos, locais do viveiro e estoque comercial de mudas (aptas p/ venda).
-      Vendas registram a baixa — veja em <router-link to="/vendas">Vendas</router-link>.
+    <header class="estoque-page-header">
+      <div>
+        <h1 class="estoque-page-header__titulo">Estoques</h1>
+        <p class="page-lead">
+          Sementes, insumos com custo (CMV) e mudas por estágio — do desenvolvimento até a venda após
+          rustificação.
+        </p>
+      </div>
+      <div class="estoque-page-header__acoes">
+        <button
+          type="button"
+          class="btn btn-secondary"
+          :disabled="carregando"
+          @click="carregar"
+        >
+          {{ carregando ? 'Atualizando…' : 'Atualizar' }}
+        </button>
+      </div>
+    </header>
+
+    <p v-if="carregando && !resumo" class="alert alert-info">Carregando resumo de estoques…</p>
+    <p v-else-if="erroPagina" class="alert alert-error">
+      {{ erroPagina }}
+      <button type="button" class="btn btn-outline btn-sm" style="margin-left: 0.5rem" @click="carregar">
+        Tentar novamente
+      </button>
     </p>
 
-    <div class="cards">
-      <div class="card">
-        <span class="card-label">Lotes ativos</span>
-        <strong>{{ resumo?.total_lotes_sementes_ativos ?? '—' }}</strong>
-      </div>
-      <div class="card">
-        <span class="card-label">Sementes disponíveis</span>
-        <strong>{{ resumo?.total_sementes_disponiveis ?? '—' }}</strong>
-      </div>
-      <div class="card">
-        <span class="card-label">Plantas na sementeira</span>
-        <strong>{{ resumo?.total_plantas_sementeira ?? '—' }}</strong>
-      </div>
-      <div class="card">
-        <span class="card-label">Mudas nos canteiros</span>
-        <strong>{{ resumo?.total_plantas_canteiro ?? '—' }}</strong>
-      </div>
-      <div class="card">
-        <span class="card-label">Mudas aptas p/ venda</span>
-        <strong>{{ resumo?.total_mudas_aptas_venda ?? '—' }}</strong>
-      </div>
-      <div class="card">
-        <span class="card-label">Tipos de insumo</span>
-        <strong>{{ resumo?.total_insumos ?? '—' }}</strong>
-      </div>
-    </div>
+    <template v-else-if="resumo">
+      <EstoqueFluxoBar :resumo="resumo" :guia-ativa="guiaAtiva" @ir-guia="guiaAtiva = $event" />
 
-    <EstoqueComercialPanel ref="comercialRef" />
+      <nav class="guias-navegacao estoque-guias" aria-label="Seções de estoque">
+        <button
+          v-for="g in guias"
+          :key="g.id"
+          type="button"
+          class="guia"
+          :class="{ ativa: guiaAtiva === g.id }"
+          @click="guiaAtiva = g.id"
+        >
+          {{ g.label }}
+          <span v-if="g.badge != null" class="guia-badge">{{ g.badge }}</span>
+        </button>
+      </nav>
 
-    <div class="secao-header">
-      <h2>Estoque de sementes (lotes)</h2>
-      <button type="button" class="btn-prim" @click="modalEntrada = true">Entrada no armazém</button>
-    </div>
-    <div class="tabela-wrap">
-      <table class="tabela">
-        <thead>
-          <tr>
-            <th>Código</th>
-            <th>Origem</th>
-            <th>Espécie</th>
-            <th>Matriz</th>
-            <th>Disponível</th>
-            <th>Armazenamento</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="l in resumo?.lotes_sementes || []" :key="l.id">
-            <td>{{ l.codigo_lote }}</td>
-            <td><span class="tag">{{ l.origem_lote }}</span></td>
-            <td>{{ l.especie_nome }}</td>
-            <td>{{ l.matriz_nome || '—' }}</td>
-            <td>{{ l.quantidade_disponivel }} / {{ l.quantidade_inicial }}</td>
-            <td>{{ l.condicoes_armazenamento || '—' }}</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+      <!-- Mudas -->
+      <PageSection v-show="guiaAtiva === 'mudas'">
+        <template #header>
+          <div class="secao-titulo-wrap">
+            <h2 class="secao-titulo">Mudas — estoque comercial</h2>
+            <p class="secao-sub">Prontas para venda após rustificação (referência Embrapa)</p>
+          </div>
+        </template>
+        <EstoqueComercialPanel
+          :items="resumo.estoque_comercial"
+          :pipeline="resumo.mudas_pipeline"
+          @atualizado="carregar"
+        />
+      </PageSection>
 
-    <h2 class="secao-titulo">Locais do viveiro</h2>
-    <p class="hint">Defina se cada área é sementeira, canteiro de mudas ou armazém.</p>
-    <div class="tabela-wrap">
-      <table class="tabela">
-        <thead>
-          <tr>
-            <th>Nome</th>
-            <th>Tipo</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="c in locais" :key="c.id">
-            <td>{{ c.nome }}</td>
-            <td>
-              <select v-model="c.tipo_local" class="select-inline">
-                <option value="sementeira">Sementeira</option>
-                <option value="canteiro">Canteiro</option>
-                <option value="rustificacao">Rustificação</option>
-                <option value="armazem">Armazém</option>
-              </select>
-            </td>
-            <td>
-              <button type="button" class="btn-sec" @click="salvarLocal(c)">Salvar</button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+      <!-- Sementes -->
+      <PageSection v-show="guiaAtiva === 'sementes'">
+        <template #header>
+          <div class="secao-header-flex">
+            <div>
+              <h2 class="secao-titulo">Sementes no armazém</h2>
+              <p class="secao-sub">Lotes ativos com saldo disponível</p>
+            </div>
+            <button type="button" class="btn btn-primary" @click="modalEntrada = true">
+              + Entrada no armazém
+            </button>
+          </div>
+        </template>
 
-    <h2 class="secao-titulo">Insumos e substratos</h2>
-    <div class="tabela-wrap">
-      <table class="tabela">
-        <thead>
-          <tr>
-            <th>Nome</th>
-            <th>Tipo</th>
-            <th>Estoque</th>
-            <th>Unidade</th>
-            <th>Fornecedor</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="i in resumo?.insumos || []" :key="i.id">
-            <td>{{ i.nome }}</td>
-            <td>{{ i.tipo }}</td>
-            <td>{{ i.quantidade_estoque }}</td>
-            <td>{{ i.unidade_medida || '—' }}</td>
-            <td>{{ i.fornecedor || '—' }}</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+        <div v-if="!resumo.lotes_sementes?.length" class="estoque-empty">
+          <p class="estoque-empty__titulo">Nenhum lote com saldo</p>
+          <p class="estoque-empty__texto">
+            Registre entrada de sementes (compra, armazém ou ajuste) ou forme lotes a partir da coleta.
+          </p>
+          <div class="estoque-empty__acoes">
+            <button type="button" class="btn btn-primary" @click="modalEntrada = true">
+              Registrar entrada
+            </button>
+            <router-link to="/coleta" class="btn btn-outline">Módulo Coleta</router-link>
+          </div>
+        </div>
+        <div v-else class="estoque-table-card">
+          <table class="estoque-table">
+            <thead>
+              <tr>
+                <th>Código</th>
+                <th>Origem</th>
+                <th>Espécie</th>
+                <th>Matriz</th>
+                <th class="col-num">Disponível</th>
+                <th>Armazenamento</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="l in resumo.lotes_sementes" :key="l.id">
+                <td><code>{{ l.codigo_lote }}</code></td>
+                <td><span class="estoque-tag estoque-tag--info">{{ l.origem_lote }}</span></td>
+                <td>{{ l.especie_nome || '—' }}</td>
+                <td>{{ l.matriz_nome || '—' }}</td>
+                <td class="col-num">
+                  <strong>{{ l.quantidade_disponivel }}</strong>
+                  <span class="text-muted"> / {{ l.quantidade_inicial }}</span>
+                </td>
+                <td>{{ l.condicoes_armazenamento || '—' }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </PageSection>
 
-    <div v-if="modalEntrada" class="modal-overlay" @click.self="modalEntrada = false">
-      <div class="modal-card">
-        <h3>Entrada de sementes no armazém</h3>
-        <p class="hint">Compra ou estoque guardado — sem vínculo obrigatório com coleta.</p>
-        <form @submit.prevent="salvarEntrada">
-          <label class="field">
+      <!-- Insumos -->
+      <PageSection v-show="guiaAtiva === 'insumos'">
+        <template #header>
+          <div>
+            <h2 class="secao-titulo">Insumos e substratos</h2>
+            <p class="secao-sub">
+              Valor total em estoque: <strong>R$ {{ formatMoeda(resumo.valor_total_insumos) }}</strong>
+              — entradas com valor pago atualizam o preço médio (CMV)
+            </p>
+          </div>
+        </template>
+
+        <p class="estoque-info-box">
+          Use <strong>Entrada</strong> ao comprar (informe quantidade e valor total pago). Use
+          <strong>Saída</strong> para consumo ou perda. Alertas exigem limites mín/máx no cadastro do insumo.
+        </p>
+
+        <div v-if="!resumo.insumos?.length" class="estoque-empty">
+          <p class="estoque-empty__titulo">Nenhum insumo cadastrado</p>
+          <p class="estoque-empty__texto">Cadastre NPK, substrato, combustível e demais itens no módulo de insumos.</p>
+        </div>
+        <div v-else class="estoque-table-card">
+          <table class="estoque-table">
+            <thead>
+              <tr>
+                <th>Insumo</th>
+                <th>Tipo</th>
+                <th class="col-num">Estoque</th>
+                <th class="col-num">Preço médio</th>
+                <th class="col-num">Valor total</th>
+                <th>Situação</th>
+                <th class="col-acoes">Movimentação</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="i in resumo.insumos"
+                :key="i.id"
+                :class="{
+                  'estoque-linha--alerta': i.alerta_estoque === 'abaixo_minimo',
+                  'estoque-linha--max': i.alerta_estoque === 'acima_maximo',
+                }"
+              >
+                <td>
+                  <span class="estoque-especie">{{ i.nome }}</span>
+                  <span class="estoque-especie-cient">{{ i.unidade_medida || 'unidade' }}</span>
+                  <div
+                    v-if="i.estoque_maximo && i.estoque_maximo > 0"
+                    class="estoque-saldo-bar"
+                    :title="`Mín: ${i.estoque_minimo} · Máx: ${i.estoque_maximo}`"
+                  >
+                    <div
+                      class="estoque-saldo-bar__fill"
+                      :class="barraClasse(i)"
+                      :style="{ width: barraPct(i) + '%' }"
+                    />
+                  </div>
+                </td>
+                <td>{{ i.tipo }}</td>
+                <td class="col-num">
+                  <span class="estoque-qtd-destaque">{{ i.quantidade_estoque }}</span>
+                </td>
+                <td class="col-num">
+                  {{
+                    i.preco_unitario != null
+                      ? `R$ ${Number(i.preco_unitario).toFixed(2)}`
+                      : '—'
+                  }}
+                </td>
+                <td class="col-num">R$ {{ formatMoeda(i.valor_estoque) }}</td>
+                <td>
+                  <span v-if="i.alerta_estoque === 'abaixo_minimo'" class="estoque-tag estoque-tag--warn">
+                    Abaixo do mínimo
+                  </span>
+                  <span v-else-if="i.alerta_estoque === 'acima_maximo'" class="estoque-tag estoque-tag--max">
+                    Acima do máximo
+                  </span>
+                  <span v-else class="estoque-tag estoque-tag--ok">Normal</span>
+                </td>
+                <td class="col-acoes">
+                  <div class="estoque-acoes-grupo">
+                    <button type="button" class="btn btn-primary btn-sm" @click="abrirMov(i, 'entrada')">
+                      Entrada
+                    </button>
+                    <button
+                      type="button"
+                      class="btn btn-secondary btn-sm"
+                      :disabled="!i.quantidade_estoque"
+                      @click="abrirMov(i, 'saida')"
+                    >
+                      Saída
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </PageSection>
+
+      <!-- Locais -->
+      <PageSection v-show="guiaAtiva === 'locais'">
+        <template #header>
+          <div>
+            <h2 class="secao-titulo">Locais do viveiro</h2>
+            <p class="secao-sub">Classifique cada área para o fluxo de produção e estoque</p>
+          </div>
+        </template>
+
+        <p class="estoque-info-box">
+          O tipo do local define onde as mudas entram no pipeline: sementeira → canteiro → rustificação.
+          Armazém é para sementes secas.
+        </p>
+
+        <div v-if="!locais.length" class="estoque-empty">
+          <p class="estoque-empty__titulo">Nenhum local cadastrado</p>
+        </div>
+        <div v-else class="estoque-table-card">
+          <table class="estoque-table">
+            <thead>
+              <tr>
+                <th>Nome</th>
+                <th>Tipo do local</th>
+                <th class="col-acoes"></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="c in locais" :key="c.id">
+                <td class="estoque-especie">{{ c.nome }}</td>
+                <td>
+                  <select v-model="c.tipo_local" class="estoque-select-inline">
+                    <option value="sementeira">Sementeira</option>
+                    <option value="canteiro">Canteiro de mudas</option>
+                    <option value="rustificacao">Rustificação</option>
+                    <option value="armazem">Armazém de sementes</option>
+                  </select>
+                </td>
+                <td class="col-acoes">
+                  <button type="button" class="btn btn-outline btn-sm" @click="salvarLocal(c)">
+                    Salvar
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </PageSection>
+    </template>
+
+    <!-- Modal sementes -->
+    <div v-if="modalEntrada" class="estoque-modal-overlay" @click.self="modalEntrada = false">
+      <div class="estoque-modal" role="dialog" aria-labelledby="modal-sementes-titulo">
+        <header class="estoque-modal__header">
+          <h3 id="modal-sementes-titulo">Entrada de sementes</h3>
+          <p>Compra ou estoque guardado — sem vínculo obrigatório com coleta.</p>
+        </header>
+        <form class="estoque-modal__body estoque-form-grid" @submit.prevent="salvarEntrada">
+          <label class="form-label">
             Espécie
-            <select v-model.number="formEntrada.id_especie" required>
+            <select v-model.number="formEntrada.id_especie" class="form-input" required>
               <option v-for="e in especies" :key="e.id" :value="e.id">
                 {{ e.nome_popular || e.nome_cientifico }}
               </option>
             </select>
           </label>
-          <label class="field">
+          <label class="form-label">
             Quantidade
-            <input v-model.number="formEntrada.quantidade" type="number" min="1" required />
+            <input v-model.number="formEntrada.quantidade" class="form-input" type="number" min="1" required />
           </label>
-          <label class="field">
-            Origem
-            <select v-model="formEntrada.origem_lote">
+          <label class="form-label">
+            Origem do lote
+            <select v-model="formEntrada.origem_lote" class="form-input">
               <option value="armazem">Armazém</option>
               <option value="compra">Compra</option>
               <option value="ajuste">Ajuste / inventário</option>
             </select>
           </label>
-          <label class="field">
+          <label class="form-label">
             Condições de armazenamento
-            <input v-model="formEntrada.condicoes_armazenamento" type="text" />
+            <input v-model="formEntrada.condicoes_armazenamento" class="form-input" type="text" />
           </label>
-          <label class="field">
+          <label class="form-label">
             Observações
-            <textarea v-model="formEntrada.observacoes" rows="2" />
+            <textarea v-model="formEntrada.observacoes" class="form-input" rows="2" />
           </label>
-          <p v-if="erro" class="erro">{{ erro }}</p>
-          <div class="modal-footer">
-            <button type="button" class="btn-sec" @click="modalEntrada = false">Cancelar</button>
-            <button type="submit" class="btn-prim" :disabled="salvando">Registrar</button>
-          </div>
+          <p v-if="erroModal" class="alert alert-error">{{ erroModal }}</p>
         </form>
+        <footer class="estoque-modal__footer">
+          <button type="button" class="btn btn-secondary" @click="modalEntrada = false">Cancelar</button>
+          <button type="submit" class="btn btn-primary" :disabled="salvando" @click="salvarEntrada">
+            {{ salvando ? 'Salvando…' : 'Registrar entrada' }}
+          </button>
+        </footer>
+      </div>
+    </div>
+
+    <!-- Modal insumo -->
+    <div v-if="modalMov" class="estoque-modal-overlay" @click.self="fecharMov">
+      <div class="estoque-modal" role="dialog">
+        <header class="estoque-modal__header">
+          <h3>{{ formMov.tipo === 'entrada' ? 'Entrada de insumo' : 'Saída de insumo' }}</h3>
+          <p>{{ insumoSelecionado?.nome }} · saldo atual {{ insumoSelecionado?.quantidade_estoque }} {{ insumoSelecionado?.unidade_medida || 'un.' }}</p>
+        </header>
+        <form class="estoque-modal__body estoque-form-grid" @submit.prevent="salvarMov">
+          <label class="form-label">
+            Quantidade ({{ insumoSelecionado?.unidade_medida || 'un.' }})
+            <input
+              v-model.number="formMov.quantidade"
+              class="form-input"
+              type="number"
+              min="0.01"
+              step="0.01"
+              required
+            />
+          </label>
+          <label v-if="formMov.tipo === 'entrada'" class="form-label">
+            Valor total pago (R$)
+            <input
+              v-model.number="formMov.valor_total"
+              class="form-input"
+              type="number"
+              min="0"
+              step="0.01"
+              placeholder="Ex.: 1000,00"
+            />
+            <span class="field-hint">Atualiza o preço médio (CMV) do estoque</span>
+          </label>
+          <label class="form-label">
+            Data da movimentação
+            <input v-model="formMov.data_movimento" class="form-input" type="date" required />
+          </label>
+          <label class="form-label">
+            Observação (opcional)
+            <input v-model="formMov.observacao" class="form-input" type="text" />
+          </label>
+          <p v-if="erroModal" class="alert alert-error">{{ erroModal }}</p>
+        </form>
+        <footer class="estoque-modal__footer">
+          <button type="button" class="btn btn-secondary" @click="fecharMov">Cancelar</button>
+          <button type="submit" class="btn btn-primary" :disabled="salvando" @click="salvarMov">
+            {{ salvando ? 'Salvando…' : 'Confirmar' }}
+          </button>
+        </footer>
       </div>
     </div>
   </PageLayout>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import PageLayout from '@/components/layout/PageLayout.vue'
+import PageSection from '@/components/layout/PageSection.vue'
 import EstoqueComercialPanel from '@/components/estoques/EstoqueComercialPanel.vue'
-import { getResumoEstoques, entradaSementesArmazem } from '@/services/estoques'
+import EstoqueFluxoBar from '@/components/estoques/EstoqueFluxoBar.vue'
+import { getResumoEstoques, entradaSementesArmazem, registrarMovimentacaoInsumo } from '@/services/estoques'
 import { listEspecies } from '@/services/especies'
 import { listCanteiros, updateCanteiro } from '@/services/canteiros'
+import '@/components/estoques/estoques-shared.css'
 
 const resumo = ref(null)
 const locais = ref([])
 const especies = ref([])
+const guiaAtiva = ref('mudas')
+const carregando = ref(true)
+const erroPagina = ref('')
 const modalEntrada = ref(false)
+const modalMov = ref(false)
 const salvando = ref(false)
-const erro = ref('')
+const erroModal = ref('')
+const insumoSelecionado = ref(null)
+
 const formEntrada = ref({
   id_especie: null,
   quantidade: 100,
   origem_lote: 'armazem',
   condicoes_armazenamento: '',
-  observacoes: ''
+  observacoes: '',
 })
 
+const formMov = ref({
+  tipo: 'entrada',
+  quantidade: 1,
+  valor_total: null,
+  data_movimento: new Date().toISOString().slice(0, 10),
+  observacao: '',
+})
+
+const guias = computed(() => {
+  const r = resumo.value
+  const alertas = (r?.insumos || []).filter((i) => i.alerta_estoque).length
+  return [
+    { id: 'mudas', label: 'Mudas', badge: r?.total_mudas_aptas_venda || null },
+    { id: 'sementes', label: 'Sementes', badge: r?.total_lotes_sementes_ativos || null },
+    { id: 'insumos', label: 'Insumos', badge: alertas > 0 ? alertas : r?.total_insumos || null },
+    { id: 'locais', label: 'Locais', badge: locais.value.length || null },
+  ]
+})
+
+function formatMoeda(v) {
+  return Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+function barraPct(i) {
+  const max = Number(i.estoque_maximo) || 0
+  if (max <= 0) return 0
+  return Math.min(100, (Number(i.quantidade_estoque) / max) * 100)
+}
+
+function barraClasse(i) {
+  if (i.alerta_estoque === 'abaixo_minimo') return 'estoque-saldo-bar__fill--danger'
+  if (i.alerta_estoque === 'acima_maximo') return 'estoque-saldo-bar__fill--warn'
+  const pct = barraPct(i)
+  if (pct < 30) return 'estoque-saldo-bar__fill--warn'
+  return ''
+}
+
 async function carregar() {
-  resumo.value = await getResumoEstoques()
+  carregando.value = true
+  erroPagina.value = ''
+  try {
+    resumo.value = await getResumoEstoques()
+  } catch (e) {
+    erroPagina.value =
+      e.response?.data?.detail || 'Não foi possível carregar o resumo de estoques.'
+    resumo.value = null
+  } finally {
+    carregando.value = false
+  }
 }
 
 onMounted(async () => {
-  especies.value = await listEspecies()
-  if (especies.value.length) formEntrada.value.id_especie = especies.value[0].id
-  locais.value = await listCanteiros({ ativo: true, limit: 200 })
+  try {
+    especies.value = await listEspecies()
+    if (especies.value.length) formEntrada.value.id_especie = especies.value[0].id
+    locais.value = await listCanteiros({ ativo: true, limit: 200 })
+  } catch {
+    /* secundário */
+  }
   await carregar()
 })
 
@@ -200,14 +462,57 @@ async function salvarLocal(c) {
 }
 
 async function salvarEntrada() {
-  erro.value = ''
+  erroModal.value = ''
   salvando.value = true
   try {
     await entradaSementesArmazem(formEntrada.value)
     modalEntrada.value = false
+    guiaAtiva.value = 'sementes'
     await carregar()
   } catch (e) {
-    erro.value = e.response?.data?.detail || 'Erro ao registrar entrada.'
+    erroModal.value = e.response?.data?.detail || 'Erro ao registrar entrada.'
+  } finally {
+    salvando.value = false
+  }
+}
+
+function abrirMov(insumo, tipo) {
+  insumoSelecionado.value = insumo
+  formMov.value = {
+    tipo,
+    quantidade: 1,
+    valor_total: null,
+    data_movimento: new Date().toISOString().slice(0, 10),
+    observacao: '',
+  }
+  erroModal.value = ''
+  modalMov.value = true
+}
+
+function fecharMov() {
+  modalMov.value = false
+  insumoSelecionado.value = null
+}
+
+async function salvarMov() {
+  erroModal.value = ''
+  salvando.value = true
+  try {
+    const payload = {
+      tipo: formMov.value.tipo,
+      quantidade: formMov.value.quantidade,
+      data_movimento: formMov.value.data_movimento,
+      observacao: formMov.value.observacao || undefined,
+    }
+    if (formMov.value.tipo === 'entrada' && formMov.value.valor_total != null) {
+      payload.valor_total = formMov.value.valor_total
+    }
+    await registrarMovimentacaoInsumo(insumoSelecionado.value.id, payload)
+    fecharMov()
+    await carregar()
+  } catch (e) {
+    const d = e.response?.data?.detail
+    erroModal.value = typeof d === 'string' ? d : 'Erro na movimentação.'
   } finally {
     salvando.value = false
   }
@@ -215,118 +520,66 @@ async function salvarEntrada() {
 </script>
 
 <style scoped>
-.cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 1rem;
-}
-.card {
-  background: var(--color-surface);
-  padding: 1rem;
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
+.secao-titulo-wrap,
+.secao-header-flex {
   display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+  width: 100%;
 }
-.card-label {
-  font-size: 0.75rem;
+
+.secao-titulo {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.secao-sub {
+  margin: 0.25rem 0 0;
+  font-size: 0.875rem;
   color: var(--color-text-secondary);
 }
-.secao-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-}
-.secao-header h2,
-.secao-titulo {
-  font-size: 1.25rem;
-  margin: 0;
-}
-.tabela-wrap {
-  overflow-x: auto;
-  background: var(--color-surface);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow);
-}
-.tabela {
-  width: 100%;
-  border-collapse: collapse;
-}
-.tabela th,
-.tabela td {
-  padding: 0.75rem 1rem;
-  border-bottom: 1px solid var(--color-border);
-}
-.tag {
-  font-size: 0.75rem;
-  padding: 0.15rem 0.4rem;
-  background: var(--color-info-bg);
-  border-radius: 4px;
-}
-.btn-prim {
-  padding: 0.5rem 1rem;
-  background: var(--color-primary);
-  color: white;
-  border: none;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-}
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.45);
-  display: flex;
+
+.guia-badge {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 0.35rem;
+  margin-left: 0.35rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  background: var(--color-primary-subtle);
+  color: var(--color-primary-700);
+  border-radius: var(--radius-full);
 }
-.modal-card {
-  background: var(--color-surface);
-  padding: 1.5rem;
-  border-radius: var(--radius-lg);
-  width: 90%;
-  max-width: 420px;
+
+.guia.ativa .guia-badge {
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
 }
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  margin-bottom: 0.75rem;
-  font-size: 0.875rem;
+
+.text-muted {
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  font-weight: 400;
 }
-.field input,
-.field select,
-.field textarea {
-  padding: 0.5rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
+
+.field-hint {
+  font-size: 0.8125rem;
+  font-weight: 400;
+  color: var(--color-text-muted);
 }
-.hint {
-  font-size: 0.875rem;
-  color: var(--color-text-secondary);
-  margin-bottom: 1rem;
-}
-.modal-footer {
-  display: flex;
-  gap: 0.5rem;
-  justify-content: flex-end;
-}
-.btn-sec {
-  padding: 0.5rem 1rem;
-  border: 1px solid var(--color-border);
-  background: var(--color-surface);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-}
-.erro {
-  color: var(--color-error);
-}
-.select-inline {
-  padding: 0.35rem;
-  border: 1px solid var(--color-border);
+
+code {
+  font-size: 0.8125rem;
+  color: var(--color-primary-700);
+  background: var(--color-primary-subtle);
+  padding: 0.15rem 0.4rem;
   border-radius: var(--radius-sm);
 }
 </style>

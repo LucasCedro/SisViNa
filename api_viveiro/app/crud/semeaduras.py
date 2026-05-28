@@ -140,6 +140,7 @@ async def create_semeadura(db: AsyncSession, payload: SemeaduraCreate, id_funcio
                     id_semeadura=db_sem.id,
                     codigo_rastreio=codigo[:20],
                     data_plantio=dados["data_semeadura"],
+                    data_inicio_estagio_atual=dados["data_semeadura"],
                     status="SEMENTE",
                     estagio_producao="em_desenvolvimento",
                     origem="semeadura",

@@ -22,7 +22,7 @@
         <dl class="dl">
           <dt>Local</dt>
           <dd>{{ local }}</dd>
-          <dt>Imóvel</dt>
+          <dt>Fazenda</dt>
           <dd>{{ matriz.imovel_nome || '—' }}</dd>
           <dt>Origem</dt>
           <dd>{{ labelTipoOrigem(matriz.tipo_origem) }}</dd>
@@ -144,7 +144,8 @@ function formatarData(data) {
 }
 
 function local() {
-  const p = [matriz.value?.cidade, matriz.value?.municipio, matriz.value?.estado].filter(Boolean)
+  const mun = matriz.value?.municipio || matriz.value?.cidade
+  const p = [mun, matriz.value?.estado].filter(Boolean)
   return p.length ? p.join(' / ') : '—'
 }
 

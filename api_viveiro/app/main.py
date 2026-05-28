@@ -26,6 +26,7 @@ from app.routes import (
     lancamentos_financeiros,
     estoques,
     producao,
+    referencia_viveiro,
 )
 from app.auth.router import router as auth_router
 
@@ -188,4 +189,10 @@ app.include_router(
     producao.router,
     prefix=f"{settings.API_V1_STR}/producao",
     tags=["producao"],
+)
+
+app.include_router(
+    referencia_viveiro.router,
+    prefix=f"{settings.API_V1_STR}/referencia-viveiro",
+    tags=["referencia-viveiro"],
 )

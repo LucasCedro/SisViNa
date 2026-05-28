@@ -49,8 +49,39 @@
                     <GraficosColeta />
                 </section>
 
-                <section class="coleta-secao" aria-label="Tabela de matrizes">
-                    <TabelaColeta @editar="abrirEdicao" @coletar="abrirCadastroColeta" />
+                <section class="coleta-secao" aria-label="Listagens">
+                    <div class="abas-listagem" role="tablist" aria-label="Listagens de coleta">
+                        <button
+                            type="button"
+                            role="tab"
+                            class="aba-listagem"
+                            :class="{ ativa: abaTabelaAtiva === 'matrizes' }"
+                            :aria-selected="abaTabelaAtiva === 'matrizes'"
+                            @click="abaTabelaAtiva = 'matrizes'"
+                        >
+                            Matrizes
+                        </button>
+                        <button
+                            type="button"
+                            role="tab"
+                            class="aba-listagem"
+                            :class="{ ativa: abaTabelaAtiva === 'coletas' }"
+                            :aria-selected="abaTabelaAtiva === 'coletas'"
+                            @click="abaTabelaAtiva = 'coletas'"
+                        >
+                            Coletas
+                        </button>
+                    </div>
+
+                    <TabelaColeta
+                        v-show="abaTabelaAtiva === 'matrizes'"
+                        @editar="abrirEdicao"
+                        @coletar="abrirCadastroColeta"
+                    />
+                    <TabelaHistoricoColetas
+                        v-show="abaTabelaAtiva === 'coletas'"
+                        @editar-coleta="abrirEditarColeta"
+                    />
                 </section>
             </div>
         </div>
@@ -100,6 +131,7 @@ import PageLayout from '@/components/layout/PageLayout.vue'
 import MapaColeta from '@/components/coleta/MapaColeta.vue'
 import GraficosColeta from '@/components/coleta/GraficosColeta.vue'
 import TabelaColeta from '@/components/coleta/TabelaColeta.vue'
+import TabelaHistoricoColetas from '@/components/coleta/TabelaHistoricoColetas.vue'
 import FormCadastroMatriz from '@/components/coleta/FormCadastroMatriz.vue'
 import FormCadastroColeta from '@/components/coleta/FormCadastroColeta.vue'
 import FormEditarColeta from '@/components/coleta/FormEditarColeta.vue'
@@ -116,6 +148,7 @@ const modalColetaAberto = ref(false)
 const modalEditarColetaAberto = ref(false)
 const modalTesteAberto = ref(false)
 const modalSemeaduraAberto = ref(false)
+const abaTabelaAtiva = ref('matrizes')
 const matrizEmEdicao = ref(null)
 const matrizParaColeta = ref(null)
 const coletaEmEdicao = ref(null)
@@ -129,6 +162,7 @@ onMounted(() => {
 function abrirCadastro() {
     matrizEmEdicao.value = null
     modalMatrizAberto.value = true
+    abaTabelaAtiva.value = 'matrizes'
 }
 
 function abrirEdicao(matriz) {
@@ -144,6 +178,7 @@ function abrirCadastroColeta(matriz = null) {
 function abrirEditarColeta(coleta) {
     coletaEmEdicao.value = coleta
     modalEditarColetaAberto.value = true
+    abaTabelaAtiva.value = 'coletas'
 }
 
 function abrirTeste(lote) {
@@ -284,6 +319,31 @@ function aoSalvarSemeadura() {
 
 .coleta-secao {
     width: 100%;
+}
+
+.abas-listagem {
+    display: inline-flex;
+    gap: 0.35rem;
+    margin-bottom: var(--spacing-md);
+    padding: 0.25rem;
+    background: var(--color-surface-muted);
+    border-radius: var(--radius-md);
+}
+
+.aba-listagem {
+    border: none;
+    background: transparent;
+    color: var(--color-text-secondary);
+    padding: 0.45rem 0.85rem;
+    border-radius: var(--radius);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.aba-listagem.ativa {
+    background: var(--color-primary);
+    color: var(--color-text-inverse);
 }
 
 @media (max-width: 768px) {

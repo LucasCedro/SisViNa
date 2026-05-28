@@ -7,9 +7,12 @@ services:
       - "8000:8000"
     volumes:
       - ./app:/app/app
+      - ./scripts:/app/scripts
       - ./alembic:/app/alembic
       - ./alembic.ini:/app/alembic.ini
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    env_file:
+      - .env
     environment:
       - DATABASE_URL=postgresql+asyncpg://viveiro_admin:senha_segura_aqui@viveiro_postgres:5432/viveiro_db
       - SECRET_KEY=dev-secret-change-in-production

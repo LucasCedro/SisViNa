@@ -46,17 +46,40 @@ def _para_resposta(lote: LoteSementes, ultimo_teste: Optional[float] = None) -> 
 
 
 async def _ultimo_teste_germinacao(db: AsyncSession, id_lote: int) -> Optional[float]:
-    result = await db.execute(
-        select(TesteSementes.percentual_resultado)
+    mapa = await _mapa_ultimos_testes_germinacao(db, [id_lote])
+    return mapa.get(id_lote)
+
+
+async def _mapa_ultimos_testes_germinacao(
+    db: AsyncSession, ids_lotes: List[int]
+) -> dict[int, float]:
+    if not ids_lotes:
+        return {}
+    ranked = (
+        select(
+            TesteSementes.id_lote_sementes,
+            TesteSementes.percentual_resultado,
+            func.row_number()
+            .over(
+                partition_by=TesteSementes.id_lote_sementes,
+                order_by=(TesteSementes.data_teste.desc(), TesteSementes.id.desc()),
+            )
+            .label("rn"),
+        )
         .where(
-            TesteSementes.id_lote_sementes == id_lote,
+            TesteSementes.id_lote_sementes.in_(ids_lotes),
             TesteSementes.tipo_teste == "germinacao",
         )
-        .order_by(TesteSementes.data_teste.desc(), TesteSementes.id.desc())
-        .limit(1)
+        .subquery()
     )
-    row = result.scalar_one_or_none()
-    return float(row) if row is not None else None
+    result = await db.execute(
+        select(ranked.c.id_lote_sementes, ranked.c.percentual_resultado).where(ranked.c.rn == 1)
+    )
+    return {
+        int(row.id_lote_sementes): float(row.percentual_resultado)
+        for row in result
+        if row.percentual_resultado is not None
+    }
 
 
 async def get_lote(db: AsyncSession, lote_id: int) -> Optional[LoteSementes]:
@@ -98,11 +121,8 @@ async def get_lotes(
 
     result = await db.execute(query.offset(skip).limit(limit))
     lotes = result.scalars().unique().all()
-    saida = []
-    for lote in lotes:
-        ultimo = await _ultimo_teste_germinacao(db, lote.id)
-        saida.append(_para_resposta(lote, ultimo))
-    return saida
+    testes = await _mapa_ultimos_testes_germinacao(db, [l.id for l in lotes])
+    return [_para_resposta(lote, testes.get(lote.id)) for lote in lotes]
 
 
 async def criar_lote_de_coleta(

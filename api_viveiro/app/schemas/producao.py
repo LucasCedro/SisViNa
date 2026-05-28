@@ -24,6 +24,7 @@ class TransferirRustificacaoRequest(BaseModel):
 class TransferirRustificacaoResponse(BaseModel):
     transferidas: int
     ids_plantas: List[int]
+    avisos: List[str] = Field(default_factory=list)
 
 
 class PlantaPendenteTransferencia(BaseModel):
@@ -81,6 +82,10 @@ class AtualizarEstagioRequest(BaseModel):
 class AtualizarEstagioResponse(BaseModel):
     atualizadas: int
     ids_plantas: List[int]
+    avisos: List[str] = Field(
+        default_factory=list,
+        description="Alertas de parâmetros do viveiro (não bloqueiam a operação).",
+    )
 
 
 class CadastroLotePlantasRequest(BaseModel):

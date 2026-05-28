@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any, Dict, List, Optional, Tuple
 
 from sqlalchemy import func, select
@@ -18,7 +18,23 @@ from app.models.especies import Especie
 from app.models.coletas_sementes import ColetaSementes
 from app.models.lotes_sementes import LoteSementes
 from app.models.plantas import Planta
-from app.models.vendas import Venda
+from app.models.vendas import ItemVenda, Venda
+
+
+async def _sum_mudas_vendidas_desde(db: AsyncSession, desde: date) -> int:
+    """Soma quantidade de itens de venda não canceladas a partir de `desde` (data da venda)."""
+    total = (
+        await db.execute(
+            select(func.coalesce(func.sum(ItemVenda.quantidade), 0))
+            .select_from(ItemVenda)
+            .join(Venda, ItemVenda.id_venda == Venda.id)
+            .where(
+                Venda.status != "CANCELADO",
+                func.date(Venda.data_venda) >= desde,
+            )
+        )
+    ).scalar()
+    return int(total or 0)
 
 
 async def _contagem_por_especie(
@@ -178,11 +194,11 @@ async def get_producao_resumo(db: AsyncSession) -> Dict[str, Any]:
 
     aguardando_transferencia = aptas_transferencia
 
-    vendidas = (
-        await db.execute(
-            select(func.count(Planta.id)).where(Planta.status == "VENDIDA")
-        )
-    ).scalar() or 0
+    hoje = date.today()
+    inicio_mes = date(hoje.year, hoje.month, 1)
+    inicio_ano = date(hoje.year, 1, 1)
+    vendidas_mtd = await _sum_mudas_vendidas_desde(db, inicio_mes)
+    vendidas_ytd = await _sum_mudas_vendidas_desde(db, inicio_ano)
 
     # Armazém: usa data da coleta quando o lote veio de coleta (evita divergência com data_formacao_lote antiga).
     ref_data_armazem = func.coalesce(
@@ -214,14 +230,18 @@ async def get_producao_resumo(db: AsyncSession) -> Dict[str, Any]:
 
     dias_medios_armazem = float(dias_medios_armazem_raw) if dias_medios_armazem_raw is not None else None
 
+    ref_dias_planta = func.coalesce(
+        Planta.data_inicio_estagio_atual,
+        Planta.data_plantio,
+    )
     dias_medios_sementeira_raw = (
         await db.execute(
-            select(func.avg(func.current_date() - Planta.data_plantio)).join(
+            select(func.avg(func.current_date() - ref_dias_planta)).join(
                 Canteiro, Planta.id_canteiro == Canteiro.id
             ).where(
                 Canteiro.tipo_local == "sementeira",
                 Planta.status == "SEMENTE",
-                Planta.data_plantio.isnot(None),
+                ref_dias_planta.isnot(None),
             )
         )
     ).scalar()
@@ -229,18 +249,19 @@ async def get_producao_resumo(db: AsyncSession) -> Dict[str, Any]:
         float(dias_medios_sementeira_raw) if dias_medios_sementeira_raw is not None else None
     )
 
+    ref_dias_canteiro = func.coalesce(
+        Planta.data_inicio_estagio_atual,
+        Planta.data_germinacao,
+        Planta.data_plantio,
+    )
     dias_medios_canteiro_raw = (
         await db.execute(
-            select(
-                func.avg(
-                    func.current_date() - func.coalesce(Planta.data_germinacao, Planta.data_plantio)
-                )
-            ).join(
+            select(func.avg(func.current_date() - ref_dias_canteiro)).join(
                 Canteiro, Planta.id_canteiro == Canteiro.id
             ).where(
                 Canteiro.tipo_local == "canteiro",
                 Planta.status.in_(("MUDA", "JOVEM", "ADULTA")),
-                Planta.data_plantio.isnot(None),
+                ref_dias_canteiro.isnot(None),
             )
         )
     ).scalar()
@@ -248,18 +269,19 @@ async def get_producao_resumo(db: AsyncSession) -> Dict[str, Any]:
         float(dias_medios_canteiro_raw) if dias_medios_canteiro_raw is not None else None
     )
 
+    ref_dias_rust = func.coalesce(
+        Planta.data_inicio_estagio_atual,
+        Planta.data_germinacao,
+        Planta.data_plantio,
+    )
     dias_medios_rustificacao_raw = (
         await db.execute(
-            select(
-                func.avg(
-                    func.current_date() - func.coalesce(Planta.data_germinacao, Planta.data_plantio)
-                )
-            ).join(
+            select(func.avg(func.current_date() - ref_dias_rust)).join(
                 Canteiro, Planta.id_canteiro == Canteiro.id
             ).where(
                 Canteiro.tipo_local == "rustificacao",
                 Planta.status.in_(("MUDA", "JOVEM", "ADULTA")),
-                Planta.data_plantio.isnot(None),
+                ref_dias_rust.isnot(None),
             )
         )
     ).scalar()
@@ -347,7 +369,8 @@ async def get_producao_resumo(db: AsyncSession) -> Dict[str, Any]:
         "prontas_venda_rustificacao": int(prontas_venda_rustificacao),
         "estoque_comercial_unidades": int(prontas_venda),
         "aguardando_transferencia": int(aguardando_transferencia),
-        "vendidas": int(vendidas),
+        "vendidas_mtd": int(vendidas_mtd),
+        "vendidas_ytd": int(vendidas_ytd),
         "dias_medios_armazem": dias_medios_armazem,
         "dias_medios_sementeira": dias_medios_sementeira,
         "dias_medios_canteiro": dias_medios_canteiro,

@@ -1,18 +1,5 @@
 <template>
   <div class="financeiro-container">
-    <!-- Cabeçalho e Tipo de Viveiro -->
-    <div class="cabecalho">
-      <div class="tipo-viveiro">
-        <label for="tipoViveiro" class="label">Tipo de Viveiro:</label>
-        <select id="tipoViveiro" v-model="tipoViveiro" class="select-tipo">
-          <option value="mecanizado">Viveiro com Mecanização</option>
-          <option value="manual">Viveiro Manual</option>
-          <option value="urbano">Viveiro Urbano</option>
-          <option value="outro">Outro</option>
-        </select>
-      </div>
-    </div>
-
     <!-- Resumo Financeiro -->
     <div class="secao">
       <h2 class="subtitulo">Resumo Financeiro</h2>
@@ -438,8 +425,6 @@ import {
 import { getResumoFinanceiro } from '@/services/dashboard'
 import { CHART_PALETTE, CHART_INFO } from '@/constants/chartColors'
 
-// Configuração inicial
-const tipoViveiro = ref('mecanizado');
 const abaAtiva = ref('capex');
 const modalAberto = ref(false);
 
@@ -817,26 +802,6 @@ const formatarData = (dataStr) => {
 <style scoped>
 .financeiro-container {
   @apply w-full max-w-7xl mx-auto p-6 bg-surface min-h-[calc(100vh-64px)];
-}
-
-.cabecalho {
-  @apply flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8;
-}
-
-.titulo {
-  @apply text-2xl font-bold text-text-primary;
-}
-
-.tipo-viveiro {
-  @apply flex items-center gap-2;
-}
-
-.label {
-  @apply text-sm font-medium text-text-secondary;
-}
-
-.select-tipo {
-  @apply py-1 px-3 border border-primary-100 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent;
 }
 
 .secao {

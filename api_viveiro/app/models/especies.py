@@ -20,3 +20,15 @@ class Especie(Base):
     # Relacionamentos
     plantas = relationship("Planta", back_populates="especie")
     arvores_matriz = relationship("ArvoreMatriz", back_populates="especie")
+    ficha_embrapa = relationship(
+        "EspecieFichaEmbrapa",
+        back_populates="especie",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
+    biblioteca = relationship(
+        "EspecieBiblioteca",
+        back_populates="especie",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )

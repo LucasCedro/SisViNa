@@ -1,5 +1,6 @@
 from typing import List, Optional
-from pydantic import BaseModel, Field, validator
+
+from pydantic import BaseModel
 
 
 class EstoqueSementesItem(BaseModel):
@@ -22,7 +23,11 @@ class EstoqueInsumoItem(BaseModel):
     unidade_medida: Optional[str] = None
     quantidade_estoque: float
     preco_unitario: Optional[float] = None
+    valor_estoque: float = 0
+    estoque_minimo: float = 0
+    estoque_maximo: Optional[float] = None
     fornecedor: Optional[str] = None
+    alerta_estoque: Optional[str] = None  # abaixo_minimo | acima_maximo
 
 
 class EstoqueComercialItem(BaseModel):
@@ -36,6 +41,16 @@ class EstoqueComercialItem(BaseModel):
     estagio_comercial: str = "apta_venda"
 
 
+class MudasPipelineResumo(BaseModel):
+    dias_minimos_rustificacao: int = 30
+    em_desenvolvimento_sementeira: int = 0
+    em_desenvolvimento_canteiro: int = 0
+    em_desenvolvimento_total: int = 0
+    em_rustificacao: int = 0
+    aptas_venda_aguardando_tempo: int = 0
+    prontas_para_venda: int = 0
+
+
 class EstoqueResumoGeral(BaseModel):
     total_lotes_sementes_ativos: int
     total_sementes_disponiveis: int
@@ -43,6 +58,8 @@ class EstoqueResumoGeral(BaseModel):
     total_plantas_canteiro: int
     total_insumos: int
     total_mudas_aptas_venda: int = 0
+    valor_total_insumos: float = 0
+    mudas_pipeline: MudasPipelineResumo
     estoque_comercial: List[EstoqueComercialItem] = []
     lotes_sementes: List[EstoqueSementesItem]
     insumos: List[EstoqueInsumoItem]

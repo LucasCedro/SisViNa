@@ -32,6 +32,9 @@
       />
     </section>
 
+    <ul v-if="avisos.length" class="alert alert-warning avisos-list">
+      <li v-for="(a, i) in avisos" :key="i">{{ a }}</li>
+    </ul>
     <p v-if="erro" class="alert alert-error">{{ erro }}</p>
     <p v-if="sucesso" class="alert alert-success">{{ sucesso }}</p>
   </div>
@@ -55,6 +58,7 @@ const selRust = ref([])
 const processando = ref(false)
 const erro = ref('')
 const sucesso = ref('')
+const avisos = ref([])
 
 async function carregar() {
   const r = await listEmRustificacao({})
@@ -69,11 +73,13 @@ async function liberarVenda(ids) {
   processando.value = true
   erro.value = ''
   sucesso.value = ''
+  avisos.value = []
   try {
     const res = await atualizarEstagioProducao({
       ids_plantas: ids.map(Number),
       estagio_producao: 'apta_venda',
     })
+    avisos.value = res.avisos || []
     sucesso.value = `${res.atualizadas} muda(s) liberada(s) para venda.`
     await carregar()
     emit('atualizado')

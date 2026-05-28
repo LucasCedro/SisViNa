@@ -13,7 +13,7 @@
           <tr>
             <th>Espécie</th>
             <th>Nome</th>
-            <th>Cidade / UF</th>
+            <th>Município / UF</th>
             <th>Coordenadas</th>
             <th>Sementes</th>
             <th>Germinação</th>
@@ -74,7 +74,8 @@ function formatarData(data) {
 }
 
 function local(arvore) {
-  const p = [arvore.cidade, arvore.estado].filter(Boolean)
+  const mun = arvore.municipio || arvore.cidade
+  const p = [mun, arvore.estado].filter(Boolean)
   return p.length ? p.join(' / ') : '—'
 }
 

@@ -1,14 +1,14 @@
 # app/crud/insumos.py
 from typing import List, Optional, Dict, Any
-from datetime import date
-from sqlalchemy import select, func
+from datetime import date, datetime
+
+from sqlalchemy import select, func, distinct
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
-from datetime import datetime
 
 from app.models.insumos import Insumo
+from app.models.insumo_movimentacao import InsumoMovimentacao
 from app.models.atividades import InsumoAtividade
-from app.schemas.insumos import InsumoCreate, InsumoUpdate
+from app.schemas.insumos import InsumoCreate, InsumoUpdate, InsumoMovimentacaoCreate
 
 async def get_insumo(db: AsyncSession, insumo_id: int) -> Optional[Insumo]:
     """
@@ -151,23 +151,133 @@ async def delete_insumo(db: AsyncSession, insumo_id: int) -> Optional[Insumo]:
     await db.commit()
     return db_insumo
 
-async def atualizar_estoque(
-    db: AsyncSession, insumo_id: int, quantidade: float, data_compra: Optional[date] = None
-) -> Optional[Insumo]:
-    """
-    Atualiza o estoque de um insumo (adição ou subtração)
-    """
+def _recalcular_preco_medio(
+    qtd_atual: float, valor_atual: float, qtd_entrada: float, valor_entrada: float
+) -> tuple[float, float]:
+    nova_qtd = qtd_atual + qtd_entrada
+    if nova_qtd <= 0:
+        return 0.0, 0.0
+    novo_valor = valor_atual + valor_entrada
+    return nova_qtd, novo_valor / nova_qtd
+
+
+async def registrar_movimentacao(
+    db: AsyncSession, insumo_id: int, payload: InsumoMovimentacaoCreate
+) -> Optional[InsumoMovimentacao]:
     db_insumo = await get_insumo(db, insumo_id)
     if not db_insumo:
         return None
-    
-    # Atualizar estoque
-    db_insumo.quantidade_estoque = db_insumo.quantidade_estoque + quantidade
-    
-    # Se for adição, atualizar data da última compra
-    if quantidade > 0 and data_compra:
-        db_insumo.data_ultima_compra = data_compra
-    
+
+    tipo = payload.tipo.strip().lower()
+    if tipo not in ("entrada", "saida", "ajuste"):
+        raise ValueError("tipo deve ser entrada, saida ou ajuste")
+
+    qtd_atual = float(db_insumo.quantidade_estoque or 0)
+    valor_atual = float(db_insumo.valor_estoque or 0)
+    if valor_atual <= 0 and db_insumo.preco_unitario:
+        valor_atual = qtd_atual * float(db_insumo.preco_unitario)
+
+    qtd_mov = float(payload.quantidade)
+    data_mov = payload.data_movimento or date.today()
+    valor_total_mov: Optional[float] = None
+    preco_unit_mov: Optional[float] = None
+
+    if tipo == "entrada":
+        valor_total_mov = float(payload.valor_total or 0)
+        if valor_total_mov <= 0:
+            preco_ref = float(db_insumo.preco_unitario or 0)
+            valor_total_mov = qtd_mov * preco_ref if preco_ref > 0 else 0
+        preco_unit_mov = valor_total_mov / qtd_mov if qtd_mov else 0
+        nova_qtd, preco_medio = _recalcular_preco_medio(
+            qtd_atual, valor_atual, qtd_mov, valor_total_mov
+        )
+        db_insumo.quantidade_estoque = nova_qtd
+        db_insumo.valor_estoque = nova_qtd * preco_medio
+        db_insumo.preco_unitario = preco_medio
+        db_insumo.data_ultima_compra = data_mov
+        saldo = nova_qtd
+    elif tipo == "saida":
+        if qtd_mov > qtd_atual:
+            raise ValueError("Quantidade de saída maior que o estoque disponível")
+        preco_medio = (valor_atual / qtd_atual) if qtd_atual > 0 else float(db_insumo.preco_unitario or 0)
+        valor_total_mov = qtd_mov * preco_medio
+        preco_unit_mov = preco_medio
+        saldo = qtd_atual - qtd_mov
+        db_insumo.quantidade_estoque = saldo
+        db_insumo.valor_estoque = saldo * preco_medio if saldo > 0 else 0
+        if saldo <= 0:
+            db_insumo.preco_unitario = 0
+    else:
+        saldo = qtd_mov
+        db_insumo.quantidade_estoque = saldo
+        if payload.valor_total is not None:
+            db_insumo.valor_estoque = float(payload.valor_total)
+            db_insumo.preco_unitario = float(payload.valor_total) / saldo if saldo > 0 else 0
+        elif saldo > 0 and qtd_atual > 0:
+            preco_medio = valor_atual / qtd_atual
+            db_insumo.valor_estoque = saldo * preco_medio
+        valor_total_mov = float(db_insumo.valor_estoque or 0)
+
+    mov = InsumoMovimentacao(
+        id_insumo=insumo_id,
+        tipo=tipo,
+        quantidade=qtd_mov,
+        valor_total=valor_total_mov,
+        preco_unitario=preco_unit_mov,
+        saldo_quantidade=float(db_insumo.quantidade_estoque or 0),
+        data_movimento=data_mov,
+        observacao=payload.observacao,
+    )
+    db.add(mov)
     await db.commit()
+    await db.refresh(mov)
     await db.refresh(db_insumo)
-    return db_insumo
+    return mov
+
+
+async def listar_movimentacoes(
+    db: AsyncSession, insumo_id: int, limit: int = 60
+) -> List[InsumoMovimentacao]:
+    result = await db.execute(
+        select(InsumoMovimentacao)
+        .where(InsumoMovimentacao.id_insumo == insumo_id)
+        .order_by(InsumoMovimentacao.data_movimento.desc(), InsumoMovimentacao.id.desc())
+        .limit(limit)
+    )
+    return result.scalars().all()
+
+
+async def get_tipos_insumos(db: AsyncSession) -> List[str]:
+    result = await db.execute(
+        select(distinct(Insumo.tipo)).where(Insumo.tipo.isnot(None)).order_by(Insumo.tipo)
+    )
+    return [row[0] for row in result if row[0]]
+
+
+async def get_fornecedores(db: AsyncSession) -> List[str]:
+    result = await db.execute(
+        select(distinct(Insumo.fornecedor))
+        .where(Insumo.fornecedor.isnot(None))
+        .order_by(Insumo.fornecedor)
+    )
+    return [row[0] for row in result if row[0]]
+
+
+async def atualizar_estoque(
+    db: AsyncSession, insumo_id: int, quantidade: float, data_compra: Optional[date] = None
+) -> Optional[Insumo]:
+    """Compatibilidade: delega para movimentação de entrada/saída."""
+    if quantidade == 0:
+        return await get_insumo(db, insumo_id)
+    tipo = "entrada" if quantidade > 0 else "saida"
+    await registrar_movimentacao(
+        db,
+        insumo_id,
+        InsumoMovimentacaoCreate(
+            tipo=tipo,
+            quantidade=abs(quantidade),
+            data_movimento=data_compra,
+            observacao="Atualização legada via /estoque",
+        ),
+    )
+    return await get_insumo(db, insumo_id)
