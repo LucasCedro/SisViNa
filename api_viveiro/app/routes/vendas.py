@@ -69,6 +69,8 @@ async def create_venda(
         return await crud_vendas.create_venda(db=db, venda=venda)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao registrar venda: {e}")
 
 @router.put("/{venda_id}", response_model=Venda)
 async def update_venda(

@@ -10,6 +10,7 @@ from app.models.arvores_matriz import ArvoreMatriz
 from app.models.coletas_sementes import ColetaSementes
 from app.models.lotes_sementes import LoteSementes
 from app.schemas.coletas_sementes import ColetaSementesCreate, ColetaSementesUpdate
+from app.utils.especies_display import formatar_nome_popular
 
 
 def _para_resposta(coleta: ColetaSementes, lotes: Optional[list] = None) -> dict:
@@ -17,7 +18,7 @@ def _para_resposta(coleta: ColetaSementes, lotes: Optional[list] = None) -> dict
     especie = arvore.especie if arvore else None
     nome_especie = None
     if especie:
-        nome_especie = especie.nome_popular or especie.nome_cientifico
+        nome_especie = formatar_nome_popular(especie.nome_popular) or especie.nome_cientifico
     return {
         "id": coleta.id,
         "id_arvore_matriz": coleta.id_arvore_matriz,

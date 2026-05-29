@@ -71,6 +71,13 @@ class VendaBase(BaseModel):
             raise ValueError(f'Status deve ser um dos seguintes: {", ".join(allowed_status)}')
         return v
 
+    @validator('data_venda')
+    def data_venda_sem_timezone(cls, v: datetime) -> datetime:
+        """Coluna TIMESTAMP WITHOUT TIME ZONE — asyncpg não aceita datetime aware."""
+        if v.tzinfo is not None:
+            return v.replace(tzinfo=None)
+        return v
+
 class VendaCreate(VendaBase):
     itens: List[ItemVendaCreate]
 
@@ -109,3 +116,4 @@ class VendaDetalhe(VendaInDBBase):
     comprador_nome: str
     funcionario_nome: str
     itens: List[ItemVendaDetalhe]
+    avisos: List[str] = []

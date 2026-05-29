@@ -1,16 +1,40 @@
 <template>
-  <div v-if="aberto" class="wizard-overlay" @click.self="fechar">
-    <div class="wizard-card" role="dialog" aria-labelledby="wizard-titulo">
+  <div
+    v-if="aberto"
+    class="wizard-overlay"
+    @pointerdown.self="onOverlayPointerDown"
+    @pointerup.self="onOverlayPointerUp"
+    @pointercancel.self="cancelarFechamentoOverlay"
+  >
+    <div class="wizard-card" role="dialog" aria-labelledby="wizard-titulo" @pointerdown="onModalPointerDown">
       <header class="wizard-header">
         <h2 id="wizard-titulo">{{ tituloEtapa }}</h2>
         <button type="button" class="btn-fechar" @click="fechar" aria-label="Fechar">×</button>
       </header>
 
       <div v-if="etapa === 'tipo'" class="wizard-body">
-        <p class="wizard-hint">Escolha o tipo de peça para montar o mapa do seu viveiro (estilo LEGO).</p>
+        <p class="wizard-hint">
+          Áreas de <strong>produção</strong> entram no fluxo (semeadura, transferência).
+          Demais itens aparecem só no croqui.
+        </p>
+        <h3 class="wizard-sub">Produção</h3>
         <div class="tipo-grid">
           <button
-            v-for="item in COMPONENTE_CATALOGO"
+            v-for="item in CATALOGO_PRODUTIVO"
+            :key="item.tipo"
+            type="button"
+            class="tipo-card"
+            @click="escolherTipo(item.tipo)"
+          >
+            <span class="tipo-cor" :style="{ backgroundColor: item.corPadrao }" />
+            <strong>{{ item.titulo }}</strong>
+            <span class="tipo-desc">{{ item.descricao }}</span>
+          </button>
+        </div>
+        <h3 class="wizard-sub">Infraestrutura</h3>
+        <div class="tipo-grid">
+          <button
+            v-for="item in CATALOGO_VISUAL"
             :key="item.tipo"
             type="button"
             class="tipo-card"
@@ -53,12 +77,12 @@
         </label>
         <div class="field-row">
           <label class="field">
-            Largura no mapa (px)
-            <input v-model.number="form.largura" type="number" min="80" max="800" />
+            Largura real (m)
+            <input v-model.number="form.metrosLargura" type="number" min="0.5" max="200" step="0.1" />
           </label>
           <label class="field">
-            Altura no mapa (px)
-            <input v-model.number="form.altura" type="number" min="60" max="600" />
+            Comprimento real (m)
+            <input v-model.number="form.metrosAltura" type="number" min="0.5" max="200" step="0.1" />
           </label>
         </div>
         <footer class="wizard-footer">
@@ -78,12 +102,12 @@
         </label>
         <div class="field-row">
           <label class="field">
-            Largura (px)
-            <input v-model.number="form.largura" type="number" min="60" max="800" />
+            Largura real (m)
+            <input v-model.number="form.metrosLargura" type="number" min="0.5" max="200" step="0.1" />
           </label>
           <label class="field">
-            Altura (px)
-            <input v-model.number="form.altura" type="number" min="40" max="600" />
+            Comprimento real (m)
+            <input v-model.number="form.metrosAltura" type="number" min="0.5" max="200" step="0.1" />
           </label>
         </div>
         <footer class="wizard-footer">
@@ -103,12 +127,33 @@
         </label>
         <div class="field-row">
           <label class="field">
-            Largura (px)
-            <input v-model.number="form.largura" type="number" min="60" max="800" />
+            Largura real (m)
+            <input v-model.number="form.metrosLargura" type="number" min="0.5" max="200" step="0.1" />
           </label>
           <label class="field">
-            Altura (px)
-            <input v-model.number="form.altura" type="number" min="40" max="600" />
+            Comprimento real (m)
+            <input v-model.number="form.metrosAltura" type="number" min="0.5" max="200" step="0.1" />
+          </label>
+        </div>
+        <footer class="wizard-footer">
+          <button type="button" class="btn-sec" @click="voltarTipo">Voltar</button>
+          <button type="button" class="btn-prim" @click="confirmar">Adicionar ao mapa</button>
+        </footer>
+      </div>
+
+      <div v-else-if="etapa === 'visual'" class="wizard-body">
+        <label class="field">
+          Nome da área
+          <input v-model="form.nome" type="text" :placeholder="placeholderVisual" />
+        </label>
+        <div class="field-row">
+          <label class="field">
+            Largura real (m)
+            <input v-model.number="form.metrosLargura" type="number" min="0.5" max="200" step="0.1" />
+          </label>
+          <label class="field">
+            Comprimento real (m)
+            <input v-model.number="form.metrosAltura" type="number" min="0.5" max="200" step="0.1" />
           </label>
         </div>
         <footer class="wizard-footer">
@@ -122,11 +167,15 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { COMPONENTE_CATALOGO, TIPOS_COMPONENTE } from '@/constants/viveiroComponentes'
+import {
+  CATALOGO_PRODUTIVO,
+  CATALOGO_VISUAL,
+  TIPOS_COMPONENTE,
+} from '@/constants/viveiroComponentes'
 import { listEspecies } from '@/services/especies'
 
 const props = defineProps({
-  aberto: { type: Boolean, default: false }
+  aberto: { type: Boolean, default: false },
 })
 
 const emit = defineEmits(['fechar', 'confirmar'])
@@ -139,12 +188,23 @@ const form = ref(criarFormPadrao())
 
 const tituloEtapa = computed(() => {
   const map = {
-    tipo: 'Cadastrar componente',
+    tipo: 'Adicionar área',
     canteiro: 'Novo canteiro',
     sementeira: 'Nova sementeira',
-    rustificacao: 'Nova área de rustificação'
+    rustificacao: 'Nova área de rustificação',
+    visual: 'Nova área',
   }
-  return map[etapa.value] || 'Cadastrar componente'
+  return map[etapa.value] || 'Adicionar área'
+})
+
+const placeholderVisual = computed(() => {
+  const map = {
+    [TIPOS_COMPONENTE.SEDE]: 'Ex.: Sede administrativa',
+    [TIPOS_COMPONENTE.LAGO]: 'Ex.: Caixa d\'água',
+    [TIPOS_COMPONENTE.GARAGEM]: 'Ex.: Garagem',
+    [TIPOS_COMPONENTE.AREA_TRABALHO]: 'Ex.: Bancada de substrato',
+  }
+  return map[form.value.tipo] || 'Nome da área'
 })
 
 function criarFormPadrao() {
@@ -156,7 +216,9 @@ function criarFormPadrao() {
     largura: 180,
     altura: 130,
     capacidade: 20,
-    especieId: null
+    especieId: null,
+    metrosLargura: null,
+    metrosAltura: null,
   }
 }
 
@@ -178,23 +240,26 @@ watch(
   }
 )
 
+const NOMES_PADRAO = {
+  [TIPOS_COMPONENTE.CANTEIRO]: 'Canteiro',
+  [TIPOS_COMPONENTE.SEMENTEIRA]: 'Sementeira',
+  [TIPOS_COMPONENTE.RUSTIFICACAO]: 'Área de rustificação',
+  [TIPOS_COMPONENTE.SEDE]: 'Sede',
+  [TIPOS_COMPONENTE.LAGO]: 'Lago / água',
+  [TIPOS_COMPONENTE.GARAGEM]: 'Garagem',
+  [TIPOS_COMPONENTE.AREA_TRABALHO]: 'Área de trabalho',
+}
+
 function escolherTipo(tipo) {
-  form.value = { ...criarFormPadrao(), tipo }
+  form.value = { ...criarFormPadrao(), tipo, nome: NOMES_PADRAO[tipo] || 'Área' }
   if (tipo === TIPOS_COMPONENTE.CANTEIRO) {
-    form.value.nome = 'Canteiro'
-    form.value.largura = 180
-    form.value.altura = 130
     etapa.value = 'canteiro'
   } else if (tipo === TIPOS_COMPONENTE.SEMENTEIRA) {
-    form.value.nome = 'Sementeira'
-    form.value.largura = 130
-    form.value.altura = 70
     etapa.value = 'sementeira'
   } else if (tipo === TIPOS_COMPONENTE.RUSTIFICACAO) {
-    form.value.nome = 'Área de rustificação'
-    form.value.largura = 130
-    form.value.altura = 70
     etapa.value = 'rustificacao'
+  } else {
+    etapa.value = 'visual'
   }
 }
 
@@ -203,7 +268,28 @@ function voltarTipo() {
   form.value = criarFormPadrao()
 }
 
+/** Fecha só se pressionar e soltar no fundo escuro (evita fechar ao selecionar texto e soltar fora). */
+let overlayPress = false
+
+function onModalPointerDown() {
+  overlayPress = false
+}
+
+function onOverlayPointerDown() {
+  overlayPress = true
+}
+
+function onOverlayPointerUp() {
+  if (overlayPress) fechar()
+  overlayPress = false
+}
+
+function cancelarFechamentoOverlay() {
+  overlayPress = false
+}
+
 function fechar() {
+  overlayPress = false
   emit('fechar')
 }
 
@@ -211,7 +297,7 @@ function confirmar() {
   const f = form.value
   const nome = (f.nome || '').trim()
   if (!nome) {
-    alert('Informe um nome para o componente.')
+    alert('Informe um nome para a área.')
     return
   }
 
@@ -228,9 +314,11 @@ function confirmar() {
     colunas: f.colunas,
     largura: f.largura,
     altura: f.altura,
+    metrosLargura: f.metrosLargura,
+    metrosAltura: f.metrosAltura,
     capacidade: f.capacidade,
     especieId: f.especieId,
-    especieNome
+    especieNome,
   })
 }
 </script>
@@ -251,7 +339,7 @@ function confirmar() {
   background: #fff;
   border-radius: 12px;
   width: 100%;
-  max-width: 440px;
+  max-width: 520px;
   max-height: 90vh;
   overflow: auto;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
@@ -268,65 +356,73 @@ function confirmar() {
 .wizard-header h2 {
   margin: 0;
   font-size: 1.125rem;
-  font-weight: 600;
-  color: #1f2937;
 }
 
 .btn-fechar {
   border: none;
-  background: transparent;
+  background: none;
   font-size: 1.5rem;
   line-height: 1;
   cursor: pointer;
   color: #6b7280;
-  padding: 0.25rem 0.5rem;
 }
 
 .wizard-body {
-  padding: 1.25rem;
+  padding: 1rem 1.25rem;
 }
 
-.wizard-hint {
-  margin: 0 0 1rem;
-  font-size: 0.875rem;
+.wizard-sub {
+  margin: 1rem 0 0.5rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
   color: #6b7280;
 }
 
+.wizard-sub:first-of-type {
+  margin-top: 0;
+}
+
+.wizard-hint {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin: 0 0 0.75rem;
+}
+
 .tipo-grid {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 0.75rem;
 }
 
 .tipo-card {
-  display: grid;
-  grid-template-columns: 12px 1fr;
-  grid-template-rows: auto auto;
-  gap: 0.25rem 0.75rem;
-  text-align: left;
-  padding: 0.875rem 1rem;
-  border: 2px solid #e5e7eb;
-  border-radius: 10px;
-  background: #fafafa;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+  padding: 0.75rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fff;
   cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
+  text-align: left;
+  font-family: inherit;
 }
 
 .tipo-card:hover {
-  border-color: #6ca234;
-  background: #f0fdf4;
+  border-color: var(--color-primary, #4a7c2a);
+  background: #f9fafb;
 }
 
 .tipo-cor {
-  grid-row: 1 / span 2;
-  width: 12px;
-  border-radius: 4px;
-  align-self: stretch;
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
 }
 
 .tipo-desc {
-  grid-column: 2;
-  font-size: 0.8125rem;
+  font-size: 0.75rem;
   color: #6b7280;
 }
 
@@ -334,18 +430,16 @@ function confirmar() {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
-  margin-bottom: 1rem;
+  margin-bottom: 0.75rem;
   font-size: 0.875rem;
-  font-weight: 500;
-  color: #374151;
 }
 
 .field input,
 .field select {
-  font-weight: 400;
   padding: 0.5rem 0.65rem;
   border: 1px solid #d1d5db;
   border-radius: 6px;
+  font-family: inherit;
 }
 
 .field-row {
@@ -358,32 +452,24 @@ function confirmar() {
   display: flex;
   justify-content: flex-end;
   gap: 0.5rem;
-  padding-top: 0.5rem;
-  border-top: 1px solid #f3f4f6;
-  margin-top: 0.5rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e5e7eb;
 }
 
 .btn-sec,
 .btn-prim {
   padding: 0.5rem 1rem;
-  border-radius: 8px;
-  font-size: 0.875rem;
+  border-radius: 6px;
+  font-family: inherit;
   cursor: pointer;
-  border: none;
-}
-
-.btn-sec {
-  background: #f3f4f6;
-  color: #374151;
+  border: 1px solid #d1d5db;
+  background: #fff;
 }
 
 .btn-prim {
-  background: #6ca234;
+  background: var(--color-primary, #4a7c2a);
   color: #fff;
-  font-weight: 600;
-}
-
-.btn-prim:hover {
-  background: #5d9130;
+  border-color: transparent;
 }
 </style>

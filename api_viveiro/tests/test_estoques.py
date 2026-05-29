@@ -24,9 +24,10 @@ async def test_resumo_estoques_estrutura(client: AsyncClient, auth_headers: dict
 
 
 @pytest.mark.asyncio
-async def test_estoque_comercial_exige_rustificacao_30_dias(
+async def test_estoque_comercial_rustificacao_recomendada_30_dias(
     client: AsyncClient, db: AsyncSession, auth_headers: dict
 ):
+    """Todas aptas p/ venda entram no estoque; prazo de 30d é só recomendação."""
     especie = Especie(nome_cientifico="Tabebuia sp", nome_popular="Ipê")
     rust = Canteiro(nome="Rust A", tipo_local="rustificacao", ativo=True)
     db.add(especie)
@@ -60,11 +61,11 @@ async def test_estoque_comercial_exige_rustificacao_30_dias(
     response = await client.get("/api/v1/estoques/resumo", headers=auth_headers)
     assert response.status_code == 200
     data = response.json()
-    assert data["mudas_pipeline"]["prontas_para_venda"] == 1
+    assert data["mudas_pipeline"]["prontas_para_venda"] == 2
     assert data["mudas_pipeline"]["aptas_venda_aguardando_tempo"] == 1
-    assert data["total_mudas_aptas_venda"] == 1
+    assert data["total_mudas_aptas_venda"] == 2
     assert len(data["estoque_comercial"]) == 1
-    assert data["estoque_comercial"][0]["quantidade"] == 1
+    assert data["estoque_comercial"][0]["quantidade"] == 2
 
 
 @pytest.mark.asyncio

@@ -99,16 +99,25 @@ async def update_canteiro(
         raise HTTPException(status_code=404, detail="Canteiro não encontrado")
     return db_canteiro
 
-@router.delete("/{canteiro_id}", response_model=Canteiro)
+@router.delete("/{canteiro_id}")
 async def delete_canteiro(
     canteiro_id: int,
     db: AsyncSession = Depends(get_db),
     current_user: FuncionarioOut = Depends(get_current_user)
 ):
     """
-    Deleta um canteiro. Se houver plantas associadas, apenas desativa o canteiro.
+    Remove o local do banco somente se não houver plantas ativas (nem sementes em produção).
     """
-    db_canteiro = await crud_canteiros.delete_canteiro(db, canteiro_id)
-    if db_canteiro is None:
+    existente = await crud_canteiros.get_canteiro(db, canteiro_id)
+    if existente is None:
         raise HTTPException(status_code=404, detail="Canteiro não encontrado")
-    return db_canteiro
+
+    total = await crud_canteiros.count_plantas_ativas_no_canteiro(db, canteiro_id)
+    if total > 0:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Não é possível excluir: há {total} planta(s) ativa(s) neste local.",
+        )
+
+    await crud_canteiros.delete_canteiro(db, canteiro_id)
+    return {"deleted": True, "id": canteiro_id}

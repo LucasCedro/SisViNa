@@ -12,6 +12,7 @@ from app.routes import (
     funcionarios,
     compradores,
     canteiros,
+    viveiro_layout,
     atividades,
     pragas,
     insumos,
@@ -105,6 +106,12 @@ app.include_router(
     canteiros.router,
     prefix=f"{settings.API_V1_STR}/canteiros",
     tags=["canteiros"],
+)
+
+app.include_router(
+    viveiro_layout.router,
+    prefix=f"{settings.API_V1_STR}/viveiro/layout",
+    tags=["viveiro"],
 )
 
 app.include_router(

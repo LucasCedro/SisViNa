@@ -21,7 +21,7 @@
       <div v-show="aba === 'resumo'" class="tab-pane">
         <dl class="dl">
           <dt>Local</dt>
-          <dd>{{ local }}</dd>
+          <dd>{{ textoLocal }}</dd>
           <dt>Fazenda</dt>
           <dd>{{ matriz.imovel_nome || '—' }}</dd>
           <dt>Origem</dt>
@@ -143,11 +143,13 @@ function formatarData(data) {
   return new Date(data + (String(data).includes('T') ? '' : 'T12:00:00')).toLocaleDateString('pt-BR')
 }
 
-function local() {
-  const mun = matriz.value?.municipio || matriz.value?.cidade
-  const p = [mun, matriz.value?.estado].filter(Boolean)
+const textoLocal = computed(() => {
+  const m = matriz.value
+  if (!m) return '—'
+  const mun = m.municipio || m.cidade
+  const p = [mun, m.estado].filter(Boolean)
   return p.length ? p.join(' / ') : '—'
-}
+})
 
 function editarColeta(c) {
   emit('editar-coleta', c)

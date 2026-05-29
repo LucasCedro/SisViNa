@@ -45,3 +45,53 @@ export function utmParaLatLng(easting, northing, zona, hemisferioSul = true) {
     longitude: +(lonOrigin + lon * (180 / Math.PI)).toFixed(7)
   }
 }
+
+/** Zona UTM (1–60) a partir da longitude WGS84 */
+export function zonaUtmFromLng(lng) {
+  return Math.min(60, Math.max(1, Math.floor((Number(lng) + 180) / 6) + 1))
+}
+
+/** Lat/lng WGS84 → UTM (hemisfério sul por padrão — Cerrado/Brasil) */
+export function latLngParaUtm(lat, lng, zona = null, hemisferioSul = true) {
+  const zone = zona != null ? Number(zona) : zonaUtmFromLng(lng)
+  const latRad = (Number(lat) * Math.PI) / 180
+  const lonRad = (Number(lng) * Math.PI) / 180
+  const lonOrigin = (((zone - 1) * 6 - 180 + 3) * Math.PI) / 180
+
+  const n = A / Math.sqrt(1 - E2 * Math.sin(latRad) ** 2)
+  const t = Math.tan(latRad) ** 2
+  const c = E_PRIME2 * Math.cos(latRad) ** 2
+  const a = Math.cos(latRad) * (lonRad - lonOrigin)
+
+  const m =
+    A *
+    ((1 - E2 / 4 - (3 * E2 ** 2) / 64 - (5 * E2 ** 3) / 256) * latRad -
+      ((3 * E2) / 8 + (3 * E2 ** 2) / 32 + (45 * E2 ** 3) / 1024) * Math.sin(2 * latRad) +
+      ((15 * E2 ** 2) / 256 + (45 * E2 ** 3) / 1024) * Math.sin(4 * latRad) -
+      ((35 * E2 ** 3) / 3072) * Math.sin(6 * latRad))
+
+  let easting =
+    K0 *
+      n *
+      (a +
+        ((1 - t + c) * a ** 3) / 6 +
+        ((5 - 18 * t + t ** 2 + 72 * c - 58 * E_PRIME2) * a ** 5) / 120) +
+    500000
+
+  let northing =
+    K0 *
+    (m +
+      n *
+        Math.tan(latRad) *
+        (a ** 2 / 2 +
+          ((5 - t + 9 * c + 4 * c ** 2) * a ** 4) / 24 +
+          ((61 - 58 * t + t ** 2 + 600 * c - 330 * E_PRIME2) * a ** 6) / 720))
+
+  if (hemisferioSul) northing += 10000000
+
+  return {
+    zona: zone,
+    easting: +easting.toFixed(2),
+    northing: +northing.toFixed(2),
+  }
+}

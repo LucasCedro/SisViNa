@@ -390,7 +390,7 @@ async function salvarVenda() {
     await createVenda({
       id_comprador: Number(formVenda.value.idComprador),
       id_funcionario: auth.user.id,
-      data_venda: new Date(formVenda.value.data + 'T12:00:00').toISOString(),
+      data_venda: `${formVenda.value.data}T12:00:00`,
       forma_pagamento: formVenda.value.formaPagamento,
       status: 'PAGO',
       observacoes: formVenda.value.observacoes,

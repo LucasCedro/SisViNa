@@ -15,6 +15,8 @@ import { listLotesSementes, updateLoteSementes } from '@/services/lotesSementes'
 import { listTestesSementes } from '@/services/testesSementes'
 import { listSemeaduras } from '@/services/semeaduras'
 
+import { nomePopularExibicao } from '@/utils/especiesDisplay'
+
 export const useColetaStore = defineStore('coleta', {
   state: () => ({
     arvoresMatriz: [],
@@ -91,7 +93,7 @@ export const useColetaStore = defineStore('coleta', {
       const map = new Map()
       state.arvoresMatriz.forEach((a) => {
         if (a.id_especie) {
-          map.set(a.id_especie, a.especie_nome || `Espécie #${a.id_especie}`)
+          map.set(a.id_especie, nomePopularExibicao(a.especie_nome) || `Espécie #${a.id_especie}`)
         }
       })
       return [...map.entries()]

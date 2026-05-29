@@ -10,6 +10,7 @@ from app.models.coletas_sementes import ColetaSementes
 from app.models.lotes_sementes import LoteSementes
 from app.models.testes_sementes import TesteSementes
 from app.schemas.lotes_sementes import LoteSementesCreate, LoteSementesUpdate
+from app.utils.especies_display import formatar_nome_popular
 
 
 def _codigo_lote(matriz_id: int, coleta_id: int) -> str:
@@ -22,7 +23,7 @@ def _para_resposta(lote: LoteSementes, ultimo_teste: Optional[float] = None) -> 
     especie = lote.especie or (arvore.especie if arvore else None)
     nome_especie = None
     if especie:
-        nome_especie = especie.nome_popular or especie.nome_cientifico
+        nome_especie = formatar_nome_popular(especie.nome_popular) or especie.nome_cientifico
     return {
         "id": lote.id,
         "codigo_lote": lote.codigo_lote,

@@ -141,6 +141,7 @@ import {
   Legend,
   Filler
 } from 'chart.js'
+import { nomePopularExibicao } from '@/utils/especiesDisplay'
 import { useColetaStore } from '@/store/coleta'
 
 ChartJS.register(
@@ -283,7 +284,7 @@ const sementesChartData = computed(() => {
 
   const porEspecie = {}
   lista.value.forEach((a) => {
-    const esp = a.especie_nome || 'Outras'
+    const esp = nomePopularExibicao(a.especie_nome) || 'Outras'
     porEspecie[esp] = (porEspecie[esp] || 0) + (a.sementes_coletadas || 0)
   })
   const labels = Object.keys(porEspecie)
@@ -341,7 +342,7 @@ const evolucaoData = computed(() => {
     return {
       labels: labels.map(formatarDataLabel),
       datasets: especies.map((esp, i) => ({
-        label: esp.nome,
+        label: nomePopularExibicao(esp.nome),
         data: labels.map((data) =>
           filtradas
             .filter((c) => c.data_coleta === data && c.id_especie === esp.id)

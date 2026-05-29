@@ -15,28 +15,29 @@
       <article class="pipeline-etapa pipeline-etapa--venda">
         <span class="pipeline-etapa__label">Prontas para venda</span>
         <strong class="pipeline-etapa__valor">{{ totalUnidades }}</strong>
-        <span class="pipeline-etapa__meta">≥ {{ diasRust }} dias em rustificação</span>
+        <span class="pipeline-etapa__meta">recomendado ≥ {{ diasRust }} dias</span>
       </article>
     </div>
 
     <p class="estoque-info-box">
-      Listagem apenas de mudas <strong>aptas para venda</strong> que completaram o tempo mínimo na área de
-      rustificação. Preços editáveis por espécie; a baixa ocorre em
+      Mudas <strong>aptas para venda</strong> na rustificação. O prazo de {{ diasRust }} dias é
+      <strong>recomendado</strong>, não obrigatório — mudas abaixo desse prazo aparecem com aviso.
+      Preços editáveis por espécie; a baixa ocorre em
       <router-link to="/vendas">Vendas</router-link>.
     </p>
 
     <div v-if="!items.length" class="estoque-empty">
       <p class="estoque-empty__titulo">Nenhuma muda pronta para venda</p>
       <p class="estoque-empty__texto">
-        Libere o estágio em Produção e aguarde {{ diasRust }} dias na rustificação. Mudas já aptas mas
-        dentro do prazo aparecem em “aguardando” acima.
+        Libere o estágio em Produção (Liberar p/ venda). Mudas abaixo do prazo recomendado de
+        {{ diasRust }} dias na rustificação ainda podem ser vendidas, com aviso ao gerente.
       </p>
       <div class="estoque-empty__acoes">
         <router-link to="/producao" class="btn btn-primary">Ir para Produção</router-link>
         <router-link to="/vendas" class="btn btn-outline">Registrar venda</router-link>
       </div>
       <p v-if="pipeline?.aptas_venda_aguardando_tempo" class="alert alert-warning" style="margin-top: 1rem">
-        {{ pipeline.aptas_venda_aguardando_tempo }} muda(s) aptas aguardando completar rustificação.
+        {{ pipeline.aptas_venda_aguardando_tempo }} muda(s) aptas com menos de {{ diasRust }} dias na rustificação (venda permitida, não recomendada).
       </p>
     </div>
 
@@ -166,7 +167,7 @@ const etapas = computed(() => {
     },
     {
       id: 'wait',
-      label: 'Aguardando prazo',
+      label: 'Abaixo prazo recom.',
       valor: p.aptas_venda_aguardando_tempo ?? 0,
       meta: `${diasRust.value} dias`,
       tom: 'wait',

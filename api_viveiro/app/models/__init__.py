@@ -17,3 +17,4 @@ from app.models.lancamentos_financeiros import LancamentoFinanceiro
 from app.models.transferencias_plantas import TransferenciaPlanta
 from app.models.referencia_viveiro import ViveiroRegraGlobal, EspecieFichaEmbrapa
 from app.models.especie_biblioteca import EspecieBiblioteca
+from app.models.viveiro_layout import ViveiroLayout

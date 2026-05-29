@@ -32,6 +32,19 @@ export function gerarEspacosGrade({ linhas, colunas, largura, altura, especieId 
   return espacos
 }
 
+const PX_POR_METRO = 24
+
+function dimensoesPx(payload, fallbackL, fallbackA) {
+  const m = metrosPayload(payload)
+  if (m) {
+    return {
+      largura: Math.round(m.largura * PX_POR_METRO),
+      altura: Math.round(m.altura * PX_POR_METRO),
+    }
+  }
+  return { largura: payload.largura || fallbackL, altura: payload.altura || fallbackA }
+}
+
 export function criarComponenteNoMapa(payload, index = 0) {
   const id = Date.now() + index
   const offset = 30 + (plantaOffset(index) % 5) * 40
@@ -39,8 +52,7 @@ export function criarComponenteNoMapa(payload, index = 0) {
   if (payload.tipo === TIPOS_COMPONENTE.CANTEIRO) {
     const linhas = payload.linhas || 4
     const colunas = payload.colunas || 4
-    const largura = payload.largura || 180
-    const altura = payload.altura || 130
+    const { largura, altura } = dimensoesPx(payload, 180, 130)
     return {
       id,
       tipo: 'canteiro',
@@ -49,50 +61,70 @@ export function criarComponenteNoMapa(payload, index = 0) {
       y: 20 + offset,
       largura,
       altura,
+      metros: metrosPayload(payload),
       cor: '#6ca234',
       config: {
         linhas,
         colunas,
         capacidade: linhas * colunas,
         especieId: payload.especieId,
-        especieNome: payload.especieNome
+        especieNome: payload.especieNome,
       },
-      espacos: gerarEspacosGrade({
-        linhas,
-        colunas,
-        largura,
-        altura,
-        especieId: payload.especieId,
-        especieNome: payload.especieNome
-      })
     }
   }
 
   if (payload.tipo === TIPOS_COMPONENTE.SEMENTEIRA) {
+    const { largura, altura } = dimensoesPx(payload, 130, 70)
     return {
       id,
       tipo: 'sementeira',
       nome: payload.nome,
       x: 220 + offset,
       y: 20 + offset,
-      largura: payload.largura || 130,
-      altura: payload.altura || 70,
+      largura,
+      altura,
+      metros: metrosPayload(payload),
       cor: '#ff9600',
       config: { capacidade: payload.capacidade || 20 }
     }
   }
 
   if (payload.tipo === TIPOS_COMPONENTE.RUSTIFICACAO) {
+    const { largura, altura } = dimensoesPx(payload, 130, 70)
     return {
       id,
       tipo: 'rustificacao',
       nome: payload.nome,
       x: 20 + offset,
       y: 160 + offset,
-      largura: payload.largura || 130,
-      altura: payload.altura || 70,
+      largura,
+      altura,
+      metros: metrosPayload(payload),
       cor: '#ffe135',
       config: { capacidade: payload.capacidade || 20 }
+    }
+  }
+
+  const visuais = {
+    [TIPOS_COMPONENTE.SEDE]: { cor: '#6b8cae', fallback: [100, 60] },
+    [TIPOS_COMPONENTE.LAGO]: { cor: '#4a9fd4', fallback: [80, 80] },
+    [TIPOS_COMPONENTE.GARAGEM]: { cor: '#8E9089', fallback: [90, 50] },
+    [TIPOS_COMPONENTE.AREA_TRABALHO]: { cor: '#A4B39A', fallback: [110, 70] },
+  }
+  const visual = visuais[payload.tipo]
+  if (visual) {
+    const { largura, altura } = dimensoesPx(payload, visual.fallback[0], visual.fallback[1])
+    return {
+      id,
+      tipo: payload.tipo,
+      nome: payload.nome,
+      x: 120 + offset,
+      y: 80 + offset,
+      largura,
+      altura,
+      metros: metrosPayload(payload),
+      cor: visual.cor,
+      config: {},
     }
   }
 
@@ -101,4 +133,11 @@ export function criarComponenteNoMapa(payload, index = 0) {
 
 function plantaOffset(i) {
   return i
+}
+
+function metrosPayload(payload) {
+  const largura = Number(payload.metrosLargura)
+  const altura = Number(payload.metrosAltura)
+  if (largura > 0 && altura > 0) return { largura, altura }
+  return null
 }

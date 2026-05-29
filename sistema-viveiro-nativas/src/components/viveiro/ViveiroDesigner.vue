@@ -1,140 +1,34 @@
 ﻿<template>
     <div class="viveiro-designer">
-        <!-- Barra de ferramentas -->
-        <div class="toolbar">
-            <div class="toolbar-section toolbar-section-destaque">
-                <h2 class="toolbar-title">Meu viveiro</h2>
-                <div class="tool-group">
-                    <button @click="abrirWizardComponente" class="tool-btn-lego" title="Cadastrar canteiro, sementeira ou rustificação">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="icon" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2">
-                            <path d="M12 5v14M5 12h14" stroke-linecap="round" />
-                        </svg>
-                        <span>Cadastrar componente</span>
-                    </button>
+        <header class="designer-header">
+            <div class="header-left">
+                <button type="button" class="btn-back" @click="emit('voltar')">← Voltar</button>
+                <span class="header-title">Editor da planta baixa</span>
+            </div>
+            <div class="header-center">
+                <button type="button" class="btn-add" @click="abrirWizardComponente">+ Adicionar área</button>
+                <div class="zoom-controls" role="group" aria-label="Zoom">
+                    <button type="button" class="btn-icon" title="Diminuir zoom" @click="ajustarZoom(-0.1)">−</button>
+                    <span class="zoom-label">{{ Math.round(zoom * 100) }}%</span>
+                    <button type="button" class="btn-icon" title="Aumentar zoom" @click="ajustarZoom(0.1)">+</button>
+                    <button type="button" class="btn-icon-text" title="Centralizar" @click="centralizarVisualizacao">Centralizar</button>
                 </div>
             </div>
-
-            <div class="toolbar-divider"></div>
-
-            <div class="toolbar-section">
-                <h2 class="toolbar-title">Elementos avançados</h2>
-                <div class="tool-group">
-                    <button @click="adicionarCampo" class="tool-btn" title="Adicionar Área de Produção">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="icon" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2">
-                            <rect x="3" y="3" width="8" height="8" rx="1" />
-                            <rect x="13" y="3" width="8" height="8" rx="1" />
-                            <rect x="3" y="13" width="8" height="8" rx="1" />
-                            <rect x="13" y="13" width="8" height="8" rx="1" />
-                        </svg>
-                        <span>Área de Produção</span>
-                    </button>
-
-                    <button @click="adicionarCanteiro" class="tool-btn" title="Adicionar Canteiro">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="icon" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2">
-                            <rect x="3" y="5" width="18" height="14" rx="1" />
-                            <line x1="3" y1="10" x2="21" y2="10" />
-                            <line x1="3" y1="15" x2="21" y2="15" />
-                        </svg>
-                        <span>Canteiro</span>
-                    </button>
-
-                    <button @click="adicionarEspaco" class="tool-btn" title="Adicionar Espaço de Muda">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="icon" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2">
-                            <circle cx="12" cy="12" r="5" />
-                            <line x1="12" y1="6" x2="12" y2="8" />
-                            <line x1="12" y1="16" x2="12" y2="18" />
-                            <line x1="6" y1="12" x2="8" y2="12" />
-                            <line x1="16" y1="12" x2="18" y2="12" />
-                        </svg>
-                        <span>Espaço de Muda</span>
-                    </button>
-
-                    <button @click="adicionarSementeira" class="tool-btn" title="Adicionar Sementeira">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="icon" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2">
-                            <rect x="3" y="5" width="18" height="14" rx="1" />
-                            <line x1="3" y1="9" x2="21" y2="9" />
-                            <path d="M7 14h2m2 0h2m2 0h2" stroke-linecap="round" />
-                        </svg>
-                        <span>Sementeira</span>
-                    </button>
-
-                    <button @click="adicionarAreaTrabalho" class="tool-btn" title="Adicionar Área de Trabalho">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="icon" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2">
-                            <rect x="3" y="5" width="18" height="14" rx="1" />
-                            <path d="M12 5v14" stroke-dasharray="2,2" />
-                            <path d="M3 12h18" stroke-dasharray="2,2" />
-                        </svg>
-                        <span>Área de Trabalho</span>
-                    </button>
-
-                    <button @click="adicionarEstoque" class="tool-btn" title="Adicionar Estoque de Substrato">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="icon" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2">
-                            <path d="M4 10h16v8a1 1 0 01-1 1H5a1 1 0 01-1-1v-8z" />
-                            <path d="M12 4v6" stroke-dasharray="2,2" />
-                            <path d="M4 10l8-5 8 5" />
-                        </svg>
-                        <span>Estoque</span>
-                    </button>
-                </div>
+            <div class="header-right">
+                <details class="menu-export">
+                    <summary class="btn-secondary">Exportar</summary>
+                    <div class="menu-export-panel">
+                        <button type="button" @click="exportarPlanta">JSON do layout</button>
+                        <button type="button" @click="importarPlanta">Importar JSON</button>
+                        <button type="button" @click="exportarImagem">Imagem PNG</button>
+                    </div>
+                </details>
+                <button type="button" class="btn-save" :disabled="salvando" @click="salvarEVoltar">
+                    {{ salvando ? 'Salvando…' : 'Salvar layout' }}
+                </button>
             </div>
-
-            <div class="toolbar-divider"></div>
-
-            <div class="toolbar-section">
-                <h2 class="toolbar-title">Projeto</h2>
-                <div class="tool-group">
-                    <button @click="exportarPlanta" class="tool-btn-export" title="Exportar Planta">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="icon" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2">
-                            <path d="M12 3v12M5 15l7 7 7-7" />
-                            <path d="M5 3h14" stroke-linecap="round" />
-                        </svg>
-                        <span>Exportar JSON</span>
-                    </button>
-                    <button @click="importarPlanta" class="tool-btn" title="Importar Planta">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="icon" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2">
-                            <path d="M12 21V9M5 15l7-7 7 7" />
-                            <path d="M5 3h14" stroke-linecap="round" />
-                        </svg>
-                        <span>Importar</span>
-                    </button>
-                    <button @click="exportarImagem" class="tool-btn-export" title="Exportar como Imagem">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="icon" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2">
-                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                            <circle cx="8.5" cy="8.5" r="1.5" />
-                            <polyline points="21 15 16 10 5 21" />
-                        </svg>
-                        <span>Exportar PNG</span>
-                    </button>
-                </div>
-            </div>
-
-            <div class="toolbar-divider"></div>
-
-            <div class="toolbar-section">
-                <h2 class="toolbar-title">Ações</h2>
-                <div class="tool-group">
-                    <button @click="salvarEVoltar" class="tool-btn-primary" title="Salvar e Voltar">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="icon" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2">
-                            <path d="M5 12h14M12 5l7 7-7 7" />
-                        </svg>
-                        <span>Salvar e Voltar</span>
-                    </button>
-                </div>
-            </div>
-
-            <div class="zoom-info">Zoom: {{ Math.round(zoom * 100) }}%</div>
-        </div>
+        </header>
+        <p v-if="erroSalvar" class="erro-salvar-bar" role="alert">{{ erroSalvar }}</p>
 
         <!-- Área de desenho -->
         <div class="designer-area" ref="designerArea" @wheel.prevent="handleZoom" @mousedown="iniciarPanning"
@@ -176,9 +70,16 @@
                                     'estoque': campo.tipo === 'estoque'
                                 }" rx="4" />
                             <text :x="campo.x + 10" :y="campo.y + 24" class="elemento-texto"
-                                :class="{ 'texto-escuro': ['area-trabalho', 'estoque', 'rustificacao'].includes(campo.tipo) }">
+                                :class="{ 'texto-escuro': ['area-trabalho', 'estoque', 'rustificacao', 'sede', 'lago', 'garagem'].includes(campo.tipo) }">
                                 {{ campo.nome }}
                             </text>
+                            <text
+                                v-if="badgeCampo(campo)"
+                                :x="campo.x + campo.largura - 10"
+                                :y="campo.y + campo.altura - 10"
+                                class="badge-ocupacao"
+                                text-anchor="end"
+                            >{{ badgeCampo(campo) }}</text>
                         </g>
 
                         <!-- Mudas em canteiro independente (wizard LEGO) -->
@@ -314,9 +215,16 @@
                     </div>
                 </div>
 
+                <p v-if="elementoSelecionado && !podeExcluirElementoSelecionado" class="hint-exclusao">
+                    Não é possível excluir: há plantas ativas neste local.
+                </p>
                 <div class="acoes">
                     <button @click="duplicarElemento" class="btn-duplicar">Duplicar</button>
-                    <button @click="excluirElemento" class="btn-excluir">Excluir</button>
+                    <button
+                        @click="excluirElemento"
+                        class="btn-excluir"
+                        :disabled="elementoSelecionado && !podeExcluirElementoSelecionado"
+                    >Excluir</button>
                     <button @click="salvarEdicao" class="btn-salvar">Salvar</button>
                 </div>
             </div>
@@ -332,10 +240,22 @@
                             d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                     </svg>
                     <h3 class="alerta-titulo">Confirmar exclusão</h3>
-                    <p class="alerta-mensagem">Tem certeza que deseja excluir {{ alertaExclusao.nome }}?</p>
+                    <p v-if="alertaExclusao.erro" class="alerta-erro">{{ alertaExclusao.erro }}</p>
+                    <p v-else-if="alertaExclusao.bloqueado" class="alerta-mensagem">
+                        Este local possui plantas ativas e não pode ser excluído.
+                    </p>
+                    <p v-else class="alerta-mensagem">
+                        Tem certeza que deseja excluir {{ alertaExclusao.nome }}?
+                        <span v-if="alertaExclusao.temApi">O registro será removido do sistema.</span>
+                    </p>
                     <div class="alerta-acoes">
-                        <button @click="alertaExclusao.mostrar = false" class="alerta-btn-cancelar">Cancelar</button>
-                        <button @click="confirmarExclusao" class="alerta-btn-confirmar">Excluir</button>
+                        <button @click="fecharAlertaExclusao" class="alerta-btn-cancelar">Cancelar</button>
+                        <button
+                            v-if="!alertaExclusao.bloqueado"
+                            @click="confirmarExclusao"
+                            class="alerta-btn-confirmar"
+                            :disabled="excluindo"
+                        >{{ excluindo ? 'Excluindo…' : 'Excluir' }}</button>
                     </div>
                 </div>
             </div>
@@ -382,9 +302,30 @@
 import { ref, reactive, onMounted, watch, computed } from 'vue';
 import ViveiroComponentWizard from './ViveiroComponentWizard.vue';
 import { criarComponenteNoMapa } from '@/utils/viveiroLayout';
+import { getViveiroLayout, saveViveiroLayout } from '@/services/viveiroLayout';
+import {
+    sincronizarCamposComCanteiros,
+    plantaParaLayoutPersistido,
+    removerCanteirosAusentesDoLayout,
+    excluirCampoProdutivo,
+    isComponenteProdutivo,
+} from '@/utils/viveiroLayoutSync';
+import { useViveiroStore } from '@/store/viveiro';
+import { listCanteirosComOcupacao } from '@/services/canteiros';
+import {
+    mapOcupacaoPorApiId,
+    textoBadgeOcupacao,
+    podeExcluirArea,
+} from '@/utils/viveiroOcupacao';
 
 const LAYOUT_STORAGE_KEY = 'sisvina-planta-viveiro';
 const wizardAberto = ref(false);
+const salvando = ref(false);
+const excluindo = ref(false);
+const erroSalvar = ref(null);
+const viveiroStore = useViveiroStore();
+const ocupacaoPorApiId = ref({});
+const layoutAoAbrir = ref(null);
 
 // Estado do designer
 const planta = reactive({
@@ -414,7 +355,7 @@ const diagnostico = reactive({
 const zoom = ref(1);
 const mostrarMinimap = ref(false);
 const mostrarMarcadores = ref(false);
-const mostrarDicas = ref(true); // Mostrar dicas por padrão ao abrir
+const mostrarDicas = ref(false);
 const viewportWidth = ref(window.innerWidth);
 const viewportHeight = ref(window.innerHeight);
 
@@ -430,7 +371,10 @@ const mostrarModal = ref(false);
 const alertaExclusao = reactive({
     mostrar: false,
     elemento: null,
-    nome: ''
+    nome: '',
+    erro: null,
+    bloqueado: false,
+    temApi: false,
 });
 
 // Cores disponíveis para personalização
@@ -597,7 +541,9 @@ const carregarLayoutLocal = () => {
         if (!raw) return false;
         const data = JSON.parse(raw);
         if (data?.campos) {
-            Object.assign(planta, data);
+            planta.campos = data.campos;
+            if (data.nome) planta.nome = data.nome;
+            if (data.data) planta.data = data.data;
             return true;
         }
     } catch (e) {
@@ -606,8 +552,71 @@ const carregarLayoutLocal = () => {
     return false;
 };
 
+const aplicarLayoutSalvo = (data) => {
+    if (!data?.campos?.length) return false;
+    planta.campos = data.campos;
+    if (data.nome) planta.nome = data.nome;
+    if (data.data) planta.data = data.data;
+    if (data.viewBox?.width) viewBox.width = data.viewBox.width;
+    if (data.viewBox?.height) viewBox.height = data.viewBox.height;
+    layoutAoAbrir.value = data;
+    return true;
+};
+
+const carregarLayoutRemoto = async () => {
+    try {
+        const data = await getViveiroLayout();
+        return aplicarLayoutSalvo(data);
+    } catch (e) {
+        console.warn('Layout remoto indisponível', e);
+        return false;
+    }
+};
+
 const abrirWizardComponente = () => {
     wizardAberto.value = true;
+};
+
+const carregarOcupacao = async () => {
+    try {
+        const list = await listCanteirosComOcupacao({ ativo: true });
+        ocupacaoPorApiId.value = mapOcupacaoPorApiId(list);
+    } catch {
+        ocupacaoPorApiId.value = {};
+    }
+};
+
+const badgeCampo = (campo) => {
+    if (!campo || !isComponenteProdutivo(campo.tipo)) return null;
+    const occ = campo.apiId ? ocupacaoPorApiId.value[campo.apiId] : null;
+    return textoBadgeOcupacao(campo, occ, 0);
+};
+
+const campoPodeExcluir = (campo) => {
+    if (!campo) return true;
+    if (!isComponenteProdutivo(campo.tipo)) return true;
+    if (!campo.apiId) return true;
+    return podeExcluirArea(ocupacaoPorApiId.value[campo.apiId], 0);
+};
+
+const podeExcluirElementoSelecionado = computed(() => {
+    const el = elementoSelecionado.value;
+    if (!el) return true;
+    const campoRaiz = planta.campos.find((c) => c.id === el.id) || el;
+    return campoPodeExcluir(campoRaiz);
+});
+
+const persistirLayoutSilencioso = async () => {
+    const layout = plantaParaLayoutPersistido(planta, viewBox);
+    await saveViveiroLayout(layout);
+    salvarLayoutLocal();
+    layoutAoAbrir.value = layout;
+};
+
+const fecharAlertaExclusao = () => {
+    alertaExclusao.mostrar = false;
+    alertaExclusao.erro = null;
+    alertaExclusao.bloqueado = false;
 };
 
 const onWizardConfirmar = (payload) => {
@@ -793,7 +802,7 @@ const centralizarEmElemento = (elemento) => {
 };
 
 // Inicialização
-onMounted(() => {
+onMounted(async () => {
     // Atualizar dimensões da viewport ao iniciar
     viewportWidth.value = window.innerWidth;
     viewportHeight.value = window.innerHeight;
@@ -806,7 +815,12 @@ onMounted(() => {
     viewPosition.x = 0;
     viewPosition.y = 0;
 
-    const carregouSalvo = carregarLayoutLocal();
+    await carregarOcupacao();
+    const carregouRemoto = await carregarLayoutRemoto();
+    const carregouSalvo = carregouRemoto || carregarLayoutLocal();
+    if (carregouRemoto) {
+        layoutAoAbrir.value = await getViveiroLayout().catch(() => null);
+    }
 
     if (planta.campos.length > 0) {
         ajustarViewBox();
@@ -1168,6 +1182,10 @@ const corrigirProblemasAreas = () => {
 };
 
 // Funções de interação
+const ajustarZoom = (delta) => {
+    zoom.value = Math.min(3, Math.max(0.2, zoom.value + delta));
+};
+
 const handleZoom = (event) => {
     // Verificar se o zoom está ativo
     if (!estadoInteracao.zoomAtivo || estadoInteracao.arrastando) return;
@@ -1596,46 +1614,53 @@ const excluirElemento = () => {
     if (!elementoSelecionado.value) return;
 
     const elemento = elementoSelecionado.value;
-    alertaExclusao.elemento = elemento;
-    alertaExclusao.nome = `${elemento.nome} (${obterTituloModal().replace('Editar ', '')})`;
+    const campoRaiz = planta.campos.find((c) => c.id === elemento.id) || elemento;
+    alertaExclusao.elemento = campoRaiz;
+    alertaExclusao.nome = campoRaiz.nome;
+    alertaExclusao.erro = null;
+    alertaExclusao.bloqueado = !campoPodeExcluir(campoRaiz);
+    alertaExclusao.temApi = Boolean(campoRaiz.apiId && isComponenteProdutivo(campoRaiz.tipo));
     alertaExclusao.mostrar = true;
 };
 
-const confirmarExclusao = () => {
+const confirmarExclusao = async () => {
     const elemento = alertaExclusao.elemento;
+    if (!elemento || alertaExclusao.bloqueado) return;
 
-    if (['campo', 'canteiro', 'sementeira', 'rustificacao', 'area-trabalho', 'estoque'].includes(elemento.tipo)) {
-        const index = planta.campos.findIndex(c => c.id === elemento.id);
-        if (index !== -1) planta.campos.splice(index, 1);
-    } else if (elemento.tipo === 'canteiro') {
-        const campo = planta.campos.find(c => c.canteiros && c.canteiros.some(ct => ct.id === elemento.id));
-        if (campo) {
-            const index = campo.canteiros.findIndex(ct => ct.id === elemento.id);
-            if (index !== -1) campo.canteiros.splice(index, 1);
+    excluindo.value = true;
+    alertaExclusao.erro = null;
+    try {
+        if (isComponenteProdutivo(elemento.tipo) && elemento.apiId) {
+            await excluirCampoProdutivo(elemento);
+            const next = { ...ocupacaoPorApiId.value };
+            delete next[elemento.apiId];
+            ocupacaoPorApiId.value = next;
         }
-    } else if (elemento.tipo === 'espaco') {
-        const canteiroTop = planta.campos.find(c =>
-            c.tipo === 'canteiro' && c.espacos?.some(e => e.id === elemento.id)
-        );
-        if (canteiroTop) {
-            const index = canteiroTop.espacos.findIndex(e => e.id === elemento.id);
-            if (index !== -1) canteiroTop.espacos.splice(index, 1);
-        } else {
-            const campo = planta.campos.find(c =>
-                c.canteiros?.some(ct => ct.espacos?.some(e => e.id === elemento.id))
+
+        if (['campo', 'canteiro', 'sementeira', 'rustificacao', 'area-trabalho', 'estoque', 'sede', 'lago', 'garagem'].includes(elemento.tipo)) {
+            const index = planta.campos.findIndex((c) => c.id === elemento.id);
+            if (index !== -1) planta.campos.splice(index, 1);
+        } else if (elemento.tipo === 'espaco') {
+            const canteiroTop = planta.campos.find(
+                (c) => c.tipo === 'canteiro' && c.espacos?.some((e) => e.id === elemento.id)
             );
-            const canteiro = campo?.canteiros?.find(ct =>
-                ct.espacos?.some(e => e.id === elemento.id)
-            );
-            if (canteiro) {
-                const index = canteiro.espacos.findIndex(e => e.id === elemento.id);
-                if (index !== -1) canteiro.espacos.splice(index, 1);
+            if (canteiroTop) {
+                const index = canteiroTop.espacos.findIndex((e) => e.id === elemento.id);
+                if (index !== -1) canteiroTop.espacos.splice(index, 1);
             }
         }
-    }
 
-    alertaExclusao.mostrar = false;
-    elementoSelecionado.value = null;
+        await persistirLayoutSilencioso();
+        await carregarOcupacao();
+        fecharAlertaExclusao();
+        mostrarModal.value = false;
+        elementoSelecionado.value = null;
+    } catch (e) {
+        const d = e.response?.data?.detail;
+        alertaExclusao.erro = typeof d === 'string' ? d : 'Não foi possível excluir este local.';
+    } finally {
+        excluindo.value = false;
+    }
 };
 
 const duplicarElemento = () => {
@@ -1906,17 +1931,36 @@ const exportarImagem = () => {
     img.src = url;
 };
 
-// Adicione a nova função de salvar e voltar
-const salvarEVoltar = () => {
-    salvarLayoutLocal();
-    console.log('Salvando planta do viveiro:', planta);
+const salvarEVoltar = async () => {
+    if (salvando.value) return;
+    salvando.value = true;
+    erroSalvar.value = null;
+    try {
+        const layoutAnterior = layoutAoAbrir.value || (await getViveiroLayout().catch(() => ({})));
+        const errosRem = await removerCanteirosAusentesDoLayout(planta.campos, layoutAnterior);
+        if (errosRem.length) {
+            erroSalvar.value = errosRem.join(' · ');
+            return;
+        }
 
-    // Aqui você pode adicionar a navegação para voltar para a página anterior
-    // Se estiver usando Vue Router:
-    // router.push('/viveiros');
-
-    // Emite um evento para o componente pai saber que deve voltar
-    emit('voltar');
+        const erros = await sincronizarCamposComCanteiros(planta.campos);
+        if (erros.length) {
+            erroSalvar.value = erros.join(' · ');
+            return;
+        }
+        const layout = plantaParaLayoutPersistido(planta, viewBox);
+        await saveViveiroLayout(layout);
+        salvarLayoutLocal();
+        layoutAoAbrir.value = layout;
+        await carregarOcupacao();
+        await viveiroStore.carregar(true);
+        emit('voltar');
+    } catch (e) {
+        const d = e.response?.data?.detail;
+        erroSalvar.value = typeof d === 'string' ? d : 'Não foi possível salvar o layout do viveiro.';
+    } finally {
+        salvando.value = false;
+    }
 };
 
 // Adicione emit para os eventos
@@ -2204,11 +2248,200 @@ const dicasFadeOut = ref(false);
 
 <style scoped>
 .viveiro-designer {
-    @apply w-full h-full flex flex-col bg-gray-50 min-h-[calc(100vh-64px)] overflow-hidden;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+    background: var(--color-surface-muted, #f0f0ec);
+}
+
+.designer-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.65rem 1rem;
+    background: var(--color-surface);
+    border-bottom: 1px solid var(--color-border-subtle);
+    flex-shrink: 0;
+    z-index: 20;
+}
+
+.header-left,
+.header-center,
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.header-center {
+    flex: 1;
+    justify-content: center;
+    min-width: 200px;
+}
+
+.header-title {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--color-text-primary);
+}
+
+.btn-back {
+    border: none;
+    background: none;
+    color: var(--color-primary);
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: inherit;
+    padding: 0.35rem 0.5rem;
+    border-radius: var(--radius-md);
+}
+
+.btn-back:hover {
+    background: rgba(74, 124, 42, 0.08);
+}
+
+.btn-add {
+    padding: 0.45rem 1rem;
+    border: none;
+    border-radius: var(--radius-md);
+    background: var(--color-primary);
+    color: #fff;
+    font-weight: 600;
+    font-size: 0.875rem;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+.btn-add:hover {
+    filter: brightness(1.05);
+}
+
+.zoom-controls {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.2rem;
+    background: var(--color-surface-muted, #f4f4f2);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border-subtle);
+}
+
+.btn-icon {
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: #fff;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 1.1rem;
+    line-height: 1;
+    font-family: inherit;
+}
+
+.btn-icon:hover {
+    background: #eee;
+}
+
+.btn-icon-text {
+    border: none;
+    background: transparent;
+    font-size: 0.75rem;
+    padding: 0 0.5rem;
+    cursor: pointer;
+    color: var(--color-text-secondary);
+    font-family: inherit;
+}
+
+.zoom-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    min-width: 3rem;
+    text-align: center;
+    color: var(--color-text-secondary);
+}
+
+.btn-secondary {
+    padding: 0.45rem 0.75rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: #fff;
+    font-size: 0.8125rem;
+    cursor: pointer;
+    font-family: inherit;
+    list-style: none;
+}
+
+.menu-export {
+    position: relative;
+}
+
+.menu-export-panel {
+    position: absolute;
+    right: 0;
+    top: 100%;
+    margin-top: 4px;
+    background: #fff;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    padding: 0.35rem;
+    z-index: 50;
+    min-width: 160px;
+    display: flex;
+    flex-direction: column;
+}
+
+.menu-export-panel button {
+    border: none;
+    background: none;
+    text-align: left;
+    padding: 0.5rem 0.65rem;
+    font-size: 0.8125rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+.menu-export-panel button:hover {
+    background: var(--color-surface-muted);
+}
+
+.btn-save {
+    padding: 0.45rem 1.1rem;
+    border: none;
+    border-radius: var(--radius-md);
+    background: var(--color-primary);
+    color: #fff;
+    font-weight: 600;
+    font-size: 0.875rem;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+.btn-save:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.erro-salvar-bar {
+    margin: 0;
+    padding: 0.5rem 1rem;
+    font-size: 0.8125rem;
+    color: #b42318;
+    background: #fef3f2;
+    border-bottom: 1px solid #fecaca;
+    flex-shrink: 0;
 }
 
 .toolbar {
-    @apply p-2 md:p-4 bg-white border-b border-gray-200 flex flex-wrap gap-4 items-center shadow-sm sticky top-0 z-10;
+    display: none;
 }
 
 .toolbar-section {
@@ -2250,15 +2483,29 @@ const dicasFadeOut = ref(false);
     @apply text-white;
 }
 
+.erro-salvar {
+    flex: 1 1 100%;
+    margin: 0.35rem 0 0;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8125rem;
+    color: #b42318;
+    background: #fef3f2;
+    border-radius: 6px;
+}
+
 .zoom-info {
     @apply text-xs text-gray-500 font-mono px-3 py-1 bg-gray-100 rounded-md ml-auto;
 }
 
 .designer-area {
-    @apply flex-1 overflow-hidden relative bg-white shadow-inner p-0 m-2 border border-gray-200;
-    height: calc(100vh - 120px);
-    width: calc(100vw - 20px);
-    max-width: 100%;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    position: relative;
+    background: #fff;
+    margin: 0.5rem;
+    border: 1px solid var(--color-border-subtle);
+    border-radius: var(--radius-lg);
 }
 
 .toolbar-bottom {
@@ -2418,6 +2665,28 @@ const dicasFadeOut = ref(false);
 
 .texto-pequeno {
     @apply text-[10px];
+}
+
+.badge-ocupacao {
+    @apply text-[11px] font-bold fill-white pointer-events-none;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.65);
+}
+
+.hint-exclusao {
+    font-size: 0.8125rem;
+    color: #b42318;
+    margin: 0 0 0.5rem;
+}
+
+.alerta-erro {
+    color: #b42318;
+    font-size: 0.875rem;
+    margin: 0.5rem 0;
+}
+
+.btn-excluir:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
 }
 
 .modal-edicao {

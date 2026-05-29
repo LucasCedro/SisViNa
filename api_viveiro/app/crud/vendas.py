@@ -13,6 +13,7 @@ from app.models.especies import Especie
 from app.models.canteiros import Canteiro
 from app.constants.estagios_producao import APTA_VENDA
 from app.schemas.vendas import VendaCreate, VendaUpdate, ItemVendaCreate, ItemVendaUpdate
+from app.services.validacao_producao import avisos_vender_planta
 
 # Funções CRUD para Venda
 async def get_venda(db: AsyncSession, venda_id: int) -> Optional[Venda]:
@@ -197,6 +198,8 @@ async def create_venda(db: AsyncSession, venda: VendaCreate) -> Dict[str, Any]:
     db_venda = Venda(**venda_dict)
     db.add(db_venda)
     await db.flush()
+
+    avisos_venda: List[str] = []
     
     # Adicionar itens da venda
     for item_dict in itens_dict:
@@ -225,18 +228,23 @@ async def create_venda(db: AsyncSession, venda: VendaCreate) -> Dict[str, Any]:
             )
         if planta.id_canteiro:
             cant = await db.get(Canteiro, planta.id_canteiro)
-            # Regra operacional: só pode vender após passar pela rustificação.
             if cant and cant.tipo_local != "rustificacao":
                 raise ValueError(
                     f"Planta {planta.codigo_rastreio or planta.id} não está em local comercializável"
                 )
+        for aviso in await avisos_vender_planta(db, planta):
+            if aviso not in avisos_venda:
+                avisos_venda.append(aviso)
         planta.status = "VENDIDA"
     
     await db.commit()
     await db.refresh(db_venda)
     
     # Retornar venda detalhada
-    return await get_venda_detalhe(db, db_venda.id)
+    resultado = await get_venda_detalhe(db, db_venda.id)
+    if avisos_venda:
+        resultado["avisos"] = avisos_venda
+    return resultado
 
 async def update_venda(
     db: AsyncSession, venda_id: int, venda_update: VendaUpdate

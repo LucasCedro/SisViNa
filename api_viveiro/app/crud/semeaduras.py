@@ -12,6 +12,14 @@ from app.models.semeaduras import Semeadura
 from app.schemas.semeaduras import SemeaduraCreate, SemeaduraUpdate
 
 
+def _codigo_rastreio_semeadura(semeadura_id: int, indice: int) -> str:
+    """Código único dentro do limite de 20 caracteres (plantas.codigo_rastreio)."""
+    codigo = f"M-S{semeadura_id:05d}-{indice:04d}"
+    if len(codigo) > 20:
+        codigo = f"M{semeadura_id:05d}{indice:04d}"
+    return codigo[:20]
+
+
 def _para_resposta(semeadura: Semeadura, plantas_count: int = 0) -> dict:
     lote = semeadura.lote
     arvore = lote.arvore_matriz if lote else None
@@ -131,14 +139,14 @@ async def create_semeadura(db: AsyncSession, payload: SemeaduraCreate, id_funcio
     if dados.get("registrar_plantas") and dados.get("quantidade_plantas_registrar", 0) > 0:
         qtd_plantas = dados["quantidade_plantas_registrar"]
         for i in range(qtd_plantas):
-            codigo = f"M-{lote.codigo_lote}-{db_sem.id}-{i + 1:03d}"
+            codigo = _codigo_rastreio_semeadura(db_sem.id, i + 1)
             db.add(
                 Planta(
                     id_especie=lote.id_especie,
                     id_canteiro=dados.get("id_canteiro"),
                     id_lote_sementes=lote.id,
                     id_semeadura=db_sem.id,
-                    codigo_rastreio=codigo[:20],
+                    codigo_rastreio=codigo,
                     data_plantio=dados["data_semeadura"],
                     data_inicio_estagio_atual=dados["data_semeadura"],
                     status="SEMENTE",

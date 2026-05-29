@@ -116,29 +116,24 @@ async def update_canteiro(
     await db.refresh(db_canteiro)
     return db_canteiro
 
+async def count_plantas_ativas_no_canteiro(db: AsyncSession, canteiro_id: int) -> int:
+    query = select(func.count(Planta.id)).where(
+        Planta.id_canteiro == canteiro_id,
+        Planta.status.notin_(["VENDIDA", "MORTA"]),
+    )
+    result = await db.execute(query)
+    return int(result.scalar_one() or 0)
+
+
 async def delete_canteiro(db: AsyncSession, canteiro_id: int) -> Optional[Canteiro]:
     db_canteiro = await get_canteiro(db, canteiro_id)
     if not db_canteiro:
         return None
-    
-    # Verificar se há plantas associadas a este canteiro
-    query = select(func.count(Planta.id)).where(
-        Planta.id_canteiro == canteiro_id,
-        Planta.status.notin_(['VENDIDA', 'MORTA'])
-    )
-    result = await db.execute(query)
-    count = result.scalar_one()
-    
+
+    count = await count_plantas_ativas_no_canteiro(db, canteiro_id)
     if count > 0:
-        # Se houver plantas, apenas desativa o canteiro
-        db_canteiro.ativo = False
-    else:
-        # Se não houver plantas, remove o canteiro
-        await db.delete(db_canteiro)
-    
+        return None
+
+    await db.delete(db_canteiro)
     await db.commit()
-    
-    if db_canteiro.ativo is False:
-        await db.refresh(db_canteiro)
-        return db_canteiro
     return db_canteiro

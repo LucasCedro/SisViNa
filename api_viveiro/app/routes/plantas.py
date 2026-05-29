@@ -204,7 +204,7 @@ async def read_estoque_resumo(
 
 @router.get("/disponiveis-venda", response_model=List[Planta])
 async def read_plantas_disponiveis_venda(
-    id_especie: int = Query(..., description="Espécie para listar unidades vendáveis"),
+    id_especie: int = Query(..., description="Espécie para listar unidades expedíveis"),
     limit: int = Query(500, le=500),
     db: AsyncSession = Depends(get_db),
     current_user: FuncionarioOut = Depends(get_current_user),

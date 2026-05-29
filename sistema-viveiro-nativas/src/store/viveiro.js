@@ -1,9 +1,11 @@
 import { defineStore } from 'pinia'
-import { listCanteiros } from '@/services/canteiros'
+import { listCanteirosComOcupacao } from '@/services/canteiros'
+import { mapOcupacaoPorApiId } from '@/utils/viveiroOcupacao'
 import { listPlantasComRelacoes } from '@/services/plantas'
 import { getDashboardResumo } from '@/services/dashboard'
 import { listPragasPlantas } from '@/services/pragas'
-import { buildLayoutFromCanteiros, mapPlantaApi } from '@/utils/viveiroApiMapper'
+import { buildLayoutFromCanteiros, buildLayoutFromPlantaSalva, mapPlantaApi } from '@/utils/viveiroApiMapper'
+import { getViveiroLayout } from '@/services/viveiroLayout'
 
 const emptyLayout = () => ({
   id: 1,
@@ -69,16 +71,18 @@ export const useViveiroStore = defineStore('viveiro', {
       this.carregando = true
       this.erro = null
       try {
-        const [canteiros, plantas, resumo, pragas] = await Promise.all([
-          listCanteiros({ ativo: true }),
+        const [canteiros, plantas, resumo, pragas, plantaSalva] = await Promise.all([
+          listCanteirosComOcupacao({ ativo: true }),
           listPlantasComRelacoes({ limit: 500 }),
           getDashboardResumo(),
           listPragasPlantas({ limit: 100 }).catch(() => []),
+          getViveiroLayout().catch(() => ({})),
         ])
 
         const ativas = plantas.filter((p) => !['VENDIDA', 'MORTA'].includes(p.status))
         this.mudas = ativas.map(mapPlantaApi)
-        this.layout = buildLayoutFromCanteiros(canteiros, ativas)
+        const ocupacaoPorId = mapOcupacaoPorApiId(canteiros)
+        this.layout = buildLayoutFromPlantaSalva(plantaSalva, canteiros, ativas, ocupacaoPorId)
 
         this.metricas = {
           totalMudas: resumo.mudas_ativas ?? this.mudas.length,
@@ -92,9 +96,15 @@ export const useViveiroStore = defineStore('viveiro', {
         this.dadosAmbientais.alertas = buildAlertasFromPragas(pragas, canteiros, ativas)
         this.hidratado = true
       } catch (e) {
-        this.erro = e.response?.data?.detail || 'Não foi possível carregar o viveiro.'
+        console.error('[viveiro] falha ao carregar', e)
+        const detail = e.response?.data?.detail
+        this.erro =
+          (typeof detail === 'string' ? detail : null) ||
+          e.message ||
+          'Não foi possível carregar o viveiro.'
         this.layout = emptyLayout()
         this.mudas = []
+        this.hidratado = false
       } finally {
         this.carregando = false
       }

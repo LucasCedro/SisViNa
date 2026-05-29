@@ -61,6 +61,23 @@ async def avisos_liberar_venda(
     return avisos
 
 
+async def avisos_vender_planta(
+    db: AsyncSession,
+    planta: Planta,
+    data_entrada_rust: Optional[date] = None,
+) -> List[str]:
+    """Avisos ao registrar venda — não bloqueiam a operação."""
+    min_dias = await dias_minimos_rustificacao(db, planta.id_especie)
+    ref = data_entrada_rust or planta.data_inicio_estagio_atual or planta.data_plantio
+    dias = _dias_desde(ref)
+    if dias is not None and dias < min_dias:
+        cod = planta.codigo_rastreio or planta.id
+        return [
+            f"{cod}: {dias} dia(s) na rustificação — recomendado aguardar {min_dias} dia(s)."
+        ]
+    return []
+
+
 async def avisos_transferir_rustificacao(
     db: AsyncSession, planta: Planta
 ) -> List[str]:

@@ -10,6 +10,7 @@ from app.models.lotes_sementes import LoteSementes
 from app.models.especies import Especie
 from app.schemas.arvores_matriz import ArvoreMatrizCreate, ArvoreMatrizUpdate
 from app.utils.coordenadas import utm_para_latlon
+from app.utils.especies_display import formatar_nome_popular
 
 _CAMPOS_MATRIZ = (
     "nome",
@@ -55,7 +56,7 @@ def _para_resposta(arvore: ArvoreMatriz, total_coletas: int = 0, total_lotes: in
     especie = arvore.especie
     nome_especie = None
     if especie:
-        nome_especie = especie.nome_popular or especie.nome_cientifico
+        nome_especie = formatar_nome_popular(especie.nome_popular) or especie.nome_cientifico
     return {
         "id": arvore.id,
         "nome": arvore.nome,

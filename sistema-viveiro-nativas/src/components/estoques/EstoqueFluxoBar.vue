@@ -65,7 +65,7 @@ const colunas = computed(() => {
       step: '3',
       titulo: 'Rustificação',
       valor: p.em_rustificacao ?? 0,
-      hint: `${p.aptas_venda_aguardando_tempo ?? 0} aguardando prazo`,
+      hint: `${p.aptas_venda_aguardando_tempo ?? 0} abaixo prazo recom.`,
     },
     {
       id: 'venda',
@@ -73,7 +73,7 @@ const colunas = computed(() => {
       step: '4',
       titulo: 'Prontas p/ venda',
       valor: props.resumo?.total_mudas_aptas_venda ?? 0,
-      hint: `≥ ${p.dias_minimos_rustificacao ?? 30} dias na área`,
+      hint: `prazo recom. ${p.dias_minimos_rustificacao ?? 30} dias`,
     },
     {
       id: 'insumos',

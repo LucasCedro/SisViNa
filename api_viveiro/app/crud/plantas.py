@@ -170,7 +170,7 @@ async def update_planta(
     return db_planta
 
 DISPONIVEIS_VENDA = ("MUDA", "JOVEM", "ADULTA")
-ESTOQUE_VENDAVEL_ESTAGIO = APTA_VENDA
+ESTOQUE_EXPEDIVEL_ESTAGIO = APTA_VENDA
 
 
 async def get_estoque_resumo(db: AsyncSession) -> List[Dict[str, Any]]:
@@ -204,7 +204,7 @@ async def get_estoque_resumo(db: AsyncSession) -> List[Dict[str, Any]]:
                 "valor_unitario": float(row.valor_unitario or 0),
                 "localizacao": row.localizacao,
                 "status_predominante": row.status_predominante,
-                "estagio_comercial": ESTOQUE_VENDAVEL_ESTAGIO,
+                "estagio_comercial": ESTOQUE_EXPEDIVEL_ESTAGIO,
             }
         )
     return items

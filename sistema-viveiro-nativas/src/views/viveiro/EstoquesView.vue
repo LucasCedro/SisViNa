@@ -4,8 +4,7 @@
       <div>
         <h1 class="estoque-page-header__titulo">Estoques</h1>
         <p class="page-lead">
-          Sementes, insumos com custo (CMV) e mudas por estágio — do desenvolvimento até a venda após
-          rustificação.
+          Sementes, insumos com custo (CMV) e mudas por estágio — do desenvolvimento até a comercialização.
         </p>
       </div>
       <div class="estoque-page-header__acoes">
@@ -50,7 +49,7 @@
         <template #header>
           <div class="secao-titulo-wrap">
             <h2 class="secao-titulo">Mudas — estoque comercial</h2>
-            <p class="secao-sub">Prontas para venda após rustificação (referência Embrapa)</p>
+            <p class="secao-sub">Aptas para venda na área de rustificação</p>
           </div>
         </template>
         <EstoqueComercialPanel
@@ -225,8 +224,8 @@
         </template>
 
         <p class="estoque-info-box">
-          O tipo do local define onde as mudas entram no pipeline: sementeira → canteiro → rustificação.
-          Armazém é para sementes secas.
+          O tipo do local define onde as mudas entram no fluxo do sistema: sementeira → canteiro → rustificação.
+          Armazém é para sementes.
         </p>
 
         <div v-if="!locais.length" class="estoque-empty">
@@ -269,7 +268,7 @@
       <div class="estoque-modal" role="dialog" aria-labelledby="modal-sementes-titulo">
         <header class="estoque-modal__header">
           <h3 id="modal-sementes-titulo">Entrada de sementes</h3>
-          <p>Compra ou estoque guardado — sem vínculo obrigatório com coleta.</p>
+          <p>Compra ou estoque guardado</p>
         </header>
         <form class="estoque-modal__body estoque-form-grid" @submit.prevent="salvarEntrada">
           <label class="form-label">

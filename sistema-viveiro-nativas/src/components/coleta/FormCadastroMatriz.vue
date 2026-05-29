@@ -1,6 +1,12 @@
 <template>
-  <div v-if="aberto" class="modal-overlay" @click.self="fechar">
-    <div class="modal-card" role="dialog">
+  <div
+    v-if="aberto"
+    class="modal-overlay"
+    @pointerdown.self="onOverlayPointerDown"
+    @pointerup.self="onOverlayPointerUp"
+    @pointercancel.self="cancelarFechamentoOverlay"
+  >
+    <div class="modal-card" role="dialog" @pointerdown="onModalPointerDown">
       <header class="modal-header">
         <h2>{{ modoEdicao ? 'Editar árvore matriz' : 'Cadastrar árvore matriz' }}</h2>
         <button type="button" class="btn-fechar" @click="fechar">×</button>
@@ -89,45 +95,62 @@
         </fieldset>
 
         <fieldset class="coord-fieldset">
-          <legend>Tipo de coordenada</legend>
-          <label class="radio">
-            <input v-model="form.tipo_coordenada" type="radio" value="geografica" />
-            Geográficas (latitude / longitude)
-          </label>
-          <label class="radio">
-            <input v-model="form.tipo_coordenada" type="radio" value="utm" />
-            Cartesianas UTM (metros)
-          </label>
+          <legend>Localização da matriz</legend>
+
+          <MapaSeletorCoordenadas
+            ref="mapaRef"
+            :ativo="aberto"
+            :latitude="form.latitude"
+            :longitude="form.longitude"
+            :excluir-matriz-id="matriz?.id ?? null"
+            :utm-zona="form.utm_zona"
+            @update:latitude="form.latitude = $event"
+            @update:longitude="form.longitude = $event"
+            @coordenadas="aplicarCoordenadasMapa"
+          />
+
+          <div class="coord-tipo">
+            <span class="coord-tipo__label">Registrar também como:</span>
+            <label class="radio">
+              <input v-model="form.tipo_coordenada" type="radio" value="geografica" />
+              Graus decimais (lat/lng)
+            </label>
+            <label class="radio">
+              <input v-model="form.tipo_coordenada" type="radio" value="utm" />
+              UTM (metros)
+            </label>
+          </div>
+
+          <div v-if="form.tipo_coordenada === 'geografica'" class="field-row">
+            <label class="field">
+              Latitude
+              <input v-model.number="form.latitude" type="number" step="any" placeholder="-15.7801" />
+            </label>
+            <label class="field">
+              Longitude
+              <input v-model.number="form.longitude" type="number" step="any" placeholder="-47.9292" />
+            </label>
+          </div>
+
+          <div v-else class="utm-grid">
+            <label class="field">
+              Zona UTM
+              <input v-model.number="form.utm_zona" type="number" min="1" max="60" placeholder="22" />
+            </label>
+            <label class="field">
+              Easting (X)
+              <input v-model.number="form.utm_easting" type="number" step="any" />
+            </label>
+            <label class="field">
+              Northing (Y)
+              <input v-model.number="form.utm_northing" type="number" step="any" />
+            </label>
+            <p v-if="previewLatLng" class="preview-coord">
+              ≈ Lat {{ previewLatLng.latitude }}, Lng {{ previewLatLng.longitude }}
+            </p>
+          </div>
+          <p class="coord-ajuste">Ajuste fino nos campos acima ou marque direto no mapa.</p>
         </fieldset>
-
-        <div v-if="form.tipo_coordenada === 'geografica'" class="field-row">
-          <label class="field">
-            Latitude
-            <input v-model.number="form.latitude" type="number" step="any" required placeholder="-25.4284" />
-          </label>
-          <label class="field">
-            Longitude
-            <input v-model.number="form.longitude" type="number" step="any" required placeholder="-49.2733" />
-          </label>
-        </div>
-
-        <div v-else class="utm-grid">
-          <label class="field">
-            Zona UTM
-            <input v-model.number="form.utm_zona" type="number" min="1" max="60" required placeholder="22" />
-          </label>
-          <label class="field">
-            Easting (X)
-            <input v-model.number="form.utm_easting" type="number" step="any" required />
-          </label>
-          <label class="field">
-            Northing (Y)
-            <input v-model.number="form.utm_northing" type="number" step="any" required />
-          </label>
-          <p v-if="previewLatLng" class="preview-coord">
-            ≈ Lat {{ previewLatLng.latitude }}, Lng {{ previewLatLng.longitude }}
-          </p>
-        </div>
 
         <p class="dica-coleta">
           Coletas geram lotes rastreáveis. A taxa de germinação na matriz é atualizada pelos testes nos lotes.
@@ -152,17 +175,19 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 import { listEspecies } from '@/services/especies'
 import { useColetaStore } from '@/store/coleta'
-import { utmParaLatLng } from '@/utils/coordenadas'
+import MapaSeletorCoordenadas from '@/components/coleta/MapaSeletorCoordenadas.vue'
+import { utmParaLatLng, latLngParaUtm } from '@/utils/coordenadas'
 import { TIPOS_ORIGEM, ESTAGIOS_FRUTIFICACAO, MESES } from '@/constants/coletaDominio'
 
 const props = defineProps({
   aberto: { type: Boolean, default: false },
-  /** Se informado, abre em modo edição */
-  matriz: { type: Object, default: null }
+  matriz: { type: Object, default: null },
 })
+
+const mapaRef = ref(null)
 
 const emit = defineEmits(['fechar', 'salvo'])
 
@@ -237,6 +262,44 @@ const previewLatLng = computed(() => {
   }
 })
 
+function aplicarCoordenadasMapa({ latitude, longitude, utm }) {
+  form.value.latitude = latitude
+  form.value.longitude = longitude
+  if (form.value.tipo_coordenada === 'utm' && utm) {
+    form.value.utm_zona = utm.zona
+    form.value.utm_easting = utm.easting
+    form.value.utm_northing = utm.northing
+  }
+}
+
+watch(previewLatLng, (p) => {
+  if (p && form.value.tipo_coordenada === 'utm') {
+    form.value.latitude = p.latitude
+    form.value.longitude = p.longitude
+  }
+})
+
+watch(
+  () => form.value.tipo_coordenada,
+  (tipo) => {
+    if (
+      tipo === 'utm' &&
+      form.value.latitude != null &&
+      form.value.longitude != null &&
+      !Number.isNaN(form.value.latitude)
+    ) {
+      const u = latLngParaUtm(
+        form.value.latitude,
+        form.value.longitude,
+        form.value.utm_zona || undefined
+      )
+      form.value.utm_zona = u.zona
+      form.value.utm_easting = u.easting
+      form.value.utm_northing = u.northing
+    }
+  }
+)
+
 async function carregarEspecies() {
   if (especies.value.length) return
   carregandoEspecies.value = true
@@ -256,10 +319,33 @@ watch(
     erro.value = ''
     await carregarEspecies()
     preencherForm(props.matriz)
+    await nextTick()
+    mapaRef.value?.invalidate?.()
   }
 )
 
+/** Fecha só se pressionar e soltar no fundo escuro (evita fechar ao selecionar texto e soltar fora). */
+let overlayPress = false
+
+function onModalPointerDown() {
+  overlayPress = false
+}
+
+function onOverlayPointerDown() {
+  overlayPress = true
+}
+
+function onOverlayPointerUp() {
+  if (overlayPress) fechar()
+  overlayPress = false
+}
+
+function cancelarFechamentoOverlay() {
+  overlayPress = false
+}
+
 function fechar() {
+  overlayPress = false
   emit('fechar')
 }
 
@@ -300,10 +386,33 @@ function montarPayload() {
   return payload
 }
 
+function coordenadasValidas() {
+  if (form.value.tipo_coordenada === 'utm') {
+    const temUtm =
+      form.value.utm_zona && form.value.utm_easting != null && form.value.utm_northing != null
+    const temGeo =
+      form.value.latitude != null &&
+      form.value.longitude != null &&
+      !Number.isNaN(form.value.latitude) &&
+      !Number.isNaN(form.value.longitude)
+    return temUtm || temGeo
+  }
+  return (
+    form.value.latitude != null &&
+    form.value.longitude != null &&
+    !Number.isNaN(form.value.latitude) &&
+    !Number.isNaN(form.value.longitude)
+  )
+}
+
 async function salvar() {
   erro.value = ''
   if (!form.value.id_especie) {
     erro.value = 'Selecione uma espécie.'
+    return
+  }
+  if (!coordenadasValidas()) {
+    erro.value = 'Marque a posição no mapa ou preencha as coordenadas.'
     return
   }
   salvando.value = true
@@ -341,7 +450,7 @@ async function salvar() {
   background: var(--color-surface);
   border-radius: 12px;
   width: 100%;
-  max-width: 560px;
+  max-width: 640px;
   max-height: 92vh;
   overflow: auto;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
@@ -408,6 +517,27 @@ async function salvar() {
   font-size: 0.8125rem;
   font-weight: 600;
   padding: 0 0.25rem;
+}
+
+.coord-tipo {
+  margin: 0.75rem 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+}
+
+.coord-tipo__label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  width: 100%;
+}
+
+.coord-ajuste {
+  margin: 0.5rem 0 0;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
 }
 
 .radio {

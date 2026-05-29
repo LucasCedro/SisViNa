@@ -21,6 +21,7 @@ class VendaRecenteOut(BaseModel):
 class ProducaoResumoOut(BaseModel):
     sementes_armazem: int
     lotes_com_estoque: int
+    especies_armazem: int = 0
     na_sementeira: int
     em_desenvolvimento_sementeira: int
     aptas_transferencia: int

@@ -13,7 +13,9 @@
           <article class="metric-card">
             <strong class="metric-card__valor">{{ resumo?.sementes_armazem ?? 0 }}</strong>
             <span class="metric-card__label">Sementes disponíveis</span>
-            <span class="metric-card__meta">{{ resumo?.lotes_com_estoque ?? 0 }} lote(s)</span>
+            <span class="metric-card__meta">
+              {{ resumo?.lotes_com_estoque ?? 0 }} lote(s) · {{ resumo?.especies_armazem ?? 0 }} espécie(s)
+            </span>
           </article>
           <article class="metric-card metric-card--idade">
             <strong class="metric-card__valor">{{ formatDias(resumo?.dias_medios_armazem) }}</strong>
@@ -106,7 +108,7 @@
           <article class="metric-card metric-card--rust">
             <strong class="metric-card__valor">{{ resumo?.em_rustificacao ?? 0 }}</strong>
             <span class="metric-card__label">Em rustificação</span>
-            <span class="metric-card__meta">(mín. 30 dias)</span>
+            <span class="metric-card__meta">(recom. 30 dias)</span>
             <ul v-if="resumo?.por_especie_rustificacao?.length" class="especies-mini">
               <li v-for="e in resumo.por_especie_rustificacao.slice(0, 4)" :key="'r-' + e.id_especie">
                 <span>{{ e.especie }}</span>

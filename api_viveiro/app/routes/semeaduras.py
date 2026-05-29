@@ -1,6 +1,7 @@
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.jwt import get_current_user
@@ -40,6 +41,11 @@ async def criar_semeadura(
         return await crud.create_semeadura(db, payload, current_user.id)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
+    except IntegrityError as e:
+        raise HTTPException(
+            status_code=409,
+            detail="Conflito ao criar plantas (código de rastreio duplicado). Tente novamente.",
+        ) from e
 
 
 @router.get("/rastreabilidade/planta/{planta_id}", response_model=RastreabilidadePlantaOut)

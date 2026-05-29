@@ -27,12 +27,18 @@
     </aside>
 
     <aside v-else class="estoque-resumo-bar">
-      <span><strong>{{ estoqueResumo.total }}</strong> mudas vendáveis</span>
+      <span><strong>{{ estoqueResumo.total }}</strong> mudas expedíveis</span>
       <span>{{ estoqueResumo.especies }} espécie(s) com estoque</span>
       <router-link to="/estoques">Ver estoque comercial →</router-link>
     </aside>
 
     <p v-if="erro" class="alert-erro">{{ erro }}</p>
+    <aside v-if="avisoVenda.length" class="aviso-estoque aviso-estoque--warn">
+      <strong>Venda registrada — avisos de manejo</strong>
+      <ul class="aviso-lista">
+        <li v-for="(a, i) in avisoVenda" :key="i">{{ a }}</li>
+      </ul>
+    </aside>
     <p v-if="carregando" class="status-msg">Carregando…</p>
 
     <div v-else class="tabela-wrap">
@@ -137,6 +143,10 @@
             Observações
             <textarea v-model="formVenda.observacoes" rows="2" />
           </label>
+
+          <p class="field-hint field-hint--info">
+            Recomendação de pelo menos 30 dias na rustificação.
+          </p>
         </template>
 
         <div class="dialog-actions">
@@ -172,6 +182,7 @@ const historico = ref([])
 const compradores = ref([])
 const pipeline = ref(null)
 const dialogVenda = ref(null)
+const avisoVenda = ref([])
 
 const formVenda = ref({
   data: new Date().toISOString().split('T')[0],
@@ -288,15 +299,16 @@ async function salvarVenda() {
       valor_unitario: valorUnit,
       desconto: 0,
     }))
-    await createVenda({
+    const res = await createVenda({
       id_comprador: Number(formVenda.value.idComprador),
       id_funcionario: auth.user.id,
-      data_venda: new Date(formVenda.value.data + 'T12:00:00').toISOString(),
+      data_venda: `${formVenda.value.data}T12:00:00`,
       forma_pagamento: formVenda.value.formaPagamento,
       status: 'PAGO',
       observacoes: formVenda.value.observacoes,
       itens,
     })
+    avisoVenda.value = res.avisos?.length ? res.avisos : []
     fecharDialog()
     await carregar()
   } catch (e) {
@@ -388,6 +400,11 @@ function formatarData(d) {
 .aviso-estoque a {
   color: var(--color-primary);
   font-weight: 600;
+}
+
+.aviso-estoque--warn {
+  background: #fff8e6;
+  border-color: #e6a817;
 }
 
 .aviso-lista {

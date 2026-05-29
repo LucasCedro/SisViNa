@@ -20,7 +20,7 @@ MANUAL_LISTA_90 = """
 2. Albizia niopoides (Spruce ex Benth.) Burkart – Farinha-seca 34
 3. Alibertia edulis (Rich.) A.Rich. – Marmelada-de-bezerro 35
 4. Anacardium humile A. St. -Hil. – Cajuzinho-do-cerrado 36
-5. Anadenanthera colubrina (Vell.) Brenan – Angico-vermelho, angico-branco 37
+5. Anadenanthera colubrina (Vell.) Brenan – Angico vermelho 37
 6. Anadenanthera peregrina (L.) Speg. – Angico-preto 38
 7. Annona coriacea Mart. – Marolo-do-cerrado 39
 8. Annona crassiflora Mart. – Araticum-do-cerrado 40

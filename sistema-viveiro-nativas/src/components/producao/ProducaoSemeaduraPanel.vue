@@ -168,7 +168,11 @@ async function salvar() {
     form.value.id_lote_sementes = null
     emit('atualizado')
   } catch (e) {
-    erro.value = e.response?.data?.detail || 'Erro ao registrar semeadura.'
+    const detail = e.response?.data?.detail
+    erro.value =
+      (typeof detail === 'string' ? detail : Array.isArray(detail) ? detail.map((d) => d.msg || d).join(' · ') : null) ||
+      (e.message?.includes('Network Error') ? 'Falha de conexão com a API. Verifique se o backend está no ar.' : null) ||
+      'Erro ao registrar semeadura.'
   } finally {
     salvando.value = false
   }

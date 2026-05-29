@@ -138,6 +138,15 @@ async def get_producao_resumo(db: AsyncSession) -> Dict[str, Any]:
         )
     ).scalar() or 0
 
+    especies_armazem = (
+        await db.execute(
+            select(func.count(func.distinct(LoteSementes.id_especie))).where(
+                LoteSementes.status == "ativo",
+                LoteSementes.quantidade_disponivel > 0,
+            )
+        )
+    ).scalar() or 0
+
     na_sementeira = await _contar_plantas(
         db, statuses=("SEMENTE",), tipo_canteiro="sementeira"
     )
@@ -356,6 +365,7 @@ async def get_producao_resumo(db: AsyncSession) -> Dict[str, Any]:
     return {
         "sementes_armazem": int(sementes_armazem),
         "lotes_com_estoque": int(lotes_com_estoque),
+        "especies_armazem": int(especies_armazem),
         "na_sementeira": int(na_sementeira),
         "em_desenvolvimento_sementeira": int(em_desenvolvimento_sementeira),
         "aptas_transferencia": int(aptas_transferencia),

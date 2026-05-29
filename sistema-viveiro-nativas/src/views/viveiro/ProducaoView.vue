@@ -95,7 +95,7 @@ const blocosFluxo = computed(() => {
       titulo: 'Armazém',
       valorTotal: r.sementes_armazem,
       valorSufixo: 'Sementes',
-      subtitulo: `${r.lotes_com_estoque} lote(s)`,
+      subtitulo: `${r.lotes_com_estoque} lote(s) · ${r.especies_armazem ?? 0} espécie(s)`,
     },
     {
       id: 'sementeira',
