@@ -14,6 +14,7 @@ from app.models.lotes_sementes import LoteSementes
 from app.models.testes_sementes import TesteSementes
 from app.models.semeaduras import Semeadura
 from app.models.lancamentos_financeiros import LancamentoFinanceiro
+from app.models.financeiro_premissa import FinanceiroPremissa
 from app.models.transferencias_plantas import TransferenciaPlanta
 from app.models.referencia_viveiro import ViveiroRegraGlobal, EspecieFichaEmbrapa
 from app.models.especie_biblioteca import EspecieBiblioteca

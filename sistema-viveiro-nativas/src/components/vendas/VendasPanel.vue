@@ -2,7 +2,6 @@
   <div class="vendas-panel">
     <header class="sec-header">
       <div>
-        <h2 class="sec-titulo">Vendas</h2>
         <p class="sec-lead">
           Registro comercial — dá baixa no estoque (planta → VENDIDA) e gera receita.
           Estoque disponível vem de <router-link to="/estoques">Estoques</router-link>.
@@ -168,7 +167,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '@/store/auth'
-import { getEstoqueResumo, listPlantasDisponiveisVenda } from '@/services/plantas'
+import { getEstoqueResumo } from '@/services/plantas'
 import { getProducaoResumo } from '@/services/producao'
 import { listVendas, createVenda } from '@/services/vendas'
 import { listCompradores } from '@/services/compradores'
@@ -284,21 +283,7 @@ async function salvarVenda() {
   }
   salvando.value = true
   try {
-    const plantas = await listPlantasDisponiveisVenda(
-      especieSelecionada.value.id_especie,
-      Math.max(formVenda.value.quantidade, 500)
-    )
-    if (plantas.length < formVenda.value.quantidade) {
-      alert('Estoque insuficiente — atualize a página e tente de novo.')
-      return
-    }
     const valorUnit = especieSelecionada.value.valorUnitario
-    const itens = plantas.slice(0, formVenda.value.quantidade).map((p) => ({
-      id_planta: p.id,
-      quantidade: 1,
-      valor_unitario: valorUnit,
-      desconto: 0,
-    }))
     const res = await createVenda({
       id_comprador: Number(formVenda.value.idComprador),
       id_funcionario: auth.user.id,
@@ -306,7 +291,14 @@ async function salvarVenda() {
       forma_pagamento: formVenda.value.formaPagamento,
       status: 'PAGO',
       observacoes: formVenda.value.observacoes,
-      itens,
+      itens_por_especie: [
+        {
+          id_especie: especieSelecionada.value.id_especie,
+          quantidade: formVenda.value.quantidade,
+          valor_unitario: valorUnit,
+          desconto: 0,
+        },
+      ],
     })
     avisoVenda.value = res.avisos?.length ? res.avisos : []
     fecharDialog()
@@ -335,12 +327,6 @@ function formatarData(d) {
   gap: var(--spacing-md);
   margin-bottom: var(--spacing-lg);
   flex-wrap: wrap;
-}
-
-.sec-titulo {
-  margin: 0 0 0.35rem;
-  font-size: 1.25rem;
-  font-weight: 700;
 }
 
 .sec-lead {

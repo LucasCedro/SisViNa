@@ -1,7 +1,18 @@
 <template>
   <aside class="sidebar">
     <div class="sidebar-header">
-      <h2 class="sidebar-title">Viveiro Nativas</h2>
+      <router-link to="/" class="sidebar-brand" aria-label="Brotare — início">
+        <img
+          src="/assets/branding/logo_comp_verde.jpg"
+          alt="Brotare"
+          class="sidebar-brand__logo sidebar-brand__logo--full"
+        />
+        <img
+          src="/assets/branding/logo_simp.jpg"
+          alt="Brotare"
+          class="sidebar-brand__logo sidebar-brand__logo--compact"
+        />
+      </router-link>
     </div>
     <nav class="sidebar-nav">
       <router-link
@@ -39,7 +50,7 @@ const ICON_CHARS = {
 const { can } = usePermissions()
 
 const itensVisiveis = computed(() =>
-  NAV_ITEMS.filter((item) => can(item.permission)).map((item) => ({
+  NAV_ITEMS.filter((item) => !item.hiddenInMenu && can(item.permission)).map((item) => ({
     ...item,
     iconChar: ICON_CHARS[item.icon] || '•',
   }))
@@ -58,15 +69,26 @@ const itensVisiveis = computed(() =>
 }
 
 .sidebar-header {
-  padding: var(--spacing-lg);
+  padding: var(--spacing-md) var(--spacing-lg);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.sidebar-title {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: var(--color-sidebar-text-active);
-  letter-spacing: -0.01em;
+.sidebar-brand {
+  display: block;
+  line-height: 0;
+  text-decoration: none;
+}
+
+.sidebar-brand__logo {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius-md);
+}
+
+.sidebar-brand__logo--compact {
+  display: none;
 }
 
 .sidebar-nav {
@@ -109,8 +131,14 @@ const itensVisiveis = computed(() =>
     min-width: 60px;
   }
 
-  .sidebar-title {
+  .sidebar-brand__logo--full {
     display: none;
+  }
+
+  .sidebar-brand__logo--compact {
+    display: block;
+    width: 2.25rem;
+    border-radius: var(--radius-full);
   }
 
   .nav-item span:not(.nav-icon) {

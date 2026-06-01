@@ -1,12 +1,13 @@
 from typing import Any, Dict, List, Optional
 
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud import plantas as crud_plantas
 from app.crud.lotes_sementes import get_lotes
 from app.crud.plantas_estoque import contar_mudas_pipeline
 from app.models.insumos import Insumo
+from app.models.plantas import Planta
 
 
 def _alerta_insumo(insumo: Insumo) -> Optional[str]:
@@ -60,6 +61,8 @@ async def get_resumo_estoques(db: AsyncSession) -> Dict[str, Any]:
             "nome_cientifico": e["nome_cientifico"],
             "quantidade": e["quantidade"],
             "valor_unitario": e["valor_unitario"],
+            "custo_medio": e.get("custo_medio", 0),
+            "valor_estoque_especie": e.get("valor_estoque_especie", 0),
             "localizacao": e.get("localizacao"),
             "status_predominante": e.get("status_predominante"),
             "estagio_comercial": e.get("estagio_comercial", "apta_venda"),
@@ -67,6 +70,17 @@ async def get_resumo_estoques(db: AsyncSession) -> Dict[str, Any]:
         for e in estoque_comercial_raw
     ]
     total_mudas_aptas_venda = sum(e["quantidade"] for e in estoque_comercial)
+
+    valor_mudas_vivas = float(
+        (
+            await db.execute(
+                select(func.coalesce(func.sum(Planta.custo_atual), 0)).where(
+                    Planta.status.notin_(("VENDIDA", "MORTA"))
+                )
+            )
+        ).scalar()
+        or 0
+    )
 
     return {
         "total_lotes_sementes_ativos": len(lotes_ativos),
@@ -78,6 +92,7 @@ async def get_resumo_estoques(db: AsyncSession) -> Dict[str, Any]:
         "total_insumos": len(insumos),
         "total_mudas_aptas_venda": int(total_mudas_aptas_venda),
         "valor_total_insumos": valor_total_insumos,
+        "valor_total_mudas": valor_mudas_vivas,
         "mudas_pipeline": pipeline,
         "estoque_comercial": estoque_comercial,
         "lotes_sementes": [
@@ -90,6 +105,8 @@ async def get_resumo_estoques(db: AsyncSession) -> Dict[str, Any]:
                 "matriz_nome": l.get("matriz_nome"),
                 "quantidade_disponivel": l["quantidade_disponivel"],
                 "quantidade_inicial": l["quantidade_inicial"],
+                "valor_total": l.get("valor_total"),
+                "custo_unitario": l.get("custo_unitario"),
                 "status": l["status"],
                 "condicoes_armazenamento": l.get("condicoes_armazenamento"),
             }

@@ -2,7 +2,12 @@
     <header class="app-header">
         <div class="header-content">
             <h1 v-if="!hideTitle" class="page-title">{{ title }}</h1>
-            <span v-else class="page-title page-title--subtle">SisViNa</span>
+            <img
+                v-else
+                src="/assets/branding/logo_simp.jpg"
+                alt="Brotare"
+                class="header-brand-logo"
+            />
             <div class="header-actions">
                 <span v-if="auth.user" class="user-label">{{ auth.user.nome }}</span>
                 <button v-if="auth.isAuthenticated" type="button" class="logout-btn" @click="onLogout">
@@ -84,6 +89,13 @@ function onLogout() {
     font-size: 1rem;
     font-weight: 500;
     color: var(--color-text-muted);
+}
+
+.header-brand-logo {
+    display: block;
+    height: 2.25rem;
+    width: auto;
+    object-fit: contain;
 }
 
 .header-actions {

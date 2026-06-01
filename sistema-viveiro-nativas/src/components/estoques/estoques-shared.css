@@ -8,11 +8,12 @@
   gap: var(--spacing-md);
 }
 
-.estoque-page-header__titulo {
-  margin: 0 0 0.35rem;
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--color-text-primary);
+.page-lead {
+  margin: 0;
+  font-size: 0.9375rem;
+  color: var(--color-text-secondary);
+  max-width: 42rem;
+  line-height: 1.45;
 }
 
 .estoque-page-header__acoes {

@@ -45,6 +45,11 @@ class SemeaduraOut(BaseModel):
     funcionario_nome: str
     data_registro: datetime
     plantas_vinculadas: int = 0
+    custo_sementes: float = 0
+    custo_insumos: float = 0
+    custo_indireto: float = 0
+    custo_total: float = 0
+    custo_unitario_muda: Optional[float] = None
 
     class Config:
         orm_mode = True

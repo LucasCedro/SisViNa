@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, Date, DateTime, ForeignKey, func
+from sqlalchemy import Column, Integer, String, Text, Date, DateTime, ForeignKey, Numeric, func
 from sqlalchemy.orm import relationship
 
 from app.database import Base
@@ -15,6 +15,8 @@ class LoteSementes(Base):
     id_especie = Column(Integer, ForeignKey("especies.id"), nullable=False)
     quantidade_inicial = Column(Integer, nullable=False)
     quantidade_disponivel = Column(Integer, nullable=False)
+    valor_total = Column(Numeric(14, 2))
+    custo_unitario = Column(Numeric(12, 4))
     data_formacao_lote = Column(Date, nullable=False)
     beneficiamento = Column(Text)
     condicoes_armazenamento = Column(Text)

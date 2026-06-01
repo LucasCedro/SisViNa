@@ -2,7 +2,6 @@
   <PageLayout full-height>
     <header class="viveiro-page-header">
       <div>
-        <h1 class="page-title">Viveiro</h1>
         <p class="page-desc">
           Planta baixa integrada à produção — clique em uma área para ver ocupação e mudas.
         </p>
@@ -24,6 +23,9 @@
         </button>
         <button type="button" class="guia" :class="{ ativa: guiaAtiva === 'cadastro' }" @click="guiaAtiva = 'cadastro'">
           Cadastro de mudas
+        </button>
+        <button type="button" class="guia" :class="{ ativa: guiaAtiva === 'locais' }" @click="guiaAtiva = 'locais'">
+          Locais
         </button>
       </nav>
 
@@ -76,9 +78,11 @@
         </aside>
       </div>
 
-      <section v-else class="cadastro-panel">
+      <section v-else-if="guiaAtiva === 'cadastro'" class="cadastro-panel">
         <CadastroMudas />
       </section>
+
+      <ViveiroLocaisPanel v-else-if="guiaAtiva === 'locais'" />
     </template>
   </PageLayout>
 </template>
@@ -92,6 +96,7 @@ import PainelDetalhes from '@/components/viveiro/PainelDetalhes.vue'
 import CadastroMudas from '@/components/viveiro/CadastroMudas.vue'
 import ViveiroResumoKpis from '@/components/viveiro/ViveiroResumoKpis.vue'
 import ViveiroAlertasLista from '@/components/viveiro/ViveiroAlertasLista.vue'
+import ViveiroLocaisPanel from '@/components/viveiro/ViveiroLocaisPanel.vue'
 import { useViveiroStore } from '@/store/viveiro'
 
 const store = useViveiroStore()
@@ -117,15 +122,8 @@ onMounted(() => store.carregar())
   padding-top: var(--spacing-md);
 }
 
-.page-title {
-  margin: 0;
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--color-text-primary);
-}
-
 .page-desc {
-  margin: 0.35rem 0 0;
+  margin: 0;
   font-size: 0.9375rem;
   color: var(--color-text-secondary);
   max-width: 42rem;

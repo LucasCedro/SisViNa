@@ -20,10 +20,8 @@
     </div>
 
     <p class="estoque-info-box">
-      Mudas <strong>aptas para venda</strong> na rustificação. O prazo de {{ diasRust }} dias é
-      <strong>recomendado</strong>, não obrigatório — mudas abaixo desse prazo aparecem com aviso.
-      Preços editáveis por espécie; a baixa ocorre em
-      <router-link to="/vendas">Vendas</router-link>.
+      Mudas <strong>aptas para venda</strong>. <strong>Custo méd.</strong> = custo acumulado por lote/atividades;
+      <strong>preço</strong> = tabela de venda. Custeio inicial na semeadura (Financeiro → Premissas).
     </p>
 
     <div v-if="!items.length" class="estoque-empty">
@@ -47,7 +45,9 @@
           <tr>
             <th>Espécie</th>
             <th class="col-num">Quantidade</th>
-            <th class="col-num">Preço unit.</th>
+            <th class="col-num">Preço venda</th>
+            <th class="col-num">Custo méd.</th>
+            <th class="col-num">Valor estoque</th>
             <th>Local</th>
             <th>Status</th>
             <th class="col-acoes"></th>
@@ -67,6 +67,8 @@
               <span class="estoque-qtd-destaque">{{ item.quantidade }}</span>
             </td>
             <td class="col-num">R$ {{ item.valorUnitario.toFixed(2) }}</td>
+            <td class="col-num">R$ {{ item.custoMedio.toFixed(2) }}</td>
+            <td class="col-num">R$ {{ item.valorEstoque.toFixed(2) }}</td>
             <td>{{ item.localizacao }}</td>
             <td><span class="estoque-tag estoque-tag--ok">{{ item.tamanho }}</span></td>
             <td class="col-acoes">
@@ -137,6 +139,8 @@ const mappedItems = computed(() =>
     nomeCientifico: e.nome_cientifico,
     quantidade: e.quantidade,
     valorUnitario: Number(e.valor_unitario) || 0,
+    custoMedio: Number(e.custo_medio) || 0,
+    valorEstoque: Number(e.valor_estoque_especie) || 0,
     localizacao: e.localizacao || '—',
     tamanho: e.status_predominante || 'MUDA',
   }))

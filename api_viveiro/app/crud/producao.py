@@ -347,7 +347,7 @@ async def get_producao_resumo(db: AsyncSession) -> Dict[str, Any]:
         .order_by(Venda.data_venda.desc())
         .limit(8)
     )
-    vendas_rows = (await db.execute(vendas_q)).scalars().all()
+    vendas_rows = (await db.execute(vendas_q)).unique().scalars().all()
     vendas_recentes = []
     for v in vendas_rows:
         comprador_nome = v.comprador.nome if v.comprador else None

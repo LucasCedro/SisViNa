@@ -183,6 +183,8 @@ async def get_estoque_resumo(db: AsyncSession) -> List[Dict[str, Any]]:
             Especie.nome_cientifico,
             func.count(Planta.id).label("quantidade"),
             func.avg(Planta.preco_venda).label("valor_unitario"),
+            func.avg(Planta.custo_atual).label("custo_medio"),
+            func.sum(Planta.custo_atual).label("valor_estoque_especie"),
             func.min(Canteiro.nome).label("localizacao"),
             func.max(Planta.status).label("status_predominante"),
         )
@@ -202,6 +204,8 @@ async def get_estoque_resumo(db: AsyncSession) -> List[Dict[str, Any]]:
                 "nome_cientifico": row.nome_cientifico,
                 "quantidade": int(row.quantidade or 0),
                 "valor_unitario": float(row.valor_unitario or 0),
+                "custo_medio": float(row.custo_medio or 0),
+                "valor_estoque_especie": float(row.valor_estoque_especie or 0),
                 "localizacao": row.localizacao,
                 "status_predominante": row.status_predominante,
                 "estagio_comercial": ESTOQUE_EXPEDIVEL_ESTAGIO,
@@ -711,6 +715,9 @@ async def cadastro_lote_plantas(
 
     for i in range(payload.quantidade):
         codigo = f"{prefixo}-{payload.id_especie}-{date.today().year}-{i + 1:04d}"[:20]
+        cu = 0.0
+        if payload.origem == "compra" and payload.custo_unitario_compra is not None:
+            cu = float(payload.custo_unitario_compra)
         db_planta = Planta(
             id_especie=payload.id_especie,
             id_canteiro=payload.id_canteiro,
@@ -727,6 +734,8 @@ async def cadastro_lote_plantas(
             ),
             origem=payload.origem,
             preco_venda=payload.preco_venda,
+            custo_inicial=cu if cu > 0 else None,
+            custo_atual=cu,
             observacoes=payload.observacoes,
         )
         db.add(db_planta)

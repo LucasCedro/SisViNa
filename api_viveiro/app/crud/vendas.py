@@ -12,7 +12,7 @@ from app.models.plantas import Planta
 from app.models.especies import Especie
 from app.models.canteiros import Canteiro
 from app.constants.estagios_producao import APTA_VENDA
-from app.schemas.vendas import VendaCreate, VendaUpdate, ItemVendaCreate, ItemVendaUpdate
+from app.schemas.vendas import VendaCreate, VendaUpdate, ItemVendaCreate, ItemVendaUpdate, ItemVendaPorEspecieCreate
 from app.services.validacao_producao import avisos_vender_planta
 
 # Funções CRUD para Venda
@@ -170,73 +170,97 @@ async def get_vendas(
     
     return vendas
 
+
+async def _validar_planta_para_venda(db: AsyncSession, planta: Planta) -> None:
+    cod = planta.codigo_rastreio or planta.id
+    if planta.status == "VENDIDA":
+        raise ValueError(f"Planta {cod} já foi vendida")
+    if planta.status == "MORTA":
+        raise ValueError(f"Planta {cod} está morta")
+    if planta.status not in ("MUDA", "JOVEM", "ADULTA"):
+        raise ValueError(f"Planta {cod} não está em fase comercializável")
+    if planta.estagio_producao != APTA_VENDA:
+        raise ValueError(f"Planta {cod} ainda não está apta para venda")
+    if planta.id_canteiro:
+        cant = await db.get(Canteiro, planta.id_canteiro)
+        if cant and cant.tipo_local != "rustificacao":
+            raise ValueError(f"Planta {cod} não está em local comercializável")
+
+
+async def _resolver_itens_por_especie(
+    db: AsyncSession, linhas: List[ItemVendaPorEspecieCreate]
+) -> List[ItemVendaCreate]:
+    from app.crud.plantas import listar_plantas_disponiveis_venda
+
+    itens: List[ItemVendaCreate] = []
+    for linha in linhas:
+        plantas = await listar_plantas_disponiveis_venda(
+            db, id_especie=linha.id_especie, limit=linha.quantidade
+        )
+        if len(plantas) < linha.quantidade:
+            raise ValueError(
+                f"Estoque insuficiente para a espécie {linha.id_especie}: "
+                f"solicitado {linha.quantidade}, disponível {len(plantas)}"
+            )
+        for planta in plantas[: linha.quantidade]:
+            itens.append(
+                ItemVendaCreate(
+                    id_planta=planta.id,
+                    quantidade=1,
+                    valor_unitario=linha.valor_unitario,
+                    desconto=linha.desconto or 0,
+                )
+            )
+    return itens
+
+
 async def create_venda(db: AsyncSession, venda: VendaCreate) -> Dict[str, Any]:
-    # Verificar se há itens na venda
-    if not venda.itens or len(venda.itens) == 0:
+    if venda.itens_por_especie:
+        itens = await _resolver_itens_por_especie(db, venda.itens_por_especie)
+    elif venda.itens:
+        itens = venda.itens
+    else:
         raise ValueError("A venda deve conter pelo menos um item")
 
-    ids_plantas = [item.id_planta for item in venda.itens]
+    ids_plantas = [item.id_planta for item in itens]
     if len(ids_plantas) != len(set(ids_plantas)):
         raise ValueError("A mesma planta não pode aparecer mais de uma vez na venda")
 
-    # Calcular valor total da venda
+    # Validar todas as plantas ANTES de inserir itens (trigger do BD marca VENDIDA no INSERT).
+    avisos_venda: List[str] = []
+    custos_planta: Dict[int, float] = {}
+    for item in itens:
+        planta = await db.get(Planta, item.id_planta)
+        if not planta:
+            raise ValueError(f"Planta {item.id_planta} não encontrada")
+        await _validar_planta_para_venda(db, planta)
+        custos_planta[item.id_planta] = float(planta.custo_atual or 0)
+        for aviso in await avisos_vender_planta(db, planta):
+            if aviso not in avisos_venda:
+                avisos_venda.append(aviso)
+
     valor_total = 0.0
     itens_dict = []
-    
-    for item in venda.itens:
+    for item in itens:
         valor_item = (item.valor_unitario * item.quantidade) - (item.desconto or 0)
         valor_total += valor_item
-        
         item_dict = item.dict()
         item_dict["valor_total"] = valor_item
+        item_dict["custo_unitario"] = custos_planta.get(item.id_planta, 0)
         itens_dict.append(item_dict)
-    
-    # Criar objeto venda
-    venda_dict = venda.dict(exclude={"itens"})
+
+    venda_dict = venda.dict(exclude={"itens", "itens_por_especie"})
     venda_dict["valor_total"] = valor_total
-    
+
     db_venda = Venda(**venda_dict)
     db.add(db_venda)
     await db.flush()
 
-    avisos_venda: List[str] = []
-    
-    # Adicionar itens da venda
     for item_dict in itens_dict:
         item_dict["id_venda"] = db_venda.id
-        db_item = ItemVenda(**item_dict)
-        db.add(db_item)
-        
-        # Atualizar status da planta para VENDIDA
-        planta_query = select(Planta).where(Planta.id == item_dict["id_planta"])
-        planta_result = await db.execute(planta_query)
-        planta = planta_result.scalars().first()
-        
-        if not planta:
-            raise ValueError(f"Planta {item_dict['id_planta']} não encontrada")
-        if planta.status == "VENDIDA":
-            raise ValueError(f"Planta {planta.codigo_rastreio or planta.id} já foi vendida")
-        if planta.status == "MORTA":
-            raise ValueError(f"Planta {planta.codigo_rastreio or planta.id} está morta")
-        if planta.status not in ("MUDA", "JOVEM", "ADULTA"):
-            raise ValueError(
-                f"Planta {planta.codigo_rastreio or planta.id} não está em fase comercializável"
-            )
-        if planta.estagio_producao != APTA_VENDA:
-            raise ValueError(
-                f"Planta {planta.codigo_rastreio or planta.id} ainda não está apta para venda"
-            )
-        if planta.id_canteiro:
-            cant = await db.get(Canteiro, planta.id_canteiro)
-            if cant and cant.tipo_local != "rustificacao":
-                raise ValueError(
-                    f"Planta {planta.codigo_rastreio or planta.id} não está em local comercializável"
-                )
-        for aviso in await avisos_vender_planta(db, planta):
-            if aviso not in avisos_venda:
-                avisos_venda.append(aviso)
-        planta.status = "VENDIDA"
-    
+        db.add(ItemVenda(**item_dict))
+        # Status VENDIDA: trigger trigger_atualizar_status_planta_vendida (itens_venda).
+
     await db.commit()
     await db.refresh(db_venda)
     

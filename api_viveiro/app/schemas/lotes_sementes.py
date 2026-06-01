@@ -29,6 +29,7 @@ class LoteSementesUpdate(BaseModel):
 class LoteSementesEntradaArmazem(BaseModel):
     id_especie: int
     quantidade: int
+    valor_total: Optional[float] = Field(None, ge=0, description="Valor pago na compra/entrada do lote")
     id_arvore_matriz: Optional[int] = None
     codigo_lote: Optional[str] = None
     origem_lote: str = "armazem"
@@ -48,6 +49,8 @@ class LoteSementesOut(BaseModel):
     especie_nome: Optional[str] = None
     quantidade_inicial: int
     quantidade_disponivel: int
+    valor_total: Optional[float] = None
+    custo_unitario: Optional[float] = None
     data_formacao_lote: date
     data_coleta: Optional[date] = None
     beneficiamento: Optional[str] = None

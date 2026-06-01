@@ -161,6 +161,29 @@ def _recalcular_preco_medio(
     return nova_qtd, novo_valor / nova_qtd
 
 
+async def baixar_insumo_por_media_movel(
+    db: AsyncSession, insumo_id: int, quantidade: float
+) -> float:
+    """Baixa estoque pelo custo médio móvel. Retorna o valor (R$) da baixa."""
+    insumo = await get_insumo(db, insumo_id)
+    if not insumo:
+        raise ValueError(f"Insumo {insumo_id} não encontrado")
+    qtd_atual = float(insumo.quantidade_estoque or 0)
+    valor_atual = float(insumo.valor_estoque or 0)
+    if valor_atual <= 0 and insumo.preco_unitario:
+        valor_atual = qtd_atual * float(insumo.preco_unitario)
+    if quantidade > qtd_atual:
+        raise ValueError("Quantidade maior que estoque disponível")
+    preco_medio = (valor_atual / qtd_atual) if qtd_atual > 0 else float(insumo.preco_unitario or 0)
+    custo_baixa = round(quantidade * preco_medio, 2)
+    saldo = qtd_atual - quantidade
+    insumo.quantidade_estoque = saldo
+    insumo.valor_estoque = round(saldo * preco_medio, 2) if saldo > 0 else 0
+    if saldo <= 0:
+        insumo.preco_unitario = 0
+    return custo_baixa
+
+
 async def registrar_movimentacao(
     db: AsyncSession, insumo_id: int, payload: InsumoMovimentacaoCreate
 ) -> Optional[InsumoMovimentacao]:

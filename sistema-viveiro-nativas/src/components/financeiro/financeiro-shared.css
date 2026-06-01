@@ -1,0 +1,310 @@
+.financeiro-page {
+  @apply w-full max-w-7xl mx-auto p-4 md:p-6 bg-surface min-h-[calc(100vh-64px)];
+}
+
+.financeiro-toolbar {
+  @apply flex flex-wrap items-end justify-between gap-4 mb-6;
+}
+
+.financeiro-toolbar__periodo {
+  @apply flex flex-wrap gap-4;
+}
+
+.field-inline {
+  @apply flex flex-col gap-1 text-sm;
+}
+
+.field-inline span {
+  @apply text-text-secondary font-medium;
+}
+
+.field-inline select {
+  @apply py-1.5 px-3 border border-primary-100 rounded-md bg-surface text-sm focus:outline-none focus:ring-2 focus:ring-primary;
+}
+
+.financeiro-lead {
+  @apply text-sm text-text-secondary mb-6 max-w-3xl;
+}
+
+.fin-sec {
+  @apply mb-10 pb-8 border-b border-primary-100 last:border-0;
+}
+
+.fin-sec__titulo {
+  @apply text-lg font-semibold text-text-primary mb-4;
+}
+
+.fin-sub {
+  @apply text-sm font-semibold text-text-secondary mb-3;
+}
+
+.fin-empty {
+  @apply text-sm text-text-muted py-4;
+}
+
+/* DRE */
+.dre-flow {
+  @apply flex flex-col gap-2 mb-6 max-w-xl;
+}
+
+.dre-linha {
+  @apply flex flex-wrap items-baseline gap-x-3 gap-y-1 py-2 px-3 rounded-lg bg-primary-50/50;
+}
+
+.dre-linha--receita { @apply bg-emerald-50/80; }
+.dre-linha--custo { @apply bg-amber-50/60; }
+.dre-linha--destaque { @apply bg-primary-50 border border-primary-100; }
+.dre-linha--resultado { @apply bg-surface border-2 border-primary font-medium; }
+
+.dre-linha__label {
+  @apply flex-1 text-sm text-text-secondary min-w-[12rem];
+}
+
+.dre-linha__valor {
+  @apply text-base font-bold text-text-primary;
+}
+
+.dre-linha__meta {
+  @apply w-full text-xs text-text-muted pl-0 sm:pl-[calc(12rem+0.75rem)];
+}
+
+.positivo { @apply text-emerald-700; }
+.negativo { @apply text-red-700; }
+
+/* KPIs */
+.kpi-grid {
+  @apply grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6;
+}
+
+.kpi-grid--4 {
+  @apply sm:grid-cols-2 lg:grid-cols-4;
+}
+
+.kpi-card {
+  @apply bg-surface border border-primary-100 rounded-lg p-4 shadow-sm;
+}
+
+.kpi-card__label {
+  @apply block text-xs font-medium text-text-secondary uppercase tracking-wide;
+}
+
+.kpi-card__valor {
+  @apply block text-xl font-bold text-text-primary mt-1;
+}
+
+.kpi-card__meta {
+  @apply block text-xs text-text-muted mt-2;
+}
+
+.kpi-card__meta a {
+  @apply text-primary hover:underline;
+}
+
+/* Evolução */
+.evolucao-wrap {
+  @apply mt-4;
+}
+
+.evolucao-chart {
+  @apply flex items-end gap-1 h-32 overflow-x-auto pb-1;
+}
+
+.evolucao-col {
+  @apply flex flex-col items-center justify-end flex-1 min-w-[2rem] h-full relative gap-0.5;
+}
+
+.evolucao-bar {
+  @apply w-full max-w-[1.25rem] rounded-t min-h-[2px];
+}
+
+.evolucao-bar--fat { @apply bg-emerald-500; }
+.evolucao-bar--cmv { @apply bg-amber-400 opacity-80; }
+
+.evolucao-label {
+  @apply text-[10px] text-text-muted mt-1;
+}
+
+.evolucao-legenda {
+  @apply flex gap-4 text-xs text-text-secondary mt-2;
+}
+
+.dot {
+  @apply inline-block w-2 h-2 rounded-full mr-1 align-middle;
+}
+
+.dot--fat { @apply bg-emerald-500; }
+.dot--cmv { @apply bg-amber-400; }
+
+/* Avisos */
+.avisos-list {
+  @apply list-none p-0 m-0 mb-4 space-y-2;
+}
+
+.avisos-list li {
+  @apply text-sm py-2 px-3 rounded-md border;
+}
+
+.aviso--venda_abaixo_custo { @apply bg-amber-50 border-amber-200 text-amber-900; }
+.aviso--especie_prejuizo { @apply bg-red-50 border-red-200 text-red-900; }
+.aviso--resultado_negativo { @apply bg-orange-50 border-orange-200 text-orange-900; }
+
+/* Tabelas */
+.tabela-wrap {
+  @apply overflow-x-auto;
+}
+
+.tabela-fin {
+  @apply w-full border-collapse text-sm;
+}
+
+.tabela-fin th {
+  @apply bg-primary-50 text-left text-xs uppercase font-medium text-text-secondary p-2 border-b border-primary-100;
+}
+
+.tabela-fin td {
+  @apply p-2 border-b border-primary-50;
+}
+
+.tabela-fin .num {
+  @apply text-right tabular-nums;
+}
+
+.linha-alerta {
+  @apply bg-red-50/50;
+}
+
+/* Gestão — abas */
+.gestao-abas {
+  @apply flex flex-wrap gap-1 border-b border-primary-100 mb-4;
+}
+
+.gestao-aba {
+  @apply px-4 py-2 text-sm font-medium rounded-t-lg focus:outline-none text-text-secondary hover:bg-primary-50;
+}
+
+.gestao-aba.ativo {
+  @apply bg-surface text-primary border border-primary-100 border-b-0 -mb-px;
+}
+
+.gestao-grid-graficos {
+  @apply grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6;
+}
+
+.grafico-card {
+  @apply bg-surface border border-primary-100 rounded-lg p-4;
+}
+
+.grafico-card h3 {
+  @apply text-sm font-semibold text-text-primary mb-3 pb-2 border-b border-primary-50;
+}
+
+.barra-h {
+  @apply mb-3;
+}
+
+.barra-h__top {
+  @apply flex justify-between text-xs mb-1 gap-2;
+}
+
+.barra-h__track {
+  @apply h-5 bg-primary-50 rounded-full overflow-hidden;
+}
+
+.barra-h__fill {
+  @apply h-full rounded-full transition-all;
+}
+
+.barra-v-grid {
+  @apply flex items-end justify-around h-40 gap-2;
+}
+
+.barra-v {
+  @apply flex flex-col items-center flex-1 max-w-[3rem];
+}
+
+.barra-v__col {
+  @apply w-full rounded-t transition-all min-h-[4px];
+}
+
+.barra-v__lbl {
+  @apply text-[10px] text-text-muted mt-1 text-center truncate w-full;
+}
+
+.gestao-painel {
+  @apply bg-surface rounded-lg;
+}
+
+.gestao-toolbar {
+  @apply flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-4;
+}
+
+.gestao-filtros {
+  @apply flex flex-wrap items-end gap-3;
+}
+
+.gestao-filtros label {
+  @apply flex flex-col gap-1 text-xs font-medium text-text-secondary;
+}
+
+.gestao-filtros input,
+.gestao-filtros select {
+  @apply py-1 px-2 border border-primary-100 rounded text-sm;
+}
+
+.gestao-tabela {
+  @apply w-full border-collapse text-sm;
+}
+
+.gestao-tabela th {
+  @apply bg-primary-50 text-left text-xs uppercase p-2 border-b border-primary-100;
+}
+
+.gestao-tabela td {
+  @apply p-2 border-b border-primary-50;
+}
+
+.gestao-acoes {
+  @apply flex gap-1 justify-end;
+}
+
+.btn-icon {
+  @apply p-1 rounded hover:bg-primary-50 text-primary;
+}
+
+.btn-icon--danger {
+  @apply text-red-600 hover:bg-red-50;
+}
+
+.modal-overlay {
+  @apply fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4;
+}
+
+.modal-box {
+  @apply bg-surface rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto;
+}
+
+.modal-head {
+  @apply p-4 border-b border-primary-100 flex justify-between items-center;
+}
+
+.modal-body {
+  @apply p-4 space-y-3;
+}
+
+.modal-body label {
+  @apply flex flex-col gap-1 text-sm font-medium text-text-secondary;
+}
+
+.modal-body input,
+.modal-body select,
+.modal-body textarea {
+  @apply px-3 py-2 border border-primary-100 rounded-lg text-sm;
+}
+
+.modal-foot {
+  @apply flex justify-end gap-2 p-4 border-t border-primary-100;
+}
+
+.receita-link {
+  @apply text-primary hover:underline text-sm;
+}

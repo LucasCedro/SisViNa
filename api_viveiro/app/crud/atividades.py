@@ -15,6 +15,7 @@ from app.schemas.atividades import (
     AtividadeCreate, AtividadeUpdate,
     InsumoAtividadeCreate, InsumoAtividadeUpdate
 )
+from app.crud.insumos import baixar_insumo_por_media_movel
 
 # Funções CRUD para TipoAtividade
 async def get_tipo_atividade(db: AsyncSession, tipo_id: int) -> Optional[TipoAtividade]:
@@ -265,11 +266,16 @@ async def create_atividade(db: AsyncSession, atividade: AtividadeCreate) -> Dict
                 if insumo_data.custo_total is None and insumo.preco_unitario is not None:
                     insumo_data.custo_total = float(insumo.preco_unitario) * insumo_data.quantidade_usada
                 
-                # Atualizar estoque do insumo
-                if insumo.quantidade_estoque is not None:
-                    insumo.quantidade_estoque = insumo.quantidade_estoque - insumo_data.quantidade_usada
+                try:
+                    custo_baixa = await baixar_insumo_por_media_movel(
+                        db, insumo_data.id_insumo, float(insumo_data.quantidade_usada)
+                    )
+                    if insumo_data.custo_total is None or insumo_data.custo_total == 0:
+                        insumo_data.custo_total = custo_baixa
+                except ValueError:
+                    if insumo.quantidade_estoque is not None:
+                        insumo.quantidade_estoque = insumo.quantidade_estoque - insumo_data.quantidade_usada
                 
-                # Adicionar insumo à atividade
                 insumo_atividade = InsumoAtividade(
                     id_atividade=db_atividade.id,
                     id_insumo=insumo_data.id_insumo,

@@ -47,6 +47,11 @@ def _para_resposta(semeadura: Semeadura, plantas_count: int = 0) -> dict:
         "funcionario_nome": semeadura.funcionario.nome if semeadura.funcionario else "",
         "data_registro": semeadura.data_registro,
         "plantas_vinculadas": plantas_count,
+        "custo_sementes": float(semeadura.custo_sementes or 0),
+        "custo_insumos": float(semeadura.custo_insumos or 0),
+        "custo_indireto": float(semeadura.custo_indireto or 0),
+        "custo_total": float(semeadura.custo_total or 0),
+        "custo_unitario_muda": float(semeadura.custo_unitario_muda) if semeadura.custo_unitario_muda else None,
     }
 
 
@@ -121,6 +126,26 @@ async def create_semeadura(db: AsyncSession, payload: SemeaduraCreate, id_funcio
         raise ValueError("Quantidade usada excede o disponível no lote")
 
     dados = payload.dict()
+    qtd_plantas = 0
+    if dados.get("registrar_plantas") and dados.get("quantidade_plantas_registrar", 0) > 0:
+        qtd_plantas = dados["quantidade_plantas_registrar"]
+    elif dados.get("quantidade_mudas_obtidas"):
+        qtd_plantas = dados["quantidade_mudas_obtidas"]
+
+    from app.services.custeio import (
+        calcular_custo_lote_semeadura,
+        calcular_custo_sementes_lote,
+        aplicar_baixa_valor_lote,
+    )
+
+    custeio = await calcular_custo_lote_semeadura(
+        db,
+        lote,
+        dados["quantidade_sementes_usadas"],
+        qtd_plantas,
+    )
+    custo_sementes = calcular_custo_sementes_lote(lote, dados["quantidade_sementes_usadas"])
+
     db_sem = Semeadura(
         id_lote_sementes=dados["id_lote_sementes"],
         id_canteiro=dados.get("id_canteiro"),
@@ -129,7 +154,13 @@ async def create_semeadura(db: AsyncSession, payload: SemeaduraCreate, id_funcio
         quantidade_mudas_obtidas=dados.get("quantidade_mudas_obtidas"),
         observacoes=dados.get("observacoes"),
         id_funcionario=id_funcionario,
+        custo_sementes=custo_sementes,
+        custo_insumos=custeio["custo_insumos"],
+        custo_indireto=custeio["custo_indireto"],
+        custo_total=custeio["custo_total"],
+        custo_unitario_muda=custeio["custo_unitario_muda"],
     )
+    aplicar_baixa_valor_lote(lote, dados["quantidade_sementes_usadas"], custo_sementes)
     lote.quantidade_disponivel -= dados["quantidade_sementes_usadas"]
     if lote.quantidade_disponivel <= 0:
         lote.status = "esgotado"
@@ -138,6 +169,7 @@ async def create_semeadura(db: AsyncSession, payload: SemeaduraCreate, id_funcio
 
     if dados.get("registrar_plantas") and dados.get("quantidade_plantas_registrar", 0) > 0:
         qtd_plantas = dados["quantidade_plantas_registrar"]
+        cu = float(custeio["custo_unitario_muda"] or 0)
         for i in range(qtd_plantas):
             codigo = _codigo_rastreio_semeadura(db_sem.id, i + 1)
             db.add(
@@ -152,6 +184,8 @@ async def create_semeadura(db: AsyncSession, payload: SemeaduraCreate, id_funcio
                     status="SEMENTE",
                     estagio_producao="em_desenvolvimento",
                     origem="semeadura",
+                    custo_inicial=cu,
+                    custo_atual=cu,
                     observacoes=f"Origem lote {lote.codigo_lote}",
                 )
             )

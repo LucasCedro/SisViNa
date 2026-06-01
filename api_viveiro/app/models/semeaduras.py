@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, Text, Date, DateTime, ForeignKey, func
+from sqlalchemy import Column, Integer, Text, Date, DateTime, ForeignKey, Numeric, func
 from sqlalchemy.orm import relationship
 
 from app.database import Base
@@ -15,6 +15,11 @@ class Semeadura(Base):
     quantidade_mudas_obtidas = Column(Integer)
     observacoes = Column(Text)
     id_funcionario = Column(Integer, ForeignKey("funcionarios.id"), nullable=False)
+    custo_sementes = Column(Numeric(12, 2), default=0)
+    custo_insumos = Column(Numeric(12, 2), default=0)
+    custo_indireto = Column(Numeric(12, 2), default=0)
+    custo_total = Column(Numeric(12, 2), default=0)
+    custo_unitario_muda = Column(Numeric(12, 2))
     data_registro = Column(DateTime, server_default=func.now())
 
     lote = relationship("LoteSementes", back_populates="semeaduras")

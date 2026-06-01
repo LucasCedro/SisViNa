@@ -98,6 +98,9 @@ class CadastroLotePlantasRequest(BaseModel):
     data_plantio: Optional[date] = None
     data_germinacao: Optional[date] = None
     preco_venda: Optional[float] = None
+    custo_unitario_compra: Optional[float] = Field(
+        None, ge=0, description="Custo unitário na compra de muda (origem=compra)"
+    )
     observacoes: Optional[str] = None
     prefixo_codigo: Optional[str] = None
 

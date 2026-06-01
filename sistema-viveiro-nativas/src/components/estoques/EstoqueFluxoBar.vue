@@ -79,7 +79,7 @@ const colunas = computed(() => {
       id: 'insumos',
       guia: 'insumos',
       step: '₿',
-      titulo: 'Insumos (CMV)',
+      titulo: 'Insumos',
       valor: fmtMoeda(props.resumo?.valor_total_insumos),
       hint: `${props.resumo?.total_insumos ?? 0} item(ns)`,
     },

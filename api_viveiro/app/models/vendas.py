@@ -32,6 +32,7 @@ class ItemVenda(Base):
     valor_unitario = Column(Numeric(10, 2), nullable=False)
     valor_total = Column(Numeric(10, 2), nullable=False)
     desconto = Column(Numeric(10, 2), default=0.00)
+    custo_unitario = Column(Numeric(10, 2), nullable=True)
     data_entrega = Column(Date)
     status_entrega = Column(String(20), default='PENDENTE')
     data_registro = Column(DateTime, default=func.now())

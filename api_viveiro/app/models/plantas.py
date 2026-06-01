@@ -25,6 +25,7 @@ class Planta(Base):
     observacoes = Column(Text)
     data_cadastro = Column(DateTime, default=func.now())
     preco_venda = Column(Numeric(10, 2))
+    custo_inicial = Column(Numeric(10, 2))
     custo_atual = Column(Numeric(10, 2), default=0.00)
     origem = Column(String(30), nullable=False, default="semeadura")
 

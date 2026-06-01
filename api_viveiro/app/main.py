@@ -25,6 +25,7 @@ from app.routes import (
     coleta_relatorios,
     dashboard,
     lancamentos_financeiros,
+    financeiro,
     estoques,
     producao,
     referencia_viveiro,
@@ -184,6 +185,12 @@ app.include_router(
     lancamentos_financeiros.router,
     prefix=f"{settings.API_V1_STR}/lancamentos-financeiros",
     tags=["lancamentos-financeiros"],
+)
+
+app.include_router(
+    financeiro.router,
+    prefix=f"{settings.API_V1_STR}/financeiro",
+    tags=["financeiro"],
 )
 
 app.include_router(

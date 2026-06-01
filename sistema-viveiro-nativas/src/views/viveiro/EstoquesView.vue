@@ -2,9 +2,10 @@
   <PageLayout>
     <header class="estoque-page-header">
       <div>
-        <h1 class="estoque-page-header__titulo">Estoques</h1>
         <p class="page-lead">
-          Sementes, insumos com custo (CMV) e mudas por estágio — do desenvolvimento até a comercialização.
+          Sementes, insumos (média móvel), mudas por custo acumulado — do desenvolvimento à comercialização.
+          Valor total mudas vivas:
+          <strong v-if="resumo">R$ {{ formatMoeda(resumo.valor_total_mudas) }}</strong>
         </p>
       </div>
       <div class="estoque-page-header__acoes">
@@ -94,6 +95,8 @@
                 <th>Espécie</th>
                 <th>Matriz</th>
                 <th class="col-num">Disponível</th>
+                <th class="col-num">Valor lote</th>
+                <th class="col-num">Custo/un.</th>
                 <th>Armazenamento</th>
               </tr>
             </thead>
@@ -107,6 +110,8 @@
                   <strong>{{ l.quantidade_disponivel }}</strong>
                   <span class="text-muted"> / {{ l.quantidade_inicial }}</span>
                 </td>
+                <td class="col-num">{{ l.valor_total != null ? 'R$ ' + formatMoeda(l.valor_total) : '—' }}</td>
+                <td class="col-num">{{ l.custo_unitario != null ? 'R$ ' + Number(l.custo_unitario).toFixed(4) : '—' }}</td>
                 <td>{{ l.condicoes_armazenamento || '—' }}</td>
               </tr>
             </tbody>
@@ -117,23 +122,34 @@
       <!-- Insumos -->
       <PageSection v-show="guiaAtiva === 'insumos'">
         <template #header>
-          <div>
-            <h2 class="secao-titulo">Insumos e substratos</h2>
-            <p class="secao-sub">
-              Valor total em estoque: <strong>R$ {{ formatMoeda(resumo.valor_total_insumos) }}</strong>
-              — entradas com valor pago atualizam o preço médio (CMV)
-            </p>
+          <div class="secao-header-flex">
+            <div>
+              <h2 class="secao-titulo">Insumos e substratos</h2>
+              <p class="secao-sub">
+                Valor total: <strong>R$ {{ formatMoeda(resumo.valor_total_insumos) }}</strong>
+                — registre compras com quantidade e valor pago (preço médio automático)
+              </p>
+            </div>
+            <button type="button" class="btn btn-primary" @click="abrirCadastroInsumo">
+              + Cadastrar insumo
+            </button>
           </div>
         </template>
 
         <p class="estoque-info-box">
-          Use <strong>Entrada</strong> ao comprar (informe quantidade e valor total pago). Use
-          <strong>Saída</strong> para consumo ou perda. Alertas exigem limites mín/máx no cadastro do insumo.
+          <strong>Onde dar entrada:</strong> aba <strong>Insumos</strong> → botão
+          <strong>Entrada</strong> na linha do item (ou cadastre um insumo primeiro).
+          Informe quantidade comprada e valor total pago — o sistema atualiza o preço médio.
         </p>
 
         <div v-if="!resumo.insumos?.length" class="estoque-empty">
           <p class="estoque-empty__titulo">Nenhum insumo cadastrado</p>
-          <p class="estoque-empty__texto">Cadastre NPK, substrato, combustível e demais itens no módulo de insumos.</p>
+          <p class="estoque-empty__texto">
+            Cadastre substrato, NPK, embalagens etc. Depois use <strong>Entrada</strong> para registrar compras.
+          </p>
+          <button type="button" class="btn btn-primary" @click="abrirCadastroInsumo">
+            Cadastrar primeiro insumo
+          </button>
         </div>
         <div v-else class="estoque-table-card">
           <table class="estoque-table">
@@ -213,55 +229,53 @@
           </table>
         </div>
       </PageSection>
-
-      <!-- Locais -->
-      <PageSection v-show="guiaAtiva === 'locais'">
-        <template #header>
-          <div>
-            <h2 class="secao-titulo">Locais do viveiro</h2>
-            <p class="secao-sub">Classifique cada área para o fluxo de produção e estoque</p>
-          </div>
-        </template>
-
-        <p class="estoque-info-box">
-          O tipo do local define onde as mudas entram no fluxo do sistema: sementeira → canteiro → rustificação.
-          Armazém é para sementes.
-        </p>
-
-        <div v-if="!locais.length" class="estoque-empty">
-          <p class="estoque-empty__titulo">Nenhum local cadastrado</p>
-        </div>
-        <div v-else class="estoque-table-card">
-          <table class="estoque-table">
-            <thead>
-              <tr>
-                <th>Nome</th>
-                <th>Tipo do local</th>
-                <th class="col-acoes"></th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="c in locais" :key="c.id">
-                <td class="estoque-especie">{{ c.nome }}</td>
-                <td>
-                  <select v-model="c.tipo_local" class="estoque-select-inline">
-                    <option value="sementeira">Sementeira</option>
-                    <option value="canteiro">Canteiro de mudas</option>
-                    <option value="rustificacao">Rustificação</option>
-                    <option value="armazem">Armazém de sementes</option>
-                  </select>
-                </td>
-                <td class="col-acoes">
-                  <button type="button" class="btn btn-outline btn-sm" @click="salvarLocal(c)">
-                    Salvar
-                  </button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </PageSection>
     </template>
+
+    <!-- Modal cadastro insumo -->
+    <div v-if="modalCadastroInsumo" class="estoque-modal-overlay" @click.self="modalCadastroInsumo = false">
+      <div class="estoque-modal" role="dialog">
+        <header class="estoque-modal__header">
+          <h3>Cadastrar insumo</h3>
+          <p>Ex.: Substrato, NPK 10-10-10, tubete</p>
+        </header>
+        <form class="estoque-modal__body estoque-form-grid" @submit.prevent="salvarCadastroInsumo">
+          <label class="form-label">
+            Nome
+            <input v-model="formInsumo.nome" class="form-input" required type="text" />
+          </label>
+          <label class="form-label">
+            Tipo
+            <select v-model="formInsumo.tipo" class="form-input">
+              <option value="Substrato">Substrato</option>
+              <option value="Hidrogel">Hidrogel</option>
+              <option value="Fertilizante">Fertilizante</option>
+              <option value="Embalagem">Embalagem</option>
+              <option value="Defensivo">Defensivo</option>
+              <option value="Outro">Outro</option>
+            </select>
+          </label>
+          <label class="form-label">
+            Unidade de medida
+            <input v-model="formInsumo.unidade_medida" class="form-input" placeholder="kg, L, un, saco…" />
+          </label>
+          <label class="form-label">
+            Entrada inicial — quantidade
+            <input v-model.number="formInsumo.quantidade_inicial" class="form-input" type="number" min="0" step="0.01" />
+          </label>
+          <label class="form-label">
+            Valor total pago na compra (R$)
+            <input v-model.number="formInsumo.valor_compra" class="form-input" type="number" min="0" step="0.01" />
+          </label>
+          <p v-if="erroModal" class="alert alert-error">{{ erroModal }}</p>
+        </form>
+        <footer class="estoque-modal__footer">
+          <button type="button" class="btn btn-secondary" @click="modalCadastroInsumo = false">Cancelar</button>
+          <button type="submit" class="btn btn-primary" :disabled="salvando" @click="salvarCadastroInsumo">
+            {{ salvando ? 'Salvando…' : 'Cadastrar' }}
+          </button>
+        </footer>
+      </div>
+    </div>
 
     <!-- Modal sementes -->
     <div v-if="modalEntrada" class="estoque-modal-overlay" @click.self="modalEntrada = false">
@@ -290,6 +304,10 @@
               <option value="compra">Compra</option>
               <option value="ajuste">Ajuste / inventário</option>
             </select>
+          </label>
+          <label class="form-label">
+            Valor total pago (R$) — compra do lote
+            <input v-model.number="formEntrada.valor_total" class="form-input" type="number" min="0" step="0.01" />
           </label>
           <label class="form-label">
             Condições de armazenamento
@@ -369,25 +387,34 @@ import PageSection from '@/components/layout/PageSection.vue'
 import EstoqueComercialPanel from '@/components/estoques/EstoqueComercialPanel.vue'
 import EstoqueFluxoBar from '@/components/estoques/EstoqueFluxoBar.vue'
 import { getResumoEstoques, entradaSementesArmazem, registrarMovimentacaoInsumo } from '@/services/estoques'
+import { createInsumo } from '@/services/insumos'
 import { listEspecies } from '@/services/especies'
-import { listCanteiros, updateCanteiro } from '@/services/canteiros'
 import '@/components/estoques/estoques-shared.css'
 
 const resumo = ref(null)
-const locais = ref([])
 const especies = ref([])
 const guiaAtiva = ref('mudas')
 const carregando = ref(true)
 const erroPagina = ref('')
 const modalEntrada = ref(false)
 const modalMov = ref(false)
+const modalCadastroInsumo = ref(false)
 const salvando = ref(false)
 const erroModal = ref('')
 const insumoSelecionado = ref(null)
 
+const formInsumo = ref({
+  nome: '',
+  tipo: 'Substrato',
+  unidade_medida: 'kg',
+  quantidade_inicial: null,
+  valor_compra: null,
+})
+
 const formEntrada = ref({
   id_especie: null,
   quantidade: 100,
+  valor_total: null,
   origem_lote: 'armazem',
   condicoes_armazenamento: '',
   observacoes: '',
@@ -408,7 +435,6 @@ const guias = computed(() => {
     { id: 'mudas', label: 'Mudas', badge: r?.total_mudas_aptas_venda || null },
     { id: 'sementes', label: 'Sementes', badge: r?.total_lotes_sementes_ativos || null },
     { id: 'insumos', label: 'Insumos', badge: alertas > 0 ? alertas : r?.total_insumos || null },
-    { id: 'locais', label: 'Locais', badge: locais.value.length || null },
   ]
 })
 
@@ -448,16 +474,51 @@ onMounted(async () => {
   try {
     especies.value = await listEspecies()
     if (especies.value.length) formEntrada.value.id_especie = especies.value[0].id
-    locais.value = await listCanteiros({ ativo: true, limit: 200 })
   } catch {
     /* secundário */
   }
   await carregar()
 })
 
-async function salvarLocal(c) {
-  await updateCanteiro(c.id, { tipo_local: c.tipo_local })
-  await carregar()
+function abrirCadastroInsumo() {
+  formInsumo.value = {
+    nome: '',
+    tipo: 'Substrato',
+    unidade_medida: 'kg',
+    quantidade_inicial: null,
+    valor_compra: null,
+  }
+  erroModal.value = ''
+  modalCadastroInsumo.value = true
+}
+
+async function salvarCadastroInsumo() {
+  erroModal.value = ''
+  salvando.value = true
+  try {
+    const ins = await createInsumo({
+      nome: formInsumo.value.nome,
+      tipo: formInsumo.value.tipo,
+      unidade_medida: formInsumo.value.unidade_medida,
+      quantidade_estoque: 0,
+    })
+    if (formInsumo.value.quantidade_inicial > 0) {
+      await registrarMovimentacaoInsumo(ins.id, {
+        tipo: 'entrada',
+        quantidade: formInsumo.value.quantidade_inicial,
+        valor_total: formInsumo.value.valor_compra || undefined,
+        data_movimento: new Date().toISOString().slice(0, 10),
+        observacao: 'Entrada inicial',
+      })
+    }
+    modalCadastroInsumo.value = false
+    guiaAtiva.value = 'insumos'
+    await carregar()
+  } catch (e) {
+    erroModal.value = e.response?.data?.detail || 'Erro ao cadastrar insumo.'
+  } finally {
+    salvando.value = false
+  }
 }
 
 async function salvarEntrada() {

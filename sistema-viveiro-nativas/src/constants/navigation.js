@@ -5,7 +5,7 @@ export const NAV_ITEMS = [
   { path: '/fitossanidade', label: 'Fitossanidade', permission: 'fitossanidade.view', icon: 'fitossanidade' },
   { path: '/fertilizacao', label: 'Fertilização', permission: 'fertilizacao.view', icon: 'fertilizacao' },
   { path: '/vendas', label: 'Vendas', permission: 'vendas.view', icon: 'vendas' },
-  { path: '/prescricao', label: 'Prescrição Técnica', permission: 'prescricao.view', icon: 'prescricao' },
+  { path: '/prescricao', label: 'Prescrição Técnica', permission: 'prescricao.view', icon: 'prescricao', hiddenInMenu: true },
   { path: '/producao', label: 'Produção', permission: 'producao.view', icon: 'producao' },
   { path: '/estoques', label: 'Estoques', permission: 'estoques.view', icon: 'estoques' },
   { path: '/coleta', label: 'Coleta de Sementes', permission: 'coleta.view', icon: 'coleta' },

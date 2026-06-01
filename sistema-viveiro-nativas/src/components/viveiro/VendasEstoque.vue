@@ -251,7 +251,6 @@ import { useAuthStore } from '@/store/auth'
 import {
   getEstoqueResumo,
   atualizarPrecoEspecie,
-  listPlantasDisponiveisVenda,
 } from '@/services/plantas'
 import { listVendas, createVenda } from '@/services/vendas'
 import { listCompradores } from '@/services/compradores'
@@ -372,21 +371,7 @@ async function salvarVenda() {
     return
   }
   try {
-    const plantas = await listPlantasDisponiveisVenda(
-      especieSelecionada.value.id_especie,
-      Math.max(formVenda.value.quantidade, 500)
-    )
-    if (plantas.length < formVenda.value.quantidade) {
-      alert('Plantas insuficientes no estoque comercial (aptas p/ venda).')
-      return
-    }
     const valorUnit = especieSelecionada.value.valorUnitario
-    const itens = plantas.slice(0, formVenda.value.quantidade).map((p) => ({
-      id_planta: p.id,
-      quantidade: 1,
-      valor_unitario: valorUnit,
-      desconto: 0
-    }))
     await createVenda({
       id_comprador: Number(formVenda.value.idComprador),
       id_funcionario: auth.user.id,
@@ -394,7 +379,14 @@ async function salvarVenda() {
       forma_pagamento: formVenda.value.formaPagamento,
       status: 'PAGO',
       observacoes: formVenda.value.observacoes,
-      itens
+      itens_por_especie: [
+        {
+          id_especie: especieSelecionada.value.id_especie,
+          quantidade: formVenda.value.quantidade,
+          valor_unitario: valorUnit,
+          desconto: 0,
+        },
+      ],
     })
     fecharModalVenda()
     await carregar()

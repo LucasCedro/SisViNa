@@ -206,6 +206,7 @@ CREATE TABLE itens_venda (
     valor_unitario DECIMAL(10,2) NOT NULL,
     valor_total DECIMAL(10,2) NOT NULL,
     desconto DECIMAL(10,2) DEFAULT 0.00,
+    custo_unitario DECIMAL(10,2),
     data_entrega DATE,
     status_entrega VARCHAR(20) DEFAULT 'PENDENTE',
     data_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP

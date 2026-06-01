@@ -35,6 +35,8 @@ def _para_resposta(lote: LoteSementes, ultimo_teste: Optional[float] = None) -> 
         "especie_nome": nome_especie,
         "quantidade_inicial": lote.quantidade_inicial,
         "quantidade_disponivel": lote.quantidade_disponivel,
+        "valor_total": float(lote.valor_total) if lote.valor_total is not None else None,
+        "custo_unitario": float(lote.custo_unitario) if lote.custo_unitario is not None else None,
         "data_formacao_lote": lote.data_formacao_lote,
         "data_coleta": coleta.data_coleta if coleta else None,
         "beneficiamento": lote.beneficiamento,
@@ -216,6 +218,9 @@ async def criar_lote_armazem(db: AsyncSession, payload) -> dict:
         origem_lote=origem,
         status="ativo",
     )
+    from app.services.custeio import definir_valor_lote_entrada
+
+    definir_valor_lote_entrada(db_lote, getattr(payload, "valor_total", None))
     db.add(db_lote)
     await db.commit()
     lote = await get_lote(db, db_lote.id)

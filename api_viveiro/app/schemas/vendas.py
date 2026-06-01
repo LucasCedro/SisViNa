@@ -1,7 +1,7 @@
 # app/schemas/vendas.py
 from datetime import date, datetime
 from typing import Optional, List
-from pydantic import BaseModel, validator, Field
+from pydantic import BaseModel, validator, Field, root_validator
 from decimal import Decimal
 
 # ItemVenda Schemas
@@ -23,6 +23,14 @@ class ItemVendaBase(BaseModel):
 class ItemVendaCreate(ItemVendaBase):
     pass
 
+
+class ItemVendaPorEspecieCreate(BaseModel):
+    """Venda por quantidade — o backend escolhe as mudas expedíveis."""
+    id_especie: int
+    quantidade: int = Field(..., gt=0)
+    valor_unitario: float
+    desconto: Optional[float] = 0
+
 class ItemVendaUpdate(BaseModel):
     quantidade: Optional[int] = Field(None, gt=0)
     valor_unitario: Optional[float] = None
@@ -42,6 +50,7 @@ class ItemVendaInDBBase(ItemVendaBase):
     id: int
     id_venda: int
     valor_total: float
+    custo_unitario: Optional[float] = None
     data_registro: datetime
 
     class Config:
@@ -79,7 +88,18 @@ class VendaBase(BaseModel):
         return v
 
 class VendaCreate(VendaBase):
-    itens: List[ItemVendaCreate]
+    itens: Optional[List[ItemVendaCreate]] = None
+    itens_por_especie: Optional[List[ItemVendaPorEspecieCreate]] = None
+
+    @root_validator
+    def itens_ou_por_especie(cls, values):
+        itens = values.get("itens") or []
+        por_especie = values.get("itens_por_especie") or []
+        if bool(itens) == bool(por_especie):
+            raise ValueError(
+                "Informe itens (plantas) ou itens_por_especie (espécie + quantidade), não ambos."
+            )
+        return values
 
 class VendaUpdate(BaseModel):
     forma_pagamento: Optional[str] = None

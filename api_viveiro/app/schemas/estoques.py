@@ -12,6 +12,8 @@ class EstoqueSementesItem(BaseModel):
     matriz_nome: Optional[str] = None
     quantidade_disponivel: int
     quantidade_inicial: int
+    valor_total: Optional[float] = None
+    custo_unitario: Optional[float] = None
     status: str
     condicoes_armazenamento: Optional[str] = None
 
@@ -36,6 +38,8 @@ class EstoqueComercialItem(BaseModel):
     nome_cientifico: str
     quantidade: int
     valor_unitario: float
+    custo_medio: float = 0
+    valor_estoque_especie: float = 0
     localizacao: Optional[str] = None
     status_predominante: Optional[str] = None
     estagio_comercial: str = "apta_venda"
@@ -59,6 +63,7 @@ class EstoqueResumoGeral(BaseModel):
     total_insumos: int
     total_mudas_aptas_venda: int = 0
     valor_total_insumos: float = 0
+    valor_total_mudas: float = 0
     mudas_pipeline: MudasPipelineResumo
     estoque_comercial: List[EstoqueComercialItem] = []
     lotes_sementes: List[EstoqueSementesItem]
