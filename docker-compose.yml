@@ -70,6 +70,20 @@ services:
     networks:
       - viveiro_network
 
+  site:
+    build:
+      context: ./site
+      dockerfile: Dockerfile
+      args:
+        VITE_APP_URL: ${VITE_APP_URL:-http://localhost:5173}
+    image: viveiro-site:latest
+    container_name: viveiro_site
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    networks:
+      - viveiro_network
+
   web:
     image: node:20-alpine
     container_name: viveiro_web
@@ -79,6 +93,7 @@ services:
       - "5173:5173"
     environment:
       VITE_API_URL: http://localhost:8000
+      VITE_SITE_URL: http://localhost:3000
       CHOKIDAR_USEPOLLING: "true"
       WATCHPACK_POLLING: "true"
     volumes:

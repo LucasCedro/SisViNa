@@ -120,10 +120,43 @@ docker compose up -d
 
 | Serviço | URL |
 |---------|-----|
-| **Front (app)** | http://localhost:5173 |
+| **Site público (marketing)** | http://localhost:3000 |
+| **App (login + sistema)** | http://localhost:5173 |
+| **Login direto** | http://localhost:5173/login |
 | **API (Swagger)** | http://localhost:8000/docs |
 | **API health** | http://localhost:8000/health |
 | **PgAdmin** | http://localhost:5050 |
+
+### Fluxo para demonstração (v0.1)
+
+1. Abra o **site** em http://localhost:3000 (página pública, sem login).
+2. Clique em **Entrar** (canto superior) → vai para http://localhost:5173/login.
+3. Após login, a **Home** (`/`) é o painel do viveiro (não é o site marketing).
+
+O site (`site/`) e o app (`sistema-viveiro-nativas/`) são **dois frontends** em portas diferentes. A integração é por link configurável (`VITE_APP_URL` no build do site).
+
+### Subir o site marketing junto
+
+Na raiz do monorepo (já incluso no `docker compose` principal):
+
+```powershell
+cd c:\Projetos\SisViNa
+docker compose up -d --build site web api postgres
+```
+
+Só o site, na pasta `site/`:
+
+```powershell
+cd c:\Projetos\SisViNa\site
+docker compose up -d --build
+```
+
+Variável opcional antes do build (produção):
+
+```env
+# site/.env ou ARG no compose
+VITE_APP_URL=https://app.seudominio.com.br
+```
 
 ### Login do sistema
 

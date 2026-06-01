@@ -32,3 +32,7 @@ target/
 
 # Docker (dados locais — nunca versionar)
 **/postgres_data/
+
+# Lovable — artefatos locais do site (não são o código)
+site/.workspace/
+site/.git
