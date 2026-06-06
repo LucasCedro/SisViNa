@@ -7,7 +7,27 @@ export async function listCompradores(params = {}) {
   return data
 }
 
+export async function listCompradoresWithVendas(params = {}) {
+  const { data } = await api.get(`${API_V1}/compradores/with-vendas`, { params })
+  return data
+}
+
+export async function getComprador(id) {
+  const { data } = await api.get(`${API_V1}/compradores/${id}`)
+  return data
+}
+
 export async function createComprador(payload) {
   const { data } = await api.post(`${API_V1}/compradores/`, payload)
+  return data
+}
+
+export async function updateComprador(id, payload) {
+  const { data } = await api.put(`${API_V1}/compradores/${id}`, payload)
+  return data
+}
+
+export async function getCompradorNfeReadiness(id) {
+  const { data } = await api.get(`${API_V1}/compradores/${id}/nfe-readiness`)
   return data
 }

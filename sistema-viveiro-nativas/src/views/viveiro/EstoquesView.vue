@@ -4,8 +4,11 @@
       <div>
         <p class="page-lead">
           Sementes, insumos (média móvel), mudas por custo acumulado — do desenvolvimento à comercialização.
-          Valor total mudas vivas:
-          <strong v-if="resumo">R$ {{ formatMoeda(resumo.valor_total_mudas) }}</strong>
+          <template v-if="resumo">
+            CMV mudas vivas: <strong>R$ {{ formatMoeda(resumo.valor_total_mudas) }}</strong>
+            · comercial: <strong>R$ {{ formatMoeda(resumo.valor_mudas_comercial) }}</strong>
+            · sementes: <strong>R$ {{ formatMoeda(resumo.valor_total_sementes) }}</strong>
+          </template>
         </p>
       </div>
       <div class="estoque-page-header__acoes">
@@ -58,6 +61,15 @@
           :pipeline="resumo.mudas_pipeline"
           @atualizado="carregar"
         />
+        <EstoqueTimelinePanel :timeline-inicial="resumo.timeline_especies" />
+        <details class="estoque-detalhes-extra">
+          <summary>Detalhes tabulares (idade, CMV, muda a muda)</summary>
+          <EstoqueAnaliticoPanel
+            :analitico-viveiro="resumo.analitico_mudas"
+            :analitico-rustificacao="resumo.analitico_mudas_rustificacao"
+            :cmv="resumo.cmv_integridade"
+          />
+        </details>
       </PageSection>
 
       <!-- Sementes -->
@@ -66,7 +78,11 @@
           <div class="secao-header-flex">
             <div>
               <h2 class="secao-titulo">Sementes no armazém</h2>
-              <p class="secao-sub">Lotes ativos com saldo disponível</p>
+              <p class="secao-sub">
+                {{ resumo.total_lotes_sementes_ativos }} lote(s) ·
+                {{ resumo.total_sementes_disponiveis }} sementes ·
+                valor CMV: <strong>R$ {{ formatMoeda(resumo.valor_total_sementes) }}</strong>
+              </p>
             </div>
             <button type="button" class="btn btn-primary" @click="modalEntrada = true">
               + Entrada no armazém
@@ -95,8 +111,12 @@
                 <th>Espécie</th>
                 <th>Matriz</th>
                 <th class="col-num">Disponível</th>
+                <th class="col-num">Consumido</th>
+                <th class="col-num">Dias armaz.</th>
                 <th class="col-num">Valor lote</th>
                 <th class="col-num">Custo/un.</th>
+                <th class="col-num">Germ. %</th>
+                <th>Formação / coleta</th>
                 <th>Armazenamento</th>
               </tr>
             </thead>
@@ -110,8 +130,19 @@
                   <strong>{{ l.quantidade_disponivel }}</strong>
                   <span class="text-muted"> / {{ l.quantidade_inicial }}</span>
                 </td>
+                <td class="col-num">
+                  {{ l.percentual_consumido != null ? l.percentual_consumido + '%' : '—' }}
+                </td>
+                <td class="col-num">{{ l.dias_armazenamento ?? '—' }}</td>
                 <td class="col-num">{{ l.valor_total != null ? 'R$ ' + formatMoeda(l.valor_total) : '—' }}</td>
                 <td class="col-num">{{ l.custo_unitario != null ? 'R$ ' + Number(l.custo_unitario).toFixed(4) : '—' }}</td>
+                <td class="col-num">
+                  {{ l.ultimo_teste_germinacao != null ? l.ultimo_teste_germinacao + '%' : '—' }}
+                </td>
+                <td>
+                  <span class="text-muted">{{ l.data_formacao_lote || '—' }}</span>
+                  <span v-if="l.data_coleta" class="text-muted"> · coleta {{ l.data_coleta }}</span>
+                </td>
                 <td>{{ l.condicoes_armazenamento || '—' }}</td>
               </tr>
             </tbody>
@@ -159,7 +190,9 @@
                 <th>Tipo</th>
                 <th class="col-num">Estoque</th>
                 <th class="col-num">Preço médio</th>
-                <th class="col-num">Valor total</th>
+                <th class="col-num">Valor CMV</th>
+                <th>Fornecedor</th>
+                <th>Última mov.</th>
                 <th>Situação</th>
                 <th class="col-acoes">Movimentação</th>
               </tr>
@@ -176,6 +209,7 @@
                 <td>
                   <span class="estoque-especie">{{ i.nome }}</span>
                   <span class="estoque-especie-cient">{{ i.unidade_medida || 'unidade' }}</span>
+                  <span v-if="i.descricao" class="text-muted insumo-desc">{{ i.descricao }}</span>
                   <div
                     v-if="i.estoque_maximo && i.estoque_maximo > 0"
                     class="estoque-saldo-bar"
@@ -200,6 +234,12 @@
                   }}
                 </td>
                 <td class="col-num">R$ {{ formatMoeda(i.valor_estoque) }}</td>
+                <td>{{ i.fornecedor || '—' }}</td>
+                <td>
+                  <span v-if="i.ultima_movimentacao">{{ i.ultima_movimentacao }}</span>
+                  <span v-else class="text-muted">—</span>
+                  <span v-if="i.qtd_movimentacoes" class="text-muted"> ({{ i.qtd_movimentacoes }} mov.)</span>
+                </td>
                 <td>
                   <span v-if="i.alerta_estoque === 'abaixo_minimo'" class="estoque-tag estoque-tag--warn">
                     Abaixo do mínimo
@@ -385,6 +425,8 @@ import { ref, computed, onMounted } from 'vue'
 import PageLayout from '@/components/layout/PageLayout.vue'
 import PageSection from '@/components/layout/PageSection.vue'
 import EstoqueComercialPanel from '@/components/estoques/EstoqueComercialPanel.vue'
+import EstoqueTimelinePanel from '@/components/estoques/EstoqueTimelinePanel.vue'
+import EstoqueAnaliticoPanel from '@/components/estoques/EstoqueAnaliticoPanel.vue'
 import EstoqueFluxoBar from '@/components/estoques/EstoqueFluxoBar.vue'
 import { getResumoEstoques, entradaSementesArmazem, registrarMovimentacaoInsumo } from '@/services/estoques'
 import { createInsumo } from '@/services/insumos'
@@ -635,11 +677,34 @@ async function salvarMov() {
   color: var(--color-text-muted);
 }
 
+.insumo-desc {
+  display: block;
+  font-size: 0.75rem;
+  margin-top: 0.15rem;
+}
+
 code {
   font-size: 0.8125rem;
   color: var(--color-primary-700);
   background: var(--color-primary-subtle);
   padding: 0.15rem 0.4rem;
   border-radius: var(--radius-sm);
+}
+
+.estoque-detalhes-extra {
+  margin-top: var(--spacing-lg);
+}
+
+.estoque-detalhes-extra summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  padding: var(--spacing-sm) 0;
+}
+
+.estoque-detalhes-extra[open] summary {
+  margin-bottom: var(--spacing-md);
+  color: var(--color-primary-700);
 }
 </style>

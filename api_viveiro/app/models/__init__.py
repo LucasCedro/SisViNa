@@ -19,3 +19,6 @@ from app.models.transferencias_plantas import TransferenciaPlanta
 from app.models.referencia_viveiro import ViveiroRegraGlobal, EspecieFichaEmbrapa
 from app.models.especie_biblioteca import EspecieBiblioteca
 from app.models.viveiro_layout import ViveiroLayout
+from app.models.emitente_fiscal import EmitenteFiscal
+from app.models.regra_fiscal import RegraFiscal
+from app.models.nota_fiscal import NotaFiscal, NotaFiscalItem

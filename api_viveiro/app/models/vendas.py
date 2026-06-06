@@ -15,12 +15,14 @@ class Venda(Base):
     forma_pagamento = Column(String(20))
     status = Column(String(20))
     observacoes = Column(Text)
+    tipo_operacao_fiscal = Column(String(20), nullable=False, default="domestica")
     data_registro = Column(DateTime, default=func.now())
 
     # Relacionamentos
     comprador = relationship("Comprador", back_populates="vendas")
     funcionario = relationship("Funcionario", back_populates="vendas")
     itens = relationship("ItemVenda", back_populates="venda")
+    notas_fiscais = relationship("NotaFiscal", back_populates="venda")
 
 class ItemVenda(Base):
     __tablename__ = "itens_venda"

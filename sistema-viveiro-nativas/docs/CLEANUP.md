@@ -1,3 +1,5 @@
+# Limpeza e convenções — frontend
+
 ## Layout base (Maio/2026)
 
 | Arquivo | Papel |
@@ -10,7 +12,7 @@
 
 Views migradas para `PageLayout`: Viveiro, Fertilização, Fitossanidade, Prescrição, Financeiro, Vendas, Estoques, Produção, Planta baixa editor, Biblioteca, Coleta.
 
-Home redesenhada como cockpit operacional; perfis múltiplos — ver `docs/HOME_E_PERFIS.md`.
+Home redesenhada como cockpit operacional; perfis e RBAC — ver [HOME_E_PERFIS.md](./HOME_E_PERFIS.md) e [SEGURANCA_RBAC.md](../../docs/SEGURANCA_RBAC.md).
 
 ---
 

@@ -247,6 +247,61 @@ async def listar_plantas_disponiveis_venda(
     return (await db.execute(q)).scalars().all()
 
 
+async def listar_plantas_disponiveis_venda_detalhado(
+    db: AsyncSession,
+    id_especie: int,
+    id_lote_sementes: Optional[int] = None,
+    limit: int = 500,
+) -> List[Dict[str, Any]]:
+    """Mudas aptas à venda com lote, canteiro e dias na rustificação."""
+    from datetime import date
+
+    from app.constants.referencia_embrapa_viveiro import RUSTIFICACAO_DIAS_MINIMO
+    from app.crud.plantas_estoque import (
+        _join_entrada_rustificacao,
+        data_ref_rustificacao,
+        filtro_aptas_venda_comercial,
+    )
+    from app.models.lotes_sementes import LoteSementes
+
+    q = select(
+        Planta,
+        Canteiro.nome.label("nome_canteiro"),
+        LoteSementes.codigo_lote.label("codigo_lote"),
+    ).join(Canteiro, Planta.id_canteiro == Canteiro.id).outerjoin(
+        LoteSementes, Planta.id_lote_sementes == LoteSementes.id
+    ).where(Planta.id_especie == id_especie)
+    q = filtro_aptas_venda_comercial(q)
+    q, entrada_rust = _join_entrada_rustificacao(q)
+    data_ref = data_ref_rustificacao(entrada_rust)
+    q = q.add_columns(data_ref.label("data_ref_rust"))
+    if id_lote_sementes is not None:
+        q = q.where(Planta.id_lote_sementes == id_lote_sementes)
+    q = q.order_by(Planta.id).limit(limit)
+    rows = (await db.execute(q)).all()
+    hoje = date.today()
+    out: List[Dict[str, Any]] = []
+    for row in rows:
+        p = row[0]
+        data_ref_val = row.data_ref_rust
+        dias = (hoje - data_ref_val).days if data_ref_val else None
+        out.append(
+            {
+                "id": p.id,
+                "id_especie": p.id_especie,
+                "codigo_rastreio": p.codigo_rastreio,
+                "id_lote_sementes": p.id_lote_sementes,
+                "codigo_lote": row.codigo_lote,
+                "preco_venda": float(p.preco_venda or 0),
+                "custo_atual": float(p.custo_atual or 0),
+                "nome_canteiro": row.nome_canteiro,
+                "dias_rustificacao": dias,
+                "rustificacao_ok": dias is None or dias >= RUSTIFICACAO_DIAS_MINIMO,
+            }
+        )
+    return out
+
+
 async def _validar_canteiro_tipo(
     db: AsyncSession, id_canteiro: int, tipo_esperado: str, label: str
 ) -> Canteiro:

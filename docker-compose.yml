@@ -1,115 +1,28 @@
-# SisViNa — sobe BD + API + front com um comando:
-#   docker compose up -d --build
-#   docker compose logs -f api web
+# SisViNa — único ponto de entrada Docker (projeto: sisvina)
+#
+#   .\scripts\dev.ps1 start          Postgres + API
+#   .\scripts\dev.ps1 start-all      + front em Docker
+#   .\scripts\dev.ps1 start-demo     + site + PgAdmin
+#   .\scripts\dev.ps1 stop
+#   .\scripts\dev.ps1 migrate
+#
+# Front no dia a dia (recomendado): cd sistema-viveiro-nativas && npm run dev
 
 name: sisvina
 
+include:
+  - path: compose/infra.yml
+  - path: compose/api.yml
+  - path: compose/web.yml
+  - path: compose/site.yml
+
 services:
-  postgres:
-    image: postgres:15
-    container_name: viveiro_postgres
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: viveiro_admin
-      POSTGRES_PASSWORD: senha_segura_aqui
-      POSTGRES_DB: viveiro_db
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./bd_viveiro/init-scripts:/docker-entrypoint-initdb.d:ro
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U viveiro_admin -d viveiro_db"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-    networks:
-      - viveiro_network
-
-  pgadmin:
-    image: dpage/pgadmin4
-    container_name: viveiro_pgadmin
-    restart: unless-stopped
-    environment:
-      PGADMIN_DEFAULT_EMAIL: admin@viveiro.com
-      PGADMIN_DEFAULT_PASSWORD: admin_senha
-    ports:
-      - "5050:80"
-    depends_on:
-      postgres:
-        condition: service_healthy
-    volumes:
-      - pgadmin_data:/var/lib/pgadmin
-    networks:
-      - viveiro_network
-
   api:
-    build: ./api_viveiro
-    container_name: viveiro_api
-    restart: unless-stopped
-    ports:
-      - "8000:8000"
-    volumes:
-      - ./api_viveiro/app:/app/app
-      - ./api_viveiro/scripts:/app/scripts
-      - ./api_viveiro/alembic:/app/alembic
-      - ./sistema-viveiro-nativas/public:/biblioteca_public:ro
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-    env_file:
-      - ./api_viveiro/.env
-    environment:
-      DATABASE_URL: postgresql+asyncpg://viveiro_admin:senha_segura_aqui@postgres:5432/viveiro_db
-      SECRET_KEY: dev-secret-change-in-production
-      ALGORITHM: HS256
-      ACCESS_TOKEN_EXPIRE_MINUTES: 480
-      BACKEND_CORS_ORIGINS: '["http://localhost:5173","http://localhost:8000","http://localhost:3000"]'
-      BIBLIOTECA_PUBLIC_ROOT: /biblioteca_public
     depends_on:
       postgres:
         condition: service_healthy
-    networks:
-      - viveiro_network
-
-  site:
-    build:
-      context: ./site
-      dockerfile: Dockerfile
-      args:
-        VITE_APP_URL: ${VITE_APP_URL:-http://localhost:5173}
-    image: viveiro-site:latest
-    container_name: viveiro_site
-    restart: unless-stopped
-    ports:
-      - "3000:3000"
-    networks:
-      - viveiro_network
 
   web:
-    image: node:20-alpine
-    container_name: viveiro_web
-    working_dir: /app
-    restart: unless-stopped
-    ports:
-      - "5173:5173"
-    environment:
-      VITE_API_URL: http://localhost:8000
-      VITE_SITE_URL: http://localhost:3000
-      CHOKIDAR_USEPOLLING: "true"
-      WATCHPACK_POLLING: "true"
-    volumes:
-      - ./sistema-viveiro-nativas:/app
-      - web_node_modules:/app/node_modules
-    command: sh -c "if [ ! -d node_modules/vite ]; then npm ci; fi && npm run dev"
     depends_on:
-      - api
-    networks:
-      - viveiro_network
-
-volumes:
-  postgres_data:
-  pgadmin_data:
-  web_node_modules:
-
-networks:
-  viveiro_network:
-    external: true
+      api:
+        condition: service_started

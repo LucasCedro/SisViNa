@@ -21,6 +21,8 @@ const currentPageTitle = computed(() => {
   if (routePath.includes('/coleta')) return 'Coleta de Sementes';
   if (routePath.includes('/biblioteca')) return 'Biblioteca';
   if (routePath.includes('/financeiro')) return 'Financeiro';
+  if (routePath.includes('/configuracoes')) return 'Configurações';
+  if (routePath.includes('/admin/god-mode')) return 'God Mode';
   return 'Viveiro Nativas';
 });
 </script>

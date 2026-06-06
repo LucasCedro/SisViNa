@@ -2,43 +2,43 @@
 
 ## Home (`/`)
 
-Painel de trabalho com:
+Painel de trabalho (`home.view`):
 
 - Saudação + nome do viveiro (`VITE_VIVEIRO_NOME` no `.env`)
 - Chips de perfis do usuário logado
-- Ações rápidas (filtradas por permissão)
+- Ações rápidas filtradas por `auth.can(permission)`
 - Pendências (transferência, pragas, lotes sem teste)
-- Resumo clicável
-- Fluxo matriz → venda
-- Onboarding quando `matrizes === 0`
-- Atividade recente (coletas, pragas, atividades, vendas)
+- Resumo clicável, fluxo matriz → venda, onboarding, atividade recente
 
-## Perfis (múltiplos por pessoa)
+## Perfis (`funcionarios.perfis` — JSON no Postgres)
 
 | ID | Uso típico |
 |----|------------|
-| `admin` | Tudo |
-| `gestor` | Operação + vendas + estoques |
+| `admin` | Tudo + God Mode |
+| `gestor` | Operação, vendas (sem aprovar), estoques |
 | `campo` | Coleta, produção, manejo |
-| `financeiro` | Módulo financeiro e vendas |
-| `rh` | Sem tela própria; costuma ir com `financeiro` e/ou `consulta` |
-| `consulta` | Somente leitura |
+| `financeiro` | Financeiro, NF-e, aprovação de vendas |
+| `rh` | Ver usuários; sem editar |
+| `consulta` | Somente leitura (sem lista de funcionários) |
 
-Definição de permissões: `src/constants/roles.js`.
-
-No banco (coluna `funcionarios.perfis`, JSON):
+Exemplo no banco:
 
 ```json
 ["campo", "financeiro"]
 ```
 
-Admin padrão recebe todos os perfis no bootstrap. Sem `perfis` na API, o front infere pelo `cargo` ou usa `campo`.
+## Enforcement (importante)
 
-## Migração API
+- **Backend:** `app/security/rbac.py` — permissões efetivas por perfil
+- **Front:** `GET /auth/me` → `permissions[]`; router usa `meta.permission`
+- **Não** inferir acesso por `cargo` — labels em `src/constants/roles.js` são só display
 
-```bash
-cd api_viveiro
-alembic upgrade head
+Documentação completa: [docs/SEGURANCA_RBAC.md](../../docs/SEGURANCA_RBAC.md)
+
+## Migração / seed
+
+```powershell
+.\scripts\dev.ps1 migrate
 ```
 
-Reinicie a API para o bootstrap atualizar `perfis` do usuário `admin`.
+Migration **27** garante `perfis` não nulos (default `["campo"]`). Admin dev pode ter vários perfis no seed; em produção use só `["admin"]`.

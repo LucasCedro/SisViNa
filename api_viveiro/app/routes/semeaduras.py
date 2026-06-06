@@ -5,6 +5,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.jwt import get_current_user
+from app.security.rbac import require_permission
 from app.crud import semeaduras as crud
 from app.database import get_db
 from app.schemas.funcionarios import FuncionarioOut
@@ -20,7 +21,7 @@ async def listar_semeaduras(
     id_lote_sementes: Optional[int] = None,
     id_arvore_matriz: Optional[int] = None,
     db: AsyncSession = Depends(get_db),
-    current_user: FuncionarioOut = Depends(get_current_user),
+    current_user: FuncionarioOut = Depends(require_permission("producao.view")),
 ):
     return await crud.get_semeaduras(
         db,
@@ -35,7 +36,7 @@ async def listar_semeaduras(
 async def criar_semeadura(
     payload: SemeaduraCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: FuncionarioOut = Depends(get_current_user),
+    current_user: FuncionarioOut = Depends(require_permission("producao.create")),
 ):
     try:
         return await crud.create_semeadura(db, payload, current_user.id)
@@ -52,7 +53,7 @@ async def criar_semeadura(
 async def rastreabilidade_planta(
     planta_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: FuncionarioOut = Depends(get_current_user),
+    current_user: FuncionarioOut = Depends(require_permission("producao.view")),
 ):
     dados = await crud.get_rastreabilidade_planta(db, planta_id)
     if not dados:

@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.jwt import get_current_user
+from app.security.rbac import require_permission
 from app.crud import lancamentos_financeiros as crud
 from app.database import get_db
 from app.schemas.funcionarios import FuncionarioOut
@@ -22,7 +23,7 @@ async def listar(
     limit: int = 500,
     tipo: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
-    current_user: FuncionarioOut = Depends(get_current_user),
+    current_user: FuncionarioOut = Depends(require_permission("financeiro.view")),
 ):
     return await crud.list_lancamentos(db, skip=skip, limit=limit, tipo=tipo)
 
@@ -31,7 +32,7 @@ async def listar(
 async def criar(
     body: LancamentoFinanceiroCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: FuncionarioOut = Depends(get_current_user),
+    current_user: FuncionarioOut = Depends(require_permission("financeiro.create")),
 ):
     return await crud.create_lancamento(db, body, current_user.id)
 
@@ -41,7 +42,7 @@ async def atualizar(
     lancamento_id: int,
     body: LancamentoFinanceiroUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: FuncionarioOut = Depends(get_current_user),
+    current_user: FuncionarioOut = Depends(require_permission("financeiro.edit")),
 ):
     obj = await crud.update_lancamento(db, lancamento_id, body)
     if not obj:
@@ -53,7 +54,7 @@ async def atualizar(
 async def excluir(
     lancamento_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: FuncionarioOut = Depends(get_current_user),
+    current_user: FuncionarioOut = Depends(require_permission("financeiro.delete")),
 ):
     obj = await crud.delete_lancamento(db, lancamento_id)
     if not obj:

@@ -13,6 +13,7 @@ from app.schemas.pragas import (
 )
 from app.crud import pragas as crud_pragas
 from app.auth.jwt import get_current_user
+from app.security.rbac import require_permission
 from app.schemas.funcionarios import FuncionarioOut
 
 router = APIRouter()
@@ -23,7 +24,7 @@ async def read_tipos_pragas(
     skip: int = 0,
     limit: int = 100,
     db: AsyncSession = Depends(get_db),
-    current_user: FuncionarioOut = Depends(get_current_user)
+    current_user: FuncionarioOut = Depends(require_permission("fitossanidade.view")),
 ):
     """
     Recupera todos os tipos de pragas.
@@ -35,7 +36,7 @@ async def read_tipos_pragas(
 async def read_tipo_praga(
     tipo_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: FuncionarioOut = Depends(get_current_user)
+    current_user: FuncionarioOut = Depends(require_permission("fitossanidade.view")),
 ):
     """
     Recupera um tipo de praga específico pelo ID.
@@ -49,7 +50,7 @@ async def read_tipo_praga(
 async def create_tipo_praga(
     tipo: TipoPragaCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: FuncionarioOut = Depends(get_current_user)
+    current_user: FuncionarioOut = Depends(require_permission("fitossanidade.create")),
 ):
     """
     Cria um novo tipo de praga.
@@ -67,7 +68,7 @@ async def update_tipo_praga(
     tipo_id: int,
     tipo: TipoPragaUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: FuncionarioOut = Depends(get_current_user)
+    current_user: FuncionarioOut = Depends(require_permission("fitossanidade.edit")),
 ):
     """
     Atualiza um tipo de praga existente.
@@ -89,7 +90,7 @@ async def update_tipo_praga(
 async def delete_tipo_praga(
     tipo_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: FuncionarioOut = Depends(get_current_user)
+    current_user: FuncionarioOut = Depends(require_permission("fitossanidade.edit")),
 ):
     """
     Deleta um tipo de praga. Não é possível deletar se houver pragas associadas.
@@ -108,7 +109,7 @@ async def read_metodos_combate(
     skip: int = 0,
     limit: int = 100,
     db: AsyncSession = Depends(get_db),
-    current_user: FuncionarioOut = Depends(get_current_user)
+    current_user: FuncionarioOut = Depends(require_permission("fitossanidade.view")),
 ):
     """
     Recupera todos os métodos de combate.
@@ -120,7 +121,7 @@ async def read_metodos_combate(
 async def read_metodo_combate(
     metodo_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: FuncionarioOut = Depends(get_current_user)
+    current_user: FuncionarioOut = Depends(require_permission("fitossanidade.view")),
 ):
     """
     Recupera um método de combate específico pelo ID.
@@ -134,7 +135,7 @@ async def read_metodo_combate(
 async def create_metodo_combate(
     metodo: MetodoCombateCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: FuncionarioOut = Depends(get_current_user)
+    current_user: FuncionarioOut = Depends(require_permission("fitossanidade.create")),
 ):
     """
     Cria um novo método de combate.
@@ -146,7 +147,7 @@ async def update_metodo_combate(
     metodo_id: int,
     metodo: MetodoCombateUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: FuncionarioOut = Depends(get_current_user)
+    current_user: FuncionarioOut = Depends(require_permission("fitossanidade.edit")),
 ):
     """
     Atualiza um método de combate existente.
@@ -160,7 +161,7 @@ async def update_metodo_combate(
 async def delete_metodo_combate(
     metodo_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: FuncionarioOut = Depends(get_current_user)
+    current_user: FuncionarioOut = Depends(require_permission("fitossanidade.edit")),
 ):
     """
     Deleta um método de combate. Não é possível deletar se houver combates associados.
@@ -182,7 +183,7 @@ async def read_pragas_plantas(
     id_tipo_praga: Optional[int] = None,
     nivel_infestacao: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
-    current_user: FuncionarioOut = Depends(get_current_user)
+    current_user: FuncionarioOut = Depends(require_permission("fitossanidade.view")),
 ):
     """
     Recupera todas as ocorrências de pragas em plantas.
@@ -201,7 +202,7 @@ async def read_pragas_plantas(
 async def read_praga_planta(
     praga_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: FuncionarioOut = Depends(get_current_user)
+    current_user: FuncionarioOut = Depends(require_permission("fitossanidade.view")),
 ):
     """
     Recupera uma ocorrência específica de praga em planta pelo ID.
@@ -215,7 +216,7 @@ async def read_praga_planta(
 async def create_praga_planta(
     praga: PragaPlantaCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: FuncionarioOut = Depends(get_current_user)
+    current_user: FuncionarioOut = Depends(require_permission("fitossanidade.create")),
 ):
     """
     Registra uma nova ocorrência de praga em planta.
@@ -227,7 +228,7 @@ async def update_praga_planta(
     praga_id: int,
     praga: PragaPlantaUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: FuncionarioOut = Depends(get_current_user)
+    current_user: FuncionarioOut = Depends(require_permission("fitossanidade.edit")),
 ):
     """
     Atualiza uma ocorrência de praga em planta existente.
@@ -241,7 +242,7 @@ async def update_praga_planta(
 async def delete_praga_planta(
     praga_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: FuncionarioOut = Depends(get_current_user)
+    current_user: FuncionarioOut = Depends(require_permission("fitossanidade.edit")),
 ):
     """
     Deleta uma ocorrência de praga em planta. Não é possível deletar se houver combates associados.
@@ -265,7 +266,7 @@ async def read_combates_realizados(
     data_inicio: Optional[datetime] = None,
     data_fim: Optional[datetime] = None,
     db: AsyncSession = Depends(get_db),
-    current_user: FuncionarioOut = Depends(get_current_user)
+    current_user: FuncionarioOut = Depends(require_permission("fitossanidade.view")),
 ):
     """
     Recupera todos os combates realizados.
@@ -286,7 +287,7 @@ async def read_combates_realizados(
 async def read_combate_realizado(
     combate_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: FuncionarioOut = Depends(get_current_user)
+    current_user: FuncionarioOut = Depends(require_permission("fitossanidade.view")),
 ):
     """
     Recupera um combate realizado específico pelo ID.
@@ -300,7 +301,7 @@ async def read_combate_realizado(
 async def create_combate_realizado(
     combate: CombateRealizadoCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: FuncionarioOut = Depends(get_current_user)
+    current_user: FuncionarioOut = Depends(require_permission("fitossanidade.create")),
 ):
     """
     Registra um novo combate realizado.
@@ -312,7 +313,7 @@ async def update_combate_realizado(
     combate_id: int,
     combate: CombateRealizadoUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: FuncionarioOut = Depends(get_current_user)
+    current_user: FuncionarioOut = Depends(require_permission("fitossanidade.edit")),
 ):
     """
     Atualiza um combate realizado existente.
@@ -326,7 +327,7 @@ async def update_combate_realizado(
 async def delete_combate_realizado(
     combate_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: FuncionarioOut = Depends(get_current_user)
+    current_user: FuncionarioOut = Depends(require_permission("fitossanidade.edit")),
 ):
     """
     Deleta um combate realizado.

@@ -17,6 +17,7 @@ from app.schemas.insumos import (
 )
 from app.crud import insumos as crud_insumos
 from app.auth.jwt import get_current_user
+from app.security.rbac import require_permission
 from app.schemas.funcionarios import FuncionarioOut
 
 router = APIRouter()
@@ -30,7 +31,7 @@ async def read_insumos(
     fornecedor: Optional[str] = None,
     estoque_minimo: Optional[float] = None,
     db: AsyncSession = Depends(get_db),
-    current_user: FuncionarioOut = Depends(get_current_user),
+    current_user: FuncionarioOut = Depends(require_permission("estoques.view")),
 ):
     return await crud_insumos.get_insumos(
         db,
@@ -48,7 +49,7 @@ async def read_insumos_com_usos(
     limit: int = 100,
     tipo: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
-    current_user: FuncionarioOut = Depends(get_current_user),
+    current_user: FuncionarioOut = Depends(require_permission("estoques.view")),
 ):
     return await crud_insumos.get_insumos_com_usos(db, skip=skip, limit=limit, tipo=tipo)
 
@@ -56,7 +57,7 @@ async def read_insumos_com_usos(
 @router.get("/tipos", response_model=List[str])
 async def get_tipos_insumos(
     db: AsyncSession = Depends(get_db),
-    current_user: FuncionarioOut = Depends(get_current_user),
+    current_user: FuncionarioOut = Depends(require_permission("estoques.view")),
 ):
     return await crud_insumos.get_tipos_insumos(db)
 
@@ -64,7 +65,7 @@ async def get_tipos_insumos(
 @router.get("/fornecedores", response_model=List[str])
 async def get_fornecedores(
     db: AsyncSession = Depends(get_db),
-    current_user: FuncionarioOut = Depends(get_current_user),
+    current_user: FuncionarioOut = Depends(require_permission("estoques.view")),
 ):
     return await crud_insumos.get_fornecedores(db)
 
@@ -73,7 +74,7 @@ async def get_fornecedores(
 async def read_insumo(
     insumo_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: FuncionarioOut = Depends(get_current_user),
+    current_user: FuncionarioOut = Depends(require_permission("estoques.view")),
 ):
     db_insumo = await crud_insumos.get_insumo(db, insumo_id)
     if db_insumo is None:
@@ -86,7 +87,7 @@ async def listar_movimentacoes_insumo(
     insumo_id: int,
     limit: int = 60,
     db: AsyncSession = Depends(get_db),
-    current_user: FuncionarioOut = Depends(get_current_user),
+    current_user: FuncionarioOut = Depends(require_permission("estoques.view")),
 ):
     db_insumo = await crud_insumos.get_insumo(db, insumo_id)
     if db_insumo is None:
@@ -98,7 +99,7 @@ async def listar_movimentacoes_insumo(
 async def create_insumo(
     insumo: InsumoCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: FuncionarioOut = Depends(get_current_user),
+    current_user: FuncionarioOut = Depends(require_permission("estoques.edit")),
 ):
     db_insumo = await crud_insumos.get_insumo_by_nome(db, nome=insumo.nome)
     if db_insumo:
@@ -111,7 +112,7 @@ async def update_insumo(
     insumo_id: int,
     insumo: InsumoUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: FuncionarioOut = Depends(get_current_user),
+    current_user: FuncionarioOut = Depends(require_permission("estoques.edit")),
 ):
     if insumo.nome:
         existing_insumo = await crud_insumos.get_insumo_by_nome(db, insumo.nome)
@@ -128,7 +129,7 @@ async def update_insumo(
 async def delete_insumo(
     insumo_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: FuncionarioOut = Depends(get_current_user),
+    current_user: FuncionarioOut = Depends(require_permission("estoques.edit")),
 ):
     db_insumo = await crud_insumos.delete_insumo(db, insumo_id)
     if db_insumo is None:
@@ -149,7 +150,7 @@ async def atualizar_estoque_insumo(
     insumo_id: int,
     estoque_data: EstoqueUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: FuncionarioOut = Depends(get_current_user),
+    current_user: FuncionarioOut = Depends(require_permission("estoques.edit")),
 ):
     try:
         db_insumo = await crud_insumos.atualizar_estoque(
@@ -176,7 +177,7 @@ async def registrar_movimentacao_insumo(
     insumo_id: int,
     payload: InsumoMovimentacaoCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: FuncionarioOut = Depends(get_current_user),
+    current_user: FuncionarioOut = Depends(require_permission("estoques.edit")),
 ):
     try:
         mov = await crud_insumos.registrar_movimentacao(db, insumo_id, payload)

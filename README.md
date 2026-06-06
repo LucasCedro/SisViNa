@@ -1,28 +1,46 @@
 # SisViNa
 
-Sistema de gestão de viveiro de plantas nativas.
+Sistema de gestão de viveiro de plantas nativas — coleta, produção, estoques, vendas, financeiro e NF-e.
 
 | Pasta | Descrição |
 |-------|-----------|
-| `bd_viveiro` | PostgreSQL + PgAdmin (Docker) |
-| `api_viveiro` | API REST FastAPI |
-| `sistema-viveiro-nativas` | Front Vue 3 + Vite |
+| `bd_viveiro` | Init-scripts e patches SQL (Postgres) |
+| `api_viveiro` | API REST FastAPI + Alembic |
+| `sistema-viveiro-nativas` | App Vue 3 + Vite |
+| `site` | Site marketing (opcional) |
+| `compose/` | Fragmentos Docker |
+| `docs/` | **Documentação oficial** |
 
 ## Documentação
 
-- **[Documentação técnica completa](./docs/DOCUMENTACAO_TECNICA.md)** — arquitetura, fluxos, API e setup de desenvolvimento
-- **[Rodar com Docker](./RODAR.md)** — guia operacional (containers, patches, troubleshooting)
-- **[Design system](./sistema-viveiro-nativas/docs/DESIGN_SYSTEM.md)** — UI do frontend
+Índice completo: **[docs/README.md](./docs/README.md)**
 
-## Desenvolvimento rápido
+| Leitura rápida | Arquivo |
+|----------------|---------|
+| Subir o projeto | [RODAR.md](./RODAR.md) · [docs/DEV_DOCKER.md](./docs/DEV_DOCKER.md) |
+| Arquitetura e API | [docs/DOCUMENTACAO_TECNICA.md](./docs/DOCUMENTACAO_TECNICA.md) |
+| Segurança / RBAC | [docs/SEGURANCA_RBAC.md](./docs/SEGURANCA_RBAC.md) |
+| Admin God Mode | [docs/ADMIN_COCKPIT.md](./docs/ADMIN_COCKPIT.md) |
+| Referência viveiro / biblioteca | [docs/REFERENCIA_VIVEIRO.md](./docs/REFERENCIA_VIVEIRO.md) |
+| Demo consultor | [DEMO_CONSULTOR.md](./DEMO_CONSULTOR.md) |
 
-1. Postgres: `cd bd_viveiro && docker compose up -d`
-2. API: `cd api_viveiro` → venv → `alembic upgrade head` → `uvicorn app.main:app --reload`
-3. Front: `cd sistema-viveiro-nativas` → `npm install` → `npm run dev`
+## Desenvolvimento
 
-Detalhes em [docs/DOCUMENTACAO_TECNICA.md](./docs/DOCUMENTACAO_TECNICA.md).
+```powershell
+cd C:\Projetos\SisViNa
+.\scripts\dev.ps1 start
 
-## Login (dev)
+cd sistema-viveiro-nativas
+npm run dev
+```
 
-- Usuário: `admin`
-- Senha: `Admin@123`
+| Serviço | URL |
+|---------|-----|
+| App | http://localhost:5173 |
+| API | http://localhost:8000/docs |
+
+Login dev: `admin` / `Admin@123`
+
+Migrations: `.\scripts\dev.ps1 migrate` (head: `27_backfill_perfis_campo`)
+
+Testes RBAC: `.\scripts\test_permissions.ps1`

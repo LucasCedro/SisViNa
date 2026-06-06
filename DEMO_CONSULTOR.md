@@ -20,7 +20,16 @@ Monorepo Git com 3 partes:
 - Código: `site/src/lib/app-url.ts`, `site/src/components/app-access-link.tsx`
 - Documentação: `site/INTEGRACAO.md` e `RODAR.md` (raiz do monorepo)
 
-**Protótipo v0.1** — o site vende a visão; o app mostra coleta, produção, estoques, vendas e financeiro. Textos do site (NF-e, WhatsApp, app mobile, etc.) são **roadmap**; nem tudo existe no app ainda.
+**Protótipo v0.1** — o site vende a visão; o app mostra coleta, produção, estoques, vendas, financeiro e **NF-e em homologação**. Textos do site (WhatsApp, app mobile, etc.) podem ser **roadmap**; produção fiscal real só após validação do contador + `NFE_ALLOW_PRODUCAO=true`.
+
+### Papéis: vendedor vs contador
+
+| Quem | Onde | O quê |
+|------|------|--------|
+| **Vendedor** | Vendas | Fecha venda e emite NF-e na hora (se regra fiscal ativa + emitente OK) |
+| **Contador** | **Contabilidade** | Visão geral, todas as NF-e, vendas pendentes, regras CFOP/CSOSN, cadastro emitente |
+
+**Homologação obrigatória por enquanto:** banner amarelo no cockpit; servidor bloqueia `ambiente=producao` enquanto `NFE_ALLOW_PRODUCAO=false` (padrão). Token Focus = ambiente de testes SEFAZ.
 
 ---
 
@@ -60,20 +69,9 @@ Não é necessário hospedar app ou API no Lovable — apenas o site marketing.
 
 ```powershell
 cd C:\caminho\SisViNa
-
 git pull
-
-docker network create viveiro_network
-# (ignore erro se a rede já existir)
-
-# .env NÃO vêm no Git — copiar dos exemplos na 1ª vez:
-copy api_viveiro\.env.example api_viveiro\.env
-
-docker compose up -d --build postgres api web
-# NÃO precisa subir `site` se usar Lovable — só web + api + postgres
-
-# Migrations (1ª vez ou após pull com migrations novas):
-docker exec viveiro_api alembic upgrade head
+copy api_viveiro\.env.example api_viveiro\.env   # 1ª vez
+.\scripts\dev.ps1 start-all
 ```
 
 Aguardar ~1–2 min no primeiro `npm ci` do front.
@@ -100,7 +98,7 @@ Aguardar ~1–2 min no primeiro `npm ci` do front.
 Subir o site também via Docker:
 
 ```powershell
-docker compose up -d --build site web api postgres
+.\scripts\dev.ps1 start-demo
 ```
 
 - Site local: http://localhost:3000  
@@ -118,11 +116,12 @@ docker compose up -d --build site web api postgres
    - Coleta
    - Produção (pipeline / semeadura)
    - Estoques (mudas, insumos)
-   - Vendas (venda paga, se existir)
-   - Financeiro (DRE / premissas)
+   - Vendas (criar venda **pendente**; aprovação/pagamento = perfil financeiro — SoD)
+   - **Contabilidade** (cockpit contador: consolidar NF-e, pendentes, regras CFOP, emitente)
+   - Financeiro (DRE / premissas — sem aba fiscal; fiscal ficou em Contabilidade)
 6. Frase-chave para o consultor:
 
-   > *"O site é a vitrine comercial. O sistema é o protótipo funcional do fluxo do viveiro. Não é produto final — nem tudo que o site promete já está implementado."*
+   > *"O site é a vitrine comercial. O sistema é o protótipo funcional do fluxo do viveiro. NF-e está em **homologação** (sem valor fiscal) até o contador validar parâmetros e liberarmos produção conscientemente."*
 
 ---
 
@@ -142,11 +141,11 @@ docker compose up -d --build site web api postgres
 
 | Sintoma | Causa provável | Solução |
 |---------|----------------|---------|
-| Entrar abre localhost e não carrega | Docker não subiu | `docker compose up -d web api postgres` |
-| Erro ao logar | API off ou migration pendente | `docker compose logs api` + `docker exec viveiro_api alembic upgrade head` |
+| Entrar abre localhost e não carrega | Docker não subiu | `.\scripts\dev.ps1 start-all` |
+| Erro ao logar | API off ou migration pendente | `docker compose logs api` + `.\scripts\dev.ps1 migrate` |
 | Botão Entrar vai para URL errada | `VITE_APP_URL` incorreto no build Lovable | Rebuild com `http://localhost:5173` |
 | Front não atualiza | Normal no Docker + Windows | F5; containers rodando bastam |
-| Erro de rede Docker | `viveiro_network` inexistente | `docker network create viveiro_network` |
+| Erro de rede Docker | Stack não subiu | `.\scripts\dev.ps1 start` na raiz |
 
 ---
 
@@ -177,7 +176,6 @@ SisViNa/
 ├── api_viveiro/               ← API FastAPI
 ├── docker-compose.yml         ← Sobe postgres + api + web (+ site opcional)
 ├── RODAR.md                   ← Como rodar localmente
-└── site/
-    ├── INTEGRACAO.md          ← Detalhes site ↔ app
-    └── DEMO_CONSULTOR.md      ← Este arquivo
+├── DEMO_CONSULTOR.md          ← Este arquivo (raiz do monorepo)
+└── site/INTEGRACAO.md         ← Detalhes site ↔ app
 ```

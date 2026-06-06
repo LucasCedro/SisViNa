@@ -10,9 +10,14 @@ class CompradorBase(BaseModel):
     telefone: Optional[str] = None
     email: Optional[str] = None
     endereco: Optional[str] = None
+    numero: Optional[str] = None
+    bairro: Optional[str] = None
     cidade: Optional[str] = None
     estado: Optional[str] = None
     cep: Optional[str] = None
+    codigo_municipio_ibge: Optional[str] = None
+    inscricao_estadual: Optional[str] = None
+    indicador_ie: Optional[str] = "9"
     usuario: Optional[str] = None
     ativo: Optional[bool] = True
 
@@ -50,9 +55,14 @@ class CompradorUpdate(BaseModel):
     telefone: Optional[str] = None
     email: Optional[str] = None
     endereco: Optional[str] = None
+    numero: Optional[str] = None
+    bairro: Optional[str] = None
     cidade: Optional[str] = None
     estado: Optional[str] = None
     cep: Optional[str] = None
+    codigo_municipio_ibge: Optional[str] = None
+    inscricao_estadual: Optional[str] = None
+    indicador_ie: Optional[str] = None
     usuario: Optional[str] = None
     senha: Optional[str] = None
     ativo: Optional[bool] = None

@@ -18,9 +18,16 @@ async def test_resumo_estoques_estrutura(client: AsyncClient, auth_headers: dict
     assert "mudas_pipeline" in data
     assert "estoque_comercial" in data
     assert "valor_total_insumos" in data
+    assert "valor_total_sementes" in data
+    assert "analitico_mudas" in data
+    assert "cmv_integridade" in data
     pipe = data["mudas_pipeline"]
     assert "prontas_para_venda" in pipe
     assert "dias_minimos_rustificacao" in pipe
+    anal = data["analitico_mudas"]
+    assert "por_especie" in anal
+    assert "por_idade" in anal
+    assert "especie_idade" in anal
 
 
 @pytest.mark.asyncio

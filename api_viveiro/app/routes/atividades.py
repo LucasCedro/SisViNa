@@ -11,6 +11,7 @@ from app.schemas.atividades import (
 )
 from app.crud import atividades as crud_atividades
 from app.auth.jwt import get_current_user
+from app.security.rbac import require_permission
 from app.schemas.funcionarios import FuncionarioOut
 
 router = APIRouter()
@@ -21,7 +22,7 @@ async def read_tipos_atividades(
     skip: int = 0,
     limit: int = 100,
     db: AsyncSession = Depends(get_db),
-    current_user: FuncionarioOut = Depends(get_current_user)
+    current_user: FuncionarioOut = Depends(require_permission("producao.view"))
 ):
     """
     Recupera todos os tipos de atividades.
@@ -33,7 +34,7 @@ async def read_tipos_atividades(
 async def read_tipo_atividade(
     tipo_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: FuncionarioOut = Depends(get_current_user)
+    current_user: FuncionarioOut = Depends(require_permission("producao.view"))
 ):
     """
     Recupera um tipo de atividade específico pelo ID.
@@ -47,7 +48,7 @@ async def read_tipo_atividade(
 async def create_tipo_atividade(
     tipo: TipoAtividadeCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: FuncionarioOut = Depends(get_current_user)
+    current_user: FuncionarioOut = Depends(require_permission("fertilizacao.create"))
 ):
     """
     Cria um novo tipo de atividade.
@@ -65,7 +66,7 @@ async def update_tipo_atividade(
     tipo_id: int,
     tipo: TipoAtividadeUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: FuncionarioOut = Depends(get_current_user)
+    current_user: FuncionarioOut = Depends(require_permission("fertilizacao.edit"))
 ):
     """
     Atualiza um tipo de atividade existente.
@@ -87,7 +88,7 @@ async def update_tipo_atividade(
 async def delete_tipo_atividade(
     tipo_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: FuncionarioOut = Depends(get_current_user)
+    current_user: FuncionarioOut = Depends(require_permission("fertilizacao.edit"))
 ):
     """
     Deleta um tipo de atividade. Não é possível deletar se houver atividades associadas.
@@ -111,7 +112,7 @@ async def read_atividades(
     data_inicio: Optional[datetime] = None,
     data_fim: Optional[datetime] = None,
     db: AsyncSession = Depends(get_db),
-    current_user: FuncionarioOut = Depends(get_current_user)
+    current_user: FuncionarioOut = Depends(require_permission("producao.view"))
 ):
     """
     Recupera todas as atividades com opção de filtrar por tipo, planta, funcionário e período.
@@ -132,7 +133,7 @@ async def read_atividades(
 async def read_atividade(
     atividade_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: FuncionarioOut = Depends(get_current_user)
+    current_user: FuncionarioOut = Depends(require_permission("producao.view"))
 ):
     """
     Recupera uma atividade específica pelo ID com detalhes.
@@ -146,7 +147,7 @@ async def read_atividade(
 async def create_atividade(
     atividade: AtividadeCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: FuncionarioOut = Depends(get_current_user)
+    current_user: FuncionarioOut = Depends(require_permission("fertilizacao.create"))
 ):
     """
     Cria uma nova atividade com opção de adicionar insumos utilizados.
@@ -158,7 +159,7 @@ async def update_atividade(
     atividade_id: int,
     atividade: AtividadeUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: FuncionarioOut = Depends(get_current_user)
+    current_user: FuncionarioOut = Depends(require_permission("fertilizacao.edit"))
 ):
     """
     Atualiza uma atividade existente.
@@ -172,7 +173,7 @@ async def update_atividade(
 async def delete_atividade(
     atividade_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: FuncionarioOut = Depends(get_current_user)
+    current_user: FuncionarioOut = Depends(require_permission("fertilizacao.edit"))
 ):
     """
     Deleta uma atividade. Restaura o estoque dos insumos e remove o custo da planta.

@@ -12,9 +12,11 @@ Tokens implementados em `src/assets/main.css`.
 
 Inventário do que foi removido e dívida técnica restante: **[docs/CLEANUP.md](./docs/CLEANUP.md)**
 
-## Home e perfis de acesso
+## Segurança e perfis
 
-Cockpit da página inicial e perfis múltiplos por usuário: **[docs/HOME_E_PERFIS.md](./docs/HOME_E_PERFIS.md)**
+RBAC e God Mode: **[../../docs/SEGURANCA_RBAC.md](../../docs/SEGURANCA_RBAC.md)** · **[../../docs/ADMIN_COCKPIT.md](../../docs/ADMIN_COCKPIT.md)**
+
+Biblioteca e referência Embrapa: **[../../docs/REFERENCIA_VIVEIRO.md](../../docs/REFERENCIA_VIVEIRO.md)**
 
 Copie `.env.example` para `.env` e ajuste `VITE_VIVEIRO_NOME`.
 

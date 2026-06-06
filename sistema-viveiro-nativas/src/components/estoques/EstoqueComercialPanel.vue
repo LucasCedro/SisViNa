@@ -81,18 +81,17 @@
       </table>
     </div>
 
-    <dialog ref="dialogPreco" class="estoque-dialog">
-      <form method="dialog" class="estoque-dialog__inner" @submit.prevent="salvarPreco">
-        <header class="estoque-modal__header">
+    <dialog ref="dialogPreco" class="app-dialog estoque-dialog">
+      <form class="dialog-panel" @submit.prevent="salvarPreco">
+        <header class="dialog-panel__header">
           <h3>Preço de venda</h3>
           <p>{{ formPreco.nomePopular || formPreco.nomeCientifico }} — {{ formPreco.quantidade }} un.</p>
         </header>
-        <div class="estoque-modal__body">
-          <label class="form-label">
+        <div class="dialog-panel__body">
+          <label class="module-field">
             Preço unitário (R$)
             <input
               v-model.number="formPreco.valorUnitario"
-              class="form-input"
               type="number"
               step="0.01"
               min="0.01"
@@ -100,7 +99,7 @@
             />
           </label>
         </div>
-        <footer class="estoque-modal__footer">
+        <footer class="dialog-panel__footer">
           <button type="button" class="btn btn-secondary" @click="fecharDialog">Cancelar</button>
           <button type="submit" class="btn btn-primary">Salvar</button>
         </footer>
@@ -270,17 +269,5 @@ async function salvarPreco() {
   .pipeline-seta {
     display: none;
   }
-}
-
-.estoque-dialog {
-  border: none;
-  border-radius: var(--radius-xl);
-  padding: 0;
-  max-width: 420px;
-  box-shadow: var(--shadow-lg);
-}
-
-.estoque-dialog__inner {
-  margin: 0;
 }
 </style>

@@ -13,7 +13,11 @@ from app.database import get_db
 from app.models.funcionarios import Funcionario
 from app.auth.jwt import create_access_token, get_current_user
 from app.auth.utils import verificar_senha, gerar_senha_hash, validar_requisitos_senha
-from app.schemas.funcionarios import FuncionarioOut, FuncionarioCreate
+from app.crud import funcionarios as crud_funcionarios
+from app.schemas.funcionarios import FuncionarioOut, FuncionarioPerfilUpdate
+from app.schemas.auth import AuthMeOut, PermissionsOut
+from app.auth.session import build_auth_me
+from app.security.rbac import require_permission, resolve_permissions
 
 router = APIRouter()
 
@@ -63,7 +67,7 @@ async def login_access_token(
 async def reset_password(
     password_data: PasswordReset,
     db: AsyncSession = Depends(get_db),
-    current_user: FuncionarioOut = Depends(get_current_user)
+    current_user: FuncionarioOut = Depends(require_permission("config.profile.edit")),
 ) -> Any:
     """
     Reset password for logged in user
@@ -101,14 +105,58 @@ async def reset_password(
     
     return FuncionarioOut.from_orm(user)
 
-@router.get("/me", response_model=FuncionarioOut)
+@router.get("/me", response_model=AuthMeOut)
 async def read_users_me(
     current_user: FuncionarioOut = Depends(get_current_user),
-) -> Any:
+) -> AuthMeOut:
     """
-    Get current user
+    Usuário logado + array `permissions` (SSOT).
+
+    O frontend deve usar `permissions` para guards de rota/UI — não inferir
+    acesso pelo campo `cargo` nem replicar a matriz RBAC localmente.
     """
-    return current_user
+    return build_auth_me(current_user)
+
+
+@router.get("/permissions", response_model=PermissionsOut)
+async def read_my_permissions(
+    current_user: FuncionarioOut = Depends(get_current_user),
+) -> PermissionsOut:
+    """
+    Permissões efetivas do usuário logado (refresh leve sem payload completo).
+    """
+    return PermissionsOut(permissions=sorted(resolve_permissions(current_user.perfis)))
+
+
+@router.patch("/me", response_model=AuthMeOut)
+async def update_users_me(
+    perfil: FuncionarioPerfilUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: FuncionarioOut = Depends(require_permission("config.profile.edit")),
+) -> AuthMeOut:
+    """
+    Atualiza dados básicos do perfil do usuário logado.
+
+    FuncionarioPerfilUpdate não inclui `perfis` — tentativas de escalação
+    via mass-assignment nesta rota são ignoradas por design (schema separado).
+    """
+    try:
+        updated = await crud_funcionarios.update_funcionario_perfil(
+            db, current_user.id, perfil
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+
+    if not updated:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Usuário não encontrado",
+        )
+
+    return build_auth_me(FuncionarioOut.from_orm(updated))
 
 @router.post("/check-username")
 async def check_username_available(

@@ -56,15 +56,25 @@ O **SisViNa** é um sistema web para gestão operacional e comercial de viveiros
 | `/estoques` | Lotes em armazém e insumos |
 | `/fitossanidade` | Pragas e combates |
 | `/fertilizacao` | Atividades e insumos |
-| `/vendas-estoque` | Compradores, vendas, estoque de plantas |
-| `/financeiro` | Lançamentos CAPEX/OPEX |
-| `/biblioteca` | Catálogo de espécies |
+| `/vendas` | Compradores, vendas, estoque comercial |
+| `/vendas-estoque` | Redirect legado → `/vendas` |
+| `/financeiro` | Lançamentos, DRE, premissas de custeio |
+| `/contabilidade` | NF-e, regras fiscais, cockpit contador |
+| `/configuracoes` | Perfil, senha, atalho God Mode (admin) |
+| `/admin/god-mode` | Cockpit admin (não aparece no menu lateral) |
+| `/biblioteca` | Catálogo técnico de espécies |
 | `/prescricao` | Prescrição técnica (PDF local) |
 
 ### Autenticação e autorização
 
-- **Implementado:** login JWT; rotas da API exigem `Authorization: Bearer <token>`; frontend bloqueia rotas sem token.
-- **Não implementado (previsto):** RBAC por cargo/perfil — qualquer usuário autenticado acessa todos os módulos.
+- **JWT** em todas as rotas operacionais (`Authorization: Bearer`).
+- **RBAC** por permissões `modulo.acao` — catálogo em `app/security/rbac.py`.
+- `GET /auth/me` retorna `permissions[]` (SSOT para o frontend).
+- Router Vue usa `meta.permission` + `auth.can()` — sem inferência por `cargo`.
+- **God Mode:** perfil `admin` + `admin.godmode.*` — ver [SEGURANCA_RBAC.md](./SEGURANCA_RBAC.md) e [ADMIN_COCKPIT.md](./ADMIN_COCKPIT.md).
+- **SoD vendas:** gestor cria/edita; financeiro aprova via `POST /vendas/{id}/aprovar`.
+
+Documentação completa: [SEGURANCA_RBAC.md](./SEGURANCA_RBAC.md).
 
 ---
 
@@ -119,12 +129,12 @@ Executados no **startup da API** (`app/bootstrap.py`) **somente quando o registr
 
 > **Produção:** desabilitar ou remover seeds automáticos antes do deploy.
 
-### Rede Docker
+### Docker
 
-A API e o Postgres usam a rede externa `viveiro_network`:
+Um único Compose na raiz (`docker-compose.yml` + `compose/`). Ver [DEV_DOCKER.md](./DEV_DOCKER.md).
 
 ```powershell
-docker network create viveiro_network
+.\scripts\dev.ps1 start
 ```
 
 ---
@@ -139,7 +149,9 @@ SisViNa/
 ├── api_viveiro/             # API REST FastAPI
 ├── sistema-viveiro-nativas/ # SPA Vue 3
 ├── docs/                    # Documentação do projeto
-├── docker-compose.yml       # Orquestração opcional (tudo em Docker)
+├── compose/                 # Fragmentos Docker (infra, api, web, site)
+├── docker-compose.yml       # Único entrypoint Docker
+├── scripts/dev.ps1          # Atalhos start/stop/migrate
 ├── RODAR.md                 # Guia operacional Docker
 └── README.md
 ```
@@ -153,20 +165,31 @@ SisViNa/
 | `app/crud/` | Regras de negócio e queries |
 | `app/models/` | Entidades SQLAlchemy |
 | `app/schemas/` | DTOs Pydantic (entrada/saída) |
-| `app/auth/` | JWT, login, `get_current_user` |
+| `app/auth/` | JWT, login, `/me`, `get_current_user` |
+| `app/security/rbac.py` | Catálogo de permissões, `require_permission`, `require_godmode` |
+| `app/services/vendas_sod.py` | SoD vendas (edit vs approve) |
+| `app/services/validacao_producao.py` | Avisos suaves (referência Embrapa) |
+| `app/routes/referencia_viveiro.py` | Regras globais e fichas por espécie |
+| `app/routes/admin_cockpit.py` | God Mode (admin exclusivo) |
 | `app/bootstrap.py` | Seeds de desenvolvimento |
 | `alembic/versions/` | Migrações oficiais do schema |
 | `tests/` | Testes de integração (pytest + httpx) |
 
-**Migrações Alembic (ordem):**
+**Migrações Alembic:** pasta `alembic/versions/` — aplicar sempre com `alembic upgrade head` ou `.\scripts\dev.ps1 migrate`. Head atual: **`27_backfill_perfis_campo`**. Não use `alembic stamp` manual.
 
-| Revision | Conteúdo |
-|----------|----------|
-| `001_criar_tabelas_iniciais` | Espécies, funcionários, compradores, canteiros, plantas, atividades, pragas, insumos, vendas, views/triggers base |
-| `002_arvores_matriz` | Árvores-matriz |
-| `003_coletas_sementes` | Coletas + view BI |
-| `004_coleta_integracao` | Lotes, testes, semeaduras, rastreabilidade |
-| `005_lancamentos_financeiros` | CAPEX/OPEX + `vw_resumo_financeiro` |
+Marcos históricos (não enumerar todos aqui):
+
+| Faixa | Conteúdo |
+|-------|----------|
+| 01–05 | Core, coleta, financeiro |
+| 06 | `funcionarios.perfis` |
+| 07–08 | Produção, rustificação / estágios |
+| 09–14 | Referência Embrapa, biblioteca 90 espécies, metadados |
+| 15–18 | Estoques/insumos, layout viveiro, custo item venda |
+| 19–20 | Premissas de custeio |
+| 21–25 | Premissas energia, NF-e, regras fiscais |
+| 26 | Repair schema (colunas puladas) |
+| 27 | Backfill perfis NULL → `["campo"]` |
 
 ### `sistema-viveiro-nativas/`
 
@@ -177,15 +200,16 @@ SisViNa/
 | `src/services/` | Cliente Axios por recurso REST |
 | `src/views/` | Páginas (uma por rota principal) |
 | `src/components/` | UI por módulo (`coleta`, `viveiro`, `financeiro`, …) |
-| `src/constants/` | Enums e cores de gráficos |
+| `src/constants/roles.js` | Labels de perfis (display only) |
 | `docs/DESIGN_SYSTEM.md` | Tokens visuais e padrões de UI |
 
 ### `bd_viveiro/`
 
 | Pasta | Papel |
 |-------|-------|
-| `docker-compose.yml` | Postgres 15 + PgAdmin |
-| `init-scripts/` | Scripts SQL legados (não usar como fonte oficial de schema) |
+| `init-scripts/` | SQL inicial do Postgres (1ª criação do volume) |
+| `patches/` | Scripts SQL pontuais |
+| `DOCKER.md` | Atalhos — compose fica na raiz |
 
 > O schema evolutivo deve ser mantido via **Alembic** em `api_viveiro`.
 
@@ -208,8 +232,8 @@ sequenceDiagram
     A-->>F: access_token + token_type
     F->>F: localStorage.token
     F->>A: GET /api/v1/auth/me (Bearer)
-    A-->>F: FuncionarioOut
-    Note over F: router.beforeEach bloqueia rotas sem token
+    A-->>F: AuthMeOut (user + permissions[])
+    Note over F: router.beforeEach → auth.can(meta.permission)
 ```
 
 **Regras:**
@@ -292,12 +316,11 @@ Endpoint: `POST /api/v1/plantas/cadastro-lote`
 
 ### 4.6 Vendas
 
-Endpoint: `POST /api/v1/vendas`
-
-- Exige ao menos um item.
-- `valor_total` = soma de `(valor_unitario × quantidade) - desconto` por item.
-- Cada planta do item passa a `VENDIDA`.
-- Cancelamento (`status: CANCELADO`) reverte plantas para `ADULTA` (comportamento atual).
+- Criação: `POST /vendas` — status **`PENDENTE`** (gestor: `vendas.create`).
+- Edição: `PUT /vendas/{id}` — só vendas `PENDENTE`; **não** permite `PAGO` no body (`vendas.edit`).
+- Aprovação: `POST /vendas/{id}/aprovar` — `vendas.approve` (financeiro).
+- Cancelamento: `status: CANCELADO` via PUT em venda pendente.
+- Plantas dos itens → `VENDIDA` na criação; cancelamento reverte conforme CRUD.
 
 ### 4.7 Financeiro
 
@@ -347,7 +370,7 @@ transferencias_plantas
 |------|-------------------|
 | 400 | Regra de negócio / validação |
 | 401 | Token ausente ou inválido |
-| 403 | Usuário inativo |
+| 403 | Usuário inativo **ou** permissão RBAC insuficiente |
 | 404 | Recurso não encontrado |
 | 422 | Body/query inválido (Pydantic) |
 
@@ -358,8 +381,10 @@ transferencias_plantas
 | Método | Rota | Auth | Corpo | Sucesso | Erros |
 |--------|------|------|-------|---------|-------|
 | POST | `/auth/login` | Não | `application/x-www-form-urlencoded`: `username`, `password` | `200` `{ "access_token", "token_type": "bearer" }` | `401`, `403` |
-| GET | `/auth/me` | Sim | — | `200` `FuncionarioOut` | `401` |
-| POST | `/auth/reset-password` | Sim | `{ "old_password", "new_password" }` | `200` `FuncionarioOut` | `400`, `404` |
+| GET | `/auth/me` | Sim | — | `200` `AuthMeOut` (inclui `permissions[]`) | `401`, `403` |
+| GET | `/auth/permissions` | Sim | — | `200` lista de permissões | `401` |
+| PATCH | `/auth/me` | Sim | Perfil próprio (sem `perfis`) | `200` | `401`, `422` |
+| POST | `/auth/reset-password` | Sim | `{ "old_password", "new_password" }` | `200` | `400`, `404` |
 
 ---
 
@@ -463,9 +488,10 @@ transferencias_plantas
 | Método | Rota | Corpo |
 |--------|------|-------|
 | GET | `/vendas/` | — |
-| POST | `/vendas/` | `{ id_comprador, id_funcionario, data_venda, status, itens: [{ id_planta, quantidade, valor_unitario, desconto? }] }` |
-| PUT | `/vendas/{id}` | Atualização / cancelamento |
-| DELETE | `/vendas/{id}` | Remove venda e restaura plantas |
+| POST | `/vendas/` | Cria venda `PENDENTE` |
+| PUT | `/vendas/{id}` | Edita venda pendente (sem marcar PAGO) |
+| POST | `/vendas/{id}/aprovar` | `vendas.approve` → status `PAGO` |
+| DELETE | `/vendas/{id}` | Remove venda pendente |
 
 #### Lançamentos financeiros
 
@@ -481,15 +507,40 @@ transferencias_plantas
 | GET | `/dashboard/resumo` | Indicadores gerais do viveiro |
 | GET | `/dashboard/financeiro` | `ResumoFinanceiroOut` |
 
+#### Financeiro — premissas e painel
+
+| Método | Rota | Permissão típica |
+|--------|------|------------------|
+| GET | `/financeiro/painel` | `financeiro.view` |
+| GET/POST/PUT/DELETE | `/financeiro/premissas` | `financeiro.*` |
+
+#### Referência viveiro (Embrapa / manual)
+
+| Método | Rota | Notas |
+|--------|------|-------|
+| GET | `/referencia-viveiro/regras` | Regras globais (somente leitura) |
+| GET | `/referencia-viveiro/resumo` | Fonte + regras |
+| GET | `/referencia-viveiro/especies/{id}/ficha` | Ficha técnica ou `404` |
+
+Documentação: [REFERENCIA_VIVEIRO.md](./REFERENCIA_VIVEIRO.md).
+
+#### Produção (pipeline)
+
+| Método | Rota | Resposta |
+|--------|------|----------|
+| GET | `/producao/resumo` | Resumo do pipeline (sementeira → venda) |
+
 ---
 
 ### 5.6 Cadastros de apoio
 
 | Recurso | Prefixo |
 |---------|---------|
-| Espécies | `/especies/` |
-| Funcionários | `/funcionarios/` |
+| Espécies | `/especies/` — inclui `GET /biblioteca`, imagens externas |
+| Funcionários | `/funcionarios/` (RBAC `users.*`; God Mode: `/admin/cockpit/funcionarios`) |
 | Compradores | `/compradores/` |
+| Admin cockpit | `/admin/cockpit/` (`require_godmode`) |
+| Fiscal | `/fiscal/`, `/nfe/` |
 
 ---
 
@@ -530,18 +581,21 @@ git clone https://github.com/LucasCedro/SisViNa.git
 cd SisViNa
 ```
 
-### 6.2 Subir o banco (Docker)
+### 6.2 Subir stack (Docker)
 
 ```powershell
-docker network create viveiro_network
-cd bd_viveiro
-docker compose up -d
+cd C:\Projetos\SisViNa
+.\scripts\dev.ps1 start
+cd sistema-viveiro-nativas
+npm run dev
 ```
 
 | Serviço | URL / porta |
 |---------|-------------|
 | PostgreSQL | `localhost:5432` |
-| PgAdmin | http://localhost:5050 |
+| API | http://localhost:8000/docs |
+| App | http://localhost:5173 |
+| PgAdmin | http://localhost:5050 (profile `tools`) |
 
 Credenciais padrão do Postgres (compose):
 
@@ -562,7 +616,7 @@ pip install -r requirements.txt
 alembic upgrade head
 ```
 
-> Em banco **novo**, o schema deve vir **somente** do Alembic. Se um volume antigo já tiver tabelas de outra origem, recrie: `docker compose down -v` em `bd_viveiro` e suba de novo antes do `alembic upgrade head`.
+> Em banco **novo**, o schema deve vir **somente** do Alembic. Volume antigo: `docker compose down -v` na raiz e `.\scripts\dev.ps1 start` + `migrate`.
 
 ### 6.4 Subir a API (terminal)
 
@@ -599,7 +653,7 @@ npm run dev
 ### 6.6 Checklist rápido
 
 - [ ] Docker Desktop em execução
-- [ ] Rede `viveiro_network` criada
+- [ ] `.\scripts\dev.ps1 start` ou `start-all` na raiz
 - [ ] Postgres respondendo na porta 5432
 - [ ] `alembic upgrade head` sem erro
 - [ ] API em `/health` com `"database": "connected"`
@@ -625,10 +679,15 @@ Para subir API e front também em containers, consulte [RODAR.md](../RODAR.md) n
 
 | Documento | Conteúdo |
 |-----------|----------|
-| [RODAR.md](../RODAR.md) | Docker completo, patches, troubleshooting |
-| [DESIGN_SYSTEM.md](../sistema-viveiro-nativas/docs/DESIGN_SYSTEM.md) | UI e tokens visuais |
+| [docs/README.md](./README.md) | Índice da documentação |
+| [RODAR.md](../RODAR.md) | Docker, patches, troubleshooting |
+| [SEGURANCA_RBAC.md](./SEGURANCA_RBAC.md) | RBAC, SoD, testes |
+| [ADMIN_COCKPIT.md](./ADMIN_COCKPIT.md) | God Mode |
+| [FISCAL_CONTADOR.md](./FISCAL_CONTADOR.md) | NF-e e contador |
+| [REFERENCIA_VIVEIRO.md](./REFERENCIA_VIVEIRO.md) | Embrapa, biblioteca, avisos produção |
+| [DESIGN_SYSTEM.md](../sistema-viveiro-nativas/docs/DESIGN_SYSTEM.md) | UI |
 | `/docs` (API) | OpenAPI gerado pelo FastAPI |
 
 ---
 
-*Documentação gerada para o monorepo SisViNa. Schema oficial: Alembic em `api_viveiro`. RBAC: planejado, não implementado.*
+*Schema oficial: Alembic em `api_viveiro`. RBAC: implementado — ver SEGURANCA_RBAC.md.*

@@ -11,4 +11,5 @@ export const NAV_ITEMS = [
   { path: '/coleta', label: 'Coleta de Sementes', permission: 'coleta.view', icon: 'coleta' },
   { path: '/biblioteca', label: 'Biblioteca', permission: 'biblioteca.view', icon: 'biblioteca' },
   { path: '/financeiro', label: 'Financeiro', permission: 'financeiro.view', icon: 'financeiro' },
+  { path: '/contabilidade', label: 'Contabilidade', permission: 'contabilidade.view', icon: 'contabilidade' },
 ]

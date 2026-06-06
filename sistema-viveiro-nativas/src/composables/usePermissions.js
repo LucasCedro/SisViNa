@@ -1,24 +1,16 @@
 import { computed } from 'vue'
 import { useAuthStore } from '@/store/auth'
-import {
-  ROLES,
-  resolvePerfisFromUser,
-  permissionsForPerfis,
-  canAccess as canAccessPerfis,
-} from '@/constants/roles'
+import { perfilLabelsFromUser } from '@/constants/roles'
 
 export function usePermissions() {
   const auth = useAuthStore()
 
-  const perfis = computed(() => resolvePerfisFromUser(auth.user))
-  const permissions = computed(() => permissionsForPerfis(perfis.value))
+  const permissions = computed(() => auth.permissions)
 
-  const perfilLabels = computed(() =>
-    perfis.value.map((id) => ROLES[id]?.label || id)
-  )
+  const perfilLabels = computed(() => perfilLabelsFromUser(auth.user))
 
   function can(permission) {
-    return canAccessPerfis(perfis.value, permission)
+    return auth.can(permission)
   }
 
   function canAny(...perms) {
@@ -26,11 +18,10 @@ export function usePermissions() {
   }
 
   function hasRole(roleId) {
-    return perfis.value.includes(roleId)
+    return Array.isArray(auth.user?.perfis) && auth.user.perfis.includes(roleId)
   }
 
   return {
-    perfis,
     permissions,
     perfilLabels,
     can,

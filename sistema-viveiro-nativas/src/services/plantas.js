@@ -25,6 +25,14 @@ export async function listPlantasDisponiveisVenda(idEspecie, limit = 500) {
   return data
 }
 
+/** Mudas expedíveis com lote, canteiro e dias na rustificação — formulário de venda. */
+export async function listPlantasDisponiveisVendaDetalhado(idEspecie, params = {}) {
+  const { data } = await api.get(`${API_V1}/plantas/disponiveis-venda/detalhado`, {
+    params: { id_especie: idEspecie, ...params },
+  })
+  return data
+}
+
 export async function atualizarPrecoEspecie(idEspecie, precoVenda) {
   const { data } = await api.patch(`${API_V1}/plantas/preco-especie/${idEspecie}`, {
     preco_venda: precoVenda

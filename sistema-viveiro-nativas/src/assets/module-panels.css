@@ -1,0 +1,343 @@
+/* Painéis operacionais — Vendas, Contabilidade, Estoques (guias + formulários) */
+
+.module-root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+  width: 100%;
+}
+
+.module-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  padding-bottom: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.module-tab {
+  padding: 0.5rem 1rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-lg);
+  background: transparent;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.875rem;
+  font-family: inherit;
+  color: var(--color-text-secondary);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  transition: background 0.15s, color 0.15s;
+}
+
+.module-tab:hover {
+  color: var(--color-primary);
+  background: var(--color-primary-subtle);
+}
+
+.module-tab.ativo {
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+}
+
+.module-tab__badge {
+  background: rgba(255, 255, 255, 0.22);
+  padding: 0.1rem 0.4rem;
+  border-radius: var(--radius-full);
+  font-size: 0.6875rem;
+  font-weight: 700;
+}
+
+.module-tab.ativo .module-tab__badge {
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.module-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+}
+
+.module-header__title {
+  margin: 0 0 0.25rem;
+  font-size: 1.375rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.module-header__lead {
+  margin: 0;
+  font-size: 0.9375rem;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+  max-width: 46rem;
+}
+
+.module-header__lead a {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.module-header__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  flex-shrink: 0;
+  align-items: center;
+}
+
+.module-sec {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.module-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+}
+
+.module-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+.module-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.module-table th,
+.module-table td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--color-border-subtle);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.module-table th {
+  background: var(--color-surface-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.module-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.module-table tbody tr:hover {
+  background: var(--color-primary-subtle);
+}
+
+.module-form-grid {
+  display: grid;
+  gap: var(--spacing-md);
+}
+
+.module-form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--spacing-md);
+}
+
+.module-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.module-field input,
+.module-field select,
+.module-field textarea {
+  font-weight: 400;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  font-family: inherit;
+  font-size: 0.9375rem;
+  background: var(--color-surface);
+}
+
+.module-field input:focus,
+.module-field select:focus,
+.module-field textarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(89, 98, 71, 0.12);
+}
+
+.module-field--check {
+  flex-direction: row;
+  align-items: center;
+  font-weight: 500;
+}
+
+.module-banner {
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-radius: var(--radius-lg);
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
+.module-banner--warn {
+  background: var(--color-attention-bg);
+  border: 1px solid var(--color-attention);
+  color: #664d03;
+}
+
+.module-banner--info {
+  background: var(--color-info-bg);
+  border: 1px solid var(--color-info);
+  color: var(--color-info-dark);
+}
+
+.module-banner--mock {
+  background: var(--color-attention-bg);
+  border: 1px solid var(--color-attention);
+  color: #664d03;
+}
+
+.module-banner p {
+  margin: 0.35rem 0 0;
+}
+
+.module-banner strong {
+  display: block;
+  font-size: 0.9375rem;
+}
+
+/* Aliases legados → design system */
+.btn-prim {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.55rem 1.125rem;
+  border: none;
+  border-radius: var(--radius-lg);
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.btn-prim:hover:not(:disabled) {
+  background: var(--color-primary-dark);
+}
+
+.btn-prim:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.btn-sec {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.55rem 1.125rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.btn-sec:hover:not(:disabled) {
+  background: var(--color-surface-muted);
+}
+
+.module-toolbar__field {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.module-toolbar__field input,
+.module-toolbar__field select {
+  font-weight: 400;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  font-family: inherit;
+  font-size: 0.875rem;
+  background: var(--color-surface);
+}
+
+.empty-cell {
+  text-align: center;
+  padding: 2rem !important;
+  color: var(--color-text-muted);
+}
+
+.alert-erro {
+  padding: 0.75rem 1rem;
+  background: var(--color-error-bg);
+  color: var(--color-error);
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--spacing-md);
+}
+
+.status-msg {
+  color: var(--color-text-muted);
+  font-size: 0.9375rem;
+}
+
+.btn-link {
+  background: none;
+  border: none;
+  color: var(--color-primary);
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.875rem;
+  font-family: inherit;
+  padding: 0;
+}
+
+.btn-link:hover {
+  text-decoration: underline;
+}
+
+.modal-aviso {
+  padding: var(--spacing-md);
+  background: var(--color-attention-bg);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--spacing-md);
+  font-size: 0.9375rem;
+}
+
+.modal-aviso p {
+  margin: 0 0 0.35rem;
+}
+
+.field-hint {
+  font-size: 0.8125rem;
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
+.field-hint--info {
+  margin: 0;
+}

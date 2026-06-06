@@ -101,5 +101,23 @@ class EstoqueResumoItem(BaseModel):
     estagio_comercial: str = "apta_venda"
 
 
+class PlantaDisponivelVenda(BaseModel):
+    """Muda expedível com rastreio de lote — usada no formulário de venda."""
+
+    id: int
+    id_especie: int
+    codigo_rastreio: Optional[str] = None
+    id_lote_sementes: Optional[int] = None
+    codigo_lote: Optional[str] = None
+    preco_venda: Optional[float] = None
+    custo_atual: float = 0
+    nome_canteiro: Optional[str] = None
+    dias_rustificacao: Optional[int] = None
+    rustificacao_ok: bool = True
+
+    class Config:
+        orm_mode = True
+
+
 class AtualizarPrecoEspecie(BaseModel):
     preco_venda: float = Field(..., gt=0)

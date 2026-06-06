@@ -1,70 +1,40 @@
-# Testes Automatizados - Viveiro API
+# Testes — API Viveiro
 
-Este diretório contém os testes automatizados para a API do sistema de gestão de viveiro.
+## Estrutura
 
-## Estrutura de Testes
+| Arquivo | Conteúdo |
+|---------|----------|
+| `conftest.py` | Fixtures `db`, `client`, `auth_headers`, `test_user` |
+| `test_auth.py` | Login, `/me` |
+| `test_especies.py` | CRUD espécies |
+| `test_rbac.py` | Matriz RBAC, escalação, consulta 403, God Mode |
+| `test_vendas_sod.py` | SoD vendas (edit vs approve) |
 
-- `conftest.py`: Contém fixtures comuns usadas em múltiplos testes
-- `test_auth.py`: Testes para autenticação e login
-- `test_especies.py`: Testes para o módulo de espécies
+## Executar
 
-## Executando os Testes
+Requer Postgres com banco **`viveiro_test_db`** e `TEST_DATABASE_URL` em `conftest.py` (ou env).
 
-Para executar todos os testes:
-
-```bash
-pytest
+```powershell
+cd api_viveiro
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+pytest -q
+pytest tests/test_rbac.py tests/test_vendas_sod.py -v
 ```
 
-Para executar testes específicos:
+No container Docker a pasta `tests/` **não** está montada por padrão — rode no host ou inclua no Dockerfile de CI.
 
-```bash
-pytest tests/test_auth.py
-pytest tests/test_especies.py
+## Smoke RBAC (API real)
+
+Na raiz do monorepo:
+
+```powershell
+.\scripts\test_permissions.ps1
 ```
 
-Para executar com detalhes:
+Usuário `consulta` (ou variáveis `CONSULTA_USER` / `CONSULTA_PASS`) — espera **403** em mutações.
 
-```bash
-pytest -v
-```
+## Fixture `auth_headers`
 
-Para gerar um relatório de cobertura:
-
-```bash
-pytest --cov=app
-```
-
-## Criando Novos Testes
-
-Para criar testes para um novo módulo, siga o padrão:
-
-1. Crie um arquivo `test_nome_do_modulo.py`
-2. Use as fixtures existentes (`db`, `client`, `auth_headers`)
-3. Organize os testes por funcionalidade
-4. Marque os testes assíncronos com `@pytest.mark.asyncio`
-
-## Banco de Dados de Teste
-
-Os testes usam um banco de dados PostgreSQL separado chamado `viveiro_test_db`. Este banco é recriado para cada execução de teste para garantir o isolamento. Certifique-se de que este banco existe na sua instalação PostgreSQL.
-
-## Autenticação nos Testes
-
-A fixture `auth_headers` fornece um cabeçalho de autenticação válido para testes que exigem um usuário logado. Use-a como:
-
-```python
-async def test_protected_endpoint(client, auth_headers):
-    response = await client.get(
-        "/api/v1/endpoint-protegido/", 
-        headers=auth_headers
-    )
-    assert response.status_code == 200
-```
-
-## Dicas para Testes Eficientes
-
-1. Teste os casos de sucesso e falha
-2. Verifique códigos de status e estrutura de resposta
-3. Isole os testes para que não dependam do estado de outros testes
-4. Use dados de teste variados para cobrir diferentes cenários
-5. Teste os limites e casos extremos
+Usuário admin criado no teste. Para RBAC negativo, crie usuários com perfis específicos no teste (ver `test_rbac.py`).

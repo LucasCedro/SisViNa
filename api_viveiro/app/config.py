@@ -41,6 +41,13 @@ class Settings(BaseSettings):
     # Pasta public/ do front (para validar JPG local). No Docker: /biblioteca_public
     BIBLIOTECA_PUBLIC_ROOT: str = ""
 
+    FOCUS_NFE_TOKEN: str = ""
+    FOCUS_NFE_URL_HOMOLOGACAO: str = "https://homologacao.focusnfe.com.br"
+    FOCUS_NFE_URL_PRODUCAO: str = "https://api.focusnfe.com.br"
+    FOCUS_NFE_TIMEOUT: float = 60.0
+    # Nunca true em dev/demo — só homologação Focus até liberação consciente
+    NFE_ALLOW_PRODUCAO: bool = False
+
     class Config:
         env_file = ".env"
         case_sensitive = True

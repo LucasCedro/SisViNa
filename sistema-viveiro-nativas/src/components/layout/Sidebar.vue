@@ -45,6 +45,7 @@ const ICON_CHARS = {
   coleta: '❋',
   biblioteca: '☰',
   financeiro: '$',
+  contabilidade: '§',
 }
 
 const { can } = usePermissions()

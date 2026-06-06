@@ -95,6 +95,14 @@ async def ensure_demo_comprador() -> None:
                 nome="Comprador demonstração",
                 cpf_cnpj="111.444.777-35",
                 email="comprador@demo.local",
+                endereco="Rua Demonstração",
+                numero="100",
+                bairro="Centro",
+                cidade="São Paulo",
+                estado="SP",
+                cep="01001-000",
+                codigo_municipio_ibge="3550308",
+                indicador_ie="9",
                 ativo=True,
             )
         )

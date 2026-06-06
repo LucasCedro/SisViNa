@@ -7,7 +7,7 @@ from datetime import datetime
 
 from app.models.funcionarios import Funcionario
 from app.models.atividades import Atividade
-from app.schemas.funcionarios import FuncionarioCreate, FuncionarioUpdate
+from app.schemas.funcionarios import FuncionarioCreate, FuncionarioUpdate, FuncionarioPerfilUpdate
 from app.auth.utils import gerar_senha_hash
 
 async def get_funcionario(db: AsyncSession, funcionario_id: int) -> Optional[Funcionario]:
@@ -79,6 +79,32 @@ async def create_funcionario(db: AsyncSession, funcionario: FuncionarioCreate) -
     await db.commit()
     await db.refresh(db_funcionario)
     return db_funcionario
+
+async def update_funcionario_perfil(
+    db: AsyncSession, funcionario_id: int, perfil: FuncionarioPerfilUpdate
+) -> Optional[Funcionario]:
+    db_funcionario = await get_funcionario(db, funcionario_id)
+    if not db_funcionario:
+        return None
+
+    update_data = perfil.dict(exclude_unset=True)
+    if "email" in update_data and update_data["email"]:
+        existing = await db.execute(
+            select(Funcionario).where(
+                Funcionario.email == update_data["email"],
+                Funcionario.id != funcionario_id,
+            )
+        )
+        if existing.scalars().first():
+            raise ValueError("E-mail já registrado por outro usuário")
+
+    for field, value in update_data.items():
+        setattr(db_funcionario, field, value)
+
+    await db.commit()
+    await db.refresh(db_funcionario)
+    return db_funcionario
+
 
 async def update_funcionario(
     db: AsyncSession, funcionario_id: int, funcionario_update: FuncionarioUpdate

@@ -49,7 +49,7 @@ const colunas = computed(() => {
       step: '1',
       titulo: 'Sementes',
       valor: props.resumo?.total_sementes_disponiveis ?? 0,
-      hint: `${props.resumo?.total_lotes_sementes_ativos ?? 0} lote(s)`,
+      hint: fmtMoeda(props.resumo?.valor_total_sementes) || `${props.resumo?.total_lotes_sementes_ativos ?? 0} lote(s)`,
     },
     {
       id: 'dev',

@@ -5,8 +5,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.schemas.compradores import Comprador, CompradorCreate, CompradorUpdate, CompradorWithVendas
+from app.schemas.nfe import CompradorNfeReadinessOut
+from app.services.nfe_validacao import erros_comprador_nfe
 from app.crud import compradores as crud_compradores
 from app.auth.jwt import get_current_user
+from app.security.rbac import require_permission
 from app.schemas.funcionarios import FuncionarioOut
 
 router = APIRouter()
@@ -18,7 +21,7 @@ async def read_compradores(
     ativo: Optional[bool] = None,
     tipo: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
-    current_user: FuncionarioOut = Depends(get_current_user)
+    current_user: FuncionarioOut = Depends(require_permission("vendas.view"))
 ):
     """
     Recupera todos os compradores.
@@ -35,7 +38,7 @@ async def read_compradores_with_vendas(
     ativo: Optional[bool] = None,
     tipo: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
-    current_user: FuncionarioOut = Depends(get_current_user)
+    current_user: FuncionarioOut = Depends(require_permission("vendas.view"))
 ):
     """
     Recupera todos os compradores com informações de vendas.
@@ -49,7 +52,7 @@ async def read_compradores_with_vendas(
 async def read_comprador(
     comprador_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: FuncionarioOut = Depends(get_current_user)
+    current_user: FuncionarioOut = Depends(require_permission("vendas.view"))
 ):
     """
     Recupera um comprador específico pelo ID.
@@ -59,11 +62,24 @@ async def read_comprador(
         raise HTTPException(status_code=404, detail="Comprador não encontrado")
     return db_comprador
 
+@router.get("/{comprador_id}/nfe-readiness", response_model=CompradorNfeReadinessOut)
+async def comprador_nfe_readiness(
+    comprador_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: FuncionarioOut = Depends(require_permission("vendas.view")),
+):
+    """Campos faltantes para emitir NF-e para este comprador."""
+    db_comprador = await crud_compradores.get_comprador(db, comprador_id)
+    if db_comprador is None:
+        raise HTTPException(status_code=404, detail="Comprador não encontrado")
+    faltando = erros_comprador_nfe(db_comprador)
+    return CompradorNfeReadinessOut(pronto=len(faltando) == 0, faltando=faltando)
+
 @router.post("/", response_model=Comprador)
 async def create_comprador(
     comprador: CompradorCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: FuncionarioOut = Depends(get_current_user)
+    current_user: FuncionarioOut = Depends(require_permission("vendas.create"))
 ):
     """
     Cria um novo comprador.
@@ -92,7 +108,7 @@ async def update_comprador(
     comprador_id: int,
     comprador: CompradorUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: FuncionarioOut = Depends(get_current_user)
+    current_user: FuncionarioOut = Depends(require_permission("vendas.edit"))
 ):
     """
     Atualiza um comprador existente.
@@ -127,7 +143,7 @@ async def update_comprador(
 async def delete_comprador(
     comprador_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: FuncionarioOut = Depends(get_current_user)
+    current_user: FuncionarioOut = Depends(require_permission("vendas.edit"))
 ):
     """
     Deleta um comprador. Se houver vendas associadas, apenas desativa o comprador.

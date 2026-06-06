@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.jwt import get_current_user
+from app.security.rbac import require_permission
 from app.constants.referencia_embrapa_viveiro import FONTE_SISTEMA
 from app.crud import referencia_viveiro as crud_ref
 from app.database import get_db
@@ -17,7 +18,7 @@ router = APIRouter()
 @router.get("/regras", response_model=list[RegraGlobalOut])
 async def listar_regras(
     db: AsyncSession = Depends(get_db),
-    _user=Depends(get_current_user),
+    _user=Depends(require_permission("viveiro.view")),
 ):
     """Parâmetros globais do viveiro (somente leitura)."""
     return await crud_ref.listar_regras_globais(db)
@@ -26,7 +27,7 @@ async def listar_regras(
 @router.get("/resumo", response_model=ReferenciaViveiroResumoOut)
 async def resumo_referencia(
     db: AsyncSession = Depends(get_db),
-    _user=Depends(get_current_user),
+    _user=Depends(require_permission("viveiro.view")),
 ):
     regras = await crud_ref.listar_regras_globais(db)
     return ReferenciaViveiroResumoOut(fonte=FONTE_SISTEMA, regras_globais=regras)
@@ -36,7 +37,7 @@ async def resumo_referencia(
 async def ficha_especie(
     id_especie: int,
     db: AsyncSession = Depends(get_db),
-    _user=Depends(get_current_user),
+    _user=Depends(require_permission("viveiro.view")),
 ):
     ficha = await crud_ref.get_ficha_especie(db, id_especie)
     if not ficha:

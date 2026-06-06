@@ -43,3 +43,5 @@ Opção B — um domínio com proxy (Nginx/Caddy):
 - `/app/` → Vue (exige `base` no Vite do app)
 
 Para v0.1 e demo ao consultor, **Opção A ou dois links em portas locais** é suficiente.
+
+Documentação geral do monorepo: [docs/README.md](../docs/README.md).

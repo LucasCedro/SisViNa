@@ -1,0 +1,17 @@
+# Site institucional (profile site) — http://localhost:3000
+
+services:
+  site:
+    build:
+      context: ../site
+      dockerfile: Dockerfile
+      args:
+        VITE_APP_URL: ${VITE_APP_URL:-http://localhost:5173}
+    image: viveiro-site:latest
+    profiles:
+      - site
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    networks:
+      - viveiro_network

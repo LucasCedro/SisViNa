@@ -114,16 +114,20 @@
       </table>
     </div>
 
-    <dialog ref="dialogConfirm" class="confirm-dialog">
-      <form method="dialog" class="confirm-box">
-        <h3>Confirmar transferência</h3>
-        <p>
-          Mover <strong>{{ selecionados.length }}</strong> planta(s) para o canteiro selecionado?
-        </p>
-        <div class="confirm-actions">
-          <button type="button" class="btn btn-outline" @click="fecharDialog">Cancelar</button>
-          <button type="button" class="btn btn-primary" @click="transferir">Confirmar</button>
+    <dialog ref="dialogConfirm" class="app-dialog">
+      <form class="dialog-panel" @submit.prevent="transferir">
+        <header class="dialog-panel__header">
+          <h3>Confirmar transferência</h3>
+        </header>
+        <div class="dialog-panel__body">
+          <p>
+            Mover <strong>{{ selecionados.length }}</strong> planta(s) para o canteiro selecionado?
+          </p>
         </div>
+        <footer class="dialog-panel__footer">
+          <button type="button" class="btn btn-secondary" @click="fecharDialog">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Confirmar</button>
+        </footer>
       </form>
     </dialog>
   </div>
@@ -337,33 +341,6 @@ defineExpose({ carregar })
   cursor: pointer;
   margin-left: 0.35rem;
   font-family: inherit;
-}
-
-.confirm-dialog {
-  border: none;
-  border-radius: var(--radius-lg);
-  padding: 0;
-  max-width: 400px;
-  box-shadow: var(--shadow-lg);
-}
-
-.confirm-dialog::backdrop {
-  background: rgba(44, 45, 42, 0.4);
-}
-
-.confirm-box {
-  padding: var(--spacing-lg);
-}
-
-.confirm-box h3 {
-  margin: 0 0 0.5rem;
-}
-
-.confirm-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.5rem;
-  margin-top: var(--spacing-md);
 }
 
 code {

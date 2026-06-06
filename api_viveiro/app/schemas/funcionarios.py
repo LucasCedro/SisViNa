@@ -44,6 +44,19 @@ class FuncionarioCreate(FuncionarioBase):
         # Formato básico XXX.XXX.XXX-XX
         return f"{v_clean[:3]}.{v_clean[3:6]}.{v_clean[6:9]}-{v_clean[9:]}"
 
+class FuncionarioPerfilUpdate(BaseModel):
+    """Campos que o próprio usuário pode alterar (sem perfis, cargo, CPF, etc.)."""
+
+    nome: Optional[str] = Field(None, min_length=2, max_length=100)
+    rg: Optional[str] = Field(None, max_length=20)
+    telefone: Optional[str] = Field(None, max_length=20)
+    email: Optional[str] = Field(None, max_length=100)
+    endereco: Optional[str] = Field(None, max_length=200)
+
+    class Config:
+        extra = "ignore"
+
+
 class FuncionarioUpdate(BaseModel):
     nome: Optional[str] = None
     cpf: Optional[str] = None
@@ -93,6 +106,18 @@ class FuncionarioInDBBase(FuncionarioBase):
 class FuncionarioOut(FuncionarioInDBBase):
     perfis: List[str] = []
 
+    @validator("perfis", pre=True, always=True)
+    def perfis_none_to_list(cls, v):
+        return v if isinstance(v, list) else []
+
 class FuncionarioWithStats(FuncionarioInDBBase):
     total_atividades: int = 0
     custo_atividades: float = 0
+
+
+class FuncionarioSimpleOut(BaseModel):
+    id: int
+    nome: str
+
+    class Config:
+        orm_mode = True

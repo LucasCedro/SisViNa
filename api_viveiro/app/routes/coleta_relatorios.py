@@ -7,6 +7,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.jwt import get_current_user
+from app.security.rbac import require_permission
 from app.crud import coletas_sementes as crud_coletas
 from app.crud import lotes_sementes as crud_lotes
 from app.crud import arvores_matriz as crud_matriz
@@ -36,7 +37,7 @@ def _csv_response(rows: list, filename: str) -> StreamingResponse:
 @router.get("/export/matrizes.csv")
 async def export_matrizes(
     db: AsyncSession = Depends(get_db),
-    current_user: FuncionarioOut = Depends(get_current_user),
+    current_user: FuncionarioOut = Depends(require_permission("coleta.view")),
 ):
     matrizes = await crud_matriz.get_arvores_matriz(db, limit=5000)
     return _csv_response(matrizes, "matrizes.csv")
@@ -46,7 +47,7 @@ async def export_matrizes(
 async def export_coletas(
     id_arvore_matriz: Optional[int] = None,
     db: AsyncSession = Depends(get_db),
-    current_user: FuncionarioOut = Depends(get_current_user),
+    current_user: FuncionarioOut = Depends(require_permission("coleta.view")),
 ):
     coletas = await crud_coletas.get_coletas(db, limit=5000, id_arvore_matriz=id_arvore_matriz)
     flat = []
@@ -60,7 +61,7 @@ async def export_coletas(
 async def export_lotes(
     id_arvore_matriz: Optional[int] = None,
     db: AsyncSession = Depends(get_db),
-    current_user: FuncionarioOut = Depends(get_current_user),
+    current_user: FuncionarioOut = Depends(require_permission("coleta.view")),
 ):
     lotes = await crud_lotes.get_lotes(db, limit=5000, id_arvore_matriz=id_arvore_matriz)
     return _csv_response(lotes, "lotes.csv")
@@ -70,7 +71,7 @@ async def export_lotes(
 async def export_rastreabilidade_matriz(
     id_arvore_matriz: int = Query(...),
     db: AsyncSession = Depends(get_db),
-    current_user: FuncionarioOut = Depends(get_current_user),
+    current_user: FuncionarioOut = Depends(require_permission("coleta.view")),
 ):
     matriz = await crud_matriz.get_arvore_matriz_out(db, id_arvore_matriz)
     coletas = await crud_coletas.get_coletas(db, id_arvore_matriz=id_arvore_matriz, limit=5000)

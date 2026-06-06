@@ -112,7 +112,7 @@ async def test_login_fail_inactive_user(client: AsyncClient, db: AsyncSession):
 @pytest.mark.asyncio
 async def test_get_current_user(client: AsyncClient, auth_headers: dict):
     """
-    Teste para obter o usuário atual.
+    Teste para obter o usuário atual com permissões SSOT.
     """
     response = await client.get(
         "/api/v1/auth/me",
@@ -122,6 +122,45 @@ async def test_get_current_user(client: AsyncClient, auth_headers: dict):
     assert response.status_code == 200
     data = response.json()
     assert data["usuario"] == "testuser"
+    assert "permissions" in data
+    assert isinstance(data["permissions"], list)
+    assert "users.edit" in data["permissions"]
+    assert "config.profile.edit" in data["permissions"]
+
+
+@pytest.mark.asyncio
+async def test_get_permissions_endpoint(client: AsyncClient, auth_headers: dict):
+    response = await client.get("/api/v1/auth/permissions", headers=auth_headers)
+    assert response.status_code == 200
+    data = response.json()
+    assert "users.edit" in data["permissions"]
+
+
+@pytest.mark.asyncio
+async def test_me_empty_perfis_baseline_only(client: AsyncClient, db: AsyncSession):
+    from app.auth.jwt import create_access_token
+
+    user = Funcionario(
+        nome="Sem Perfil",
+        cpf="444.555.666-77",
+        email="semperfil@teste.local",
+        usuario="semperfil",
+        senha=gerar_senha_hash("Senha@123"),
+        cargo="Temporário",
+        perfis=None,
+        ativo=True,
+    )
+    db.add(user)
+    await db.commit()
+
+    token = create_access_token(data={"sub": "semperfil"})
+    headers = {"Authorization": f"Bearer {token}"}
+
+    response = await client.get("/api/v1/auth/me", headers=headers)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["permissions"] == sorted(["config.profile.edit", "home.view", "configuracoes.view"])
+    assert data["perfis"] == []
 
 @pytest.mark.asyncio
 async def test_reset_password(client: AsyncClient, db: AsyncSession, test_user: dict, auth_headers: dict):

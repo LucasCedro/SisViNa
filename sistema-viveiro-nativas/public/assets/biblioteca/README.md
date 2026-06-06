@@ -15,7 +15,7 @@ Pipeline no sync: speciesLink → GBIF → iNaturalist (fallback por gênero se 
 Sincronizar as 90 espécies:
 
 ```bash
-docker exec viveiro_api python scripts/sync_specieslink_imagens.py
+docker compose exec api python scripts/sync_specieslink_imagens.py
 ```
 
 Configure no `.env` do `api_viveiro`:

@@ -1,0 +1,29 @@
+# API FastAPI — DATABASE_URL usa alias viveiro_postgres da rede.
+
+services:
+  api:
+    build:
+      context: ../api_viveiro
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../api_viveiro/app:/app/app
+      - ../api_viveiro/scripts:/app/scripts
+      - ../api_viveiro/alembic:/app/alembic
+      - ../api_viveiro/alembic.ini:/app/alembic.ini
+      - ../sistema-viveiro-nativas/public:/biblioteca_public:ro
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    env_file:
+      - ../api_viveiro/.env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://viveiro_admin:senha_segura_aqui@viveiro_postgres:5432/viveiro_db
+      SECRET_KEY: dev-secret-change-in-production
+      ALGORITHM: HS256
+      ACCESS_TOKEN_EXPIRE_MINUTES: 480
+      BACKEND_CORS_ORIGINS: '["http://localhost:5173","http://localhost:8000","http://localhost:3000"]'
+      BIBLIOTECA_PUBLIC_ROOT: /biblioteca_public
+      NFE_ALLOW_PRODUCAO: "false"
+    networks:
+      - viveiro_network

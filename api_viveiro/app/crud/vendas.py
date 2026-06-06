@@ -14,6 +14,12 @@ from app.models.canteiros import Canteiro
 from app.constants.estagios_producao import APTA_VENDA
 from app.schemas.vendas import VendaCreate, VendaUpdate, ItemVendaCreate, ItemVendaUpdate, ItemVendaPorEspecieCreate
 from app.services.validacao_producao import avisos_vender_planta
+from app.services.vendas_sod import (
+    assert_pode_aprovar,
+    assert_venda_editavel,
+    validate_venda_create_status,
+    validate_venda_update,
+)
 
 # Funções CRUD para Venda
 async def get_venda(db: AsyncSession, venda_id: int) -> Optional[Venda]:
@@ -214,7 +220,9 @@ async def _resolver_itens_por_especie(
     return itens
 
 
-async def create_venda(db: AsyncSession, venda: VendaCreate) -> Dict[str, Any]:
+async def create_venda(
+    db: AsyncSession, venda: VendaCreate, perfis: Optional[List[str]] = None
+) -> Dict[str, Any]:
     if venda.itens_por_especie:
         itens = await _resolver_itens_por_especie(db, venda.itens_por_especie)
     elif venda.itens:
@@ -250,6 +258,7 @@ async def create_venda(db: AsyncSession, venda: VendaCreate) -> Dict[str, Any]:
         itens_dict.append(item_dict)
 
     venda_dict = venda.dict(exclude={"itens", "itens_por_especie"})
+    venda_dict["status"] = validate_venda_create_status(venda_dict.get("status"), perfis)
     venda_dict["valor_total"] = valor_total
 
     db_venda = Venda(**venda_dict)
@@ -271,14 +280,18 @@ async def create_venda(db: AsyncSession, venda: VendaCreate) -> Dict[str, Any]:
     return resultado
 
 async def update_venda(
-    db: AsyncSession, venda_id: int, venda_update: VendaUpdate
+    db: AsyncSession,
+    venda_id: int,
+    venda_update: VendaUpdate,
+    perfis: Optional[List[str]] = None,
 ) -> Optional[Venda]:
     db_venda = await get_venda(db, venda_id)
     if not db_venda:
         return None
-    
+
     update_data = venda_update.dict(exclude_unset=True)
-    
+    validate_venda_update(db_venda, update_data, perfis)
+
     # Verificar se pode cancelar a venda
     if update_data.get("status") == "CANCELADO" and db_venda.status != "CANCELADO":
         # Buscar itens da venda
@@ -303,11 +316,27 @@ async def update_venda(
     await db.refresh(db_venda)
     return db_venda
 
-async def delete_venda(db: AsyncSession, venda_id: int) -> Optional[Dict[str, Any]]:
+
+async def aprovar_venda(db: AsyncSession, venda_id: int) -> Optional[Venda]:
     db_venda = await get_venda(db, venda_id)
     if not db_venda:
         return None
-    
+    assert_pode_aprovar(db_venda)
+    db_venda.status = "PAGO"
+    await db.commit()
+    await db.refresh(db_venda)
+    return db_venda
+
+
+async def delete_venda(
+    db: AsyncSession, venda_id: int, perfis: Optional[List[str]] = None
+) -> Optional[Dict[str, Any]]:
+    db_venda = await get_venda(db, venda_id)
+    if not db_venda:
+        return None
+
+    assert_venda_editavel(db_venda, perfis)
+
     # Registrar dados para retorno
     venda_detalhe = await get_venda_detalhe(db, venda_id)
     
@@ -380,12 +409,19 @@ async def get_item_venda_detalhe(db: AsyncSession, item_id: int) -> Optional[Dic
     }
 
 async def update_item_venda(
-    db: AsyncSession, item_id: int, item_update: ItemVendaUpdate
+    db: AsyncSession,
+    item_id: int,
+    item_update: ItemVendaUpdate,
+    perfis: Optional[List[str]] = None,
 ) -> Optional[ItemVenda]:
     db_item = await get_item_venda(db, item_id)
     if not db_item:
         return None
-    
+
+    venda = await get_venda(db, db_item.id_venda)
+    if venda:
+        assert_venda_editavel(venda, perfis)
+
     update_data = item_update.dict(exclude_unset=True)
     
     # Recalcular valor total se houver alteração em quantidade, valor_unitario ou desconto
@@ -423,11 +459,17 @@ async def update_item_venda(
     await db.refresh(db_item)
     return db_item
 
-async def delete_item_venda(db: AsyncSession, item_id: int) -> Optional[Dict[str, Any]]:
+async def delete_item_venda(
+    db: AsyncSession, item_id: int, perfis: Optional[List[str]] = None
+) -> Optional[Dict[str, Any]]:
     db_item = await get_item_venda(db, item_id)
     if not db_item:
         return None
-    
+
+    venda = await get_venda(db, db_item.id_venda)
+    if venda:
+        assert_venda_editavel(venda, perfis)
+
     # Registrar dados para retorno
     item_detalhe = await get_item_venda_detalhe(db, item_id)
     

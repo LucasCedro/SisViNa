@@ -1,7 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
 import { useAuthStore } from '../store/auth'
-import { canAccess, resolvePerfisFromUser } from '../constants/roles'
 
 const routes = [
     {
@@ -85,6 +84,24 @@ const routes = [
         name: 'financeiro',
         component: () => import('../views/financeiro/FinanceiroView.vue'),
         meta: { permission: 'financeiro.view' }
+    },
+    {
+        path: '/contabilidade',
+        name: 'contabilidade',
+        component: () => import('../views/contabilidade/ContabilidadeView.vue'),
+        meta: { permission: 'contabilidade.view' }
+    },
+    {
+        path: '/configuracoes',
+        name: 'configuracoes',
+        component: () => import('../views/configuracoes/ConfiguracoesView.vue'),
+        meta: { permission: 'configuracoes.view' }
+    },
+    {
+        path: '/admin/god-mode',
+        name: 'admin-god-mode',
+        component: () => import('../views/admin/GodModeView.vue'),
+        meta: { permission: 'admin.godmode.view', adminOnly: true }
     }
 ]
 
@@ -117,8 +134,13 @@ router.beforeEach(async (to) => {
 
     const perm = to.meta.permission
     if (perm) {
-        const perfis = resolvePerfisFromUser(auth.user)
-        if (!canAccess(perfis, perm)) {
+        if (!auth.permissions.length && auth.user) {
+            auth.permissions = auth.user.permissions || []
+        }
+        if (!auth.can(perm)) {
+            return { path: '/', query: { acesso: 'negado' } }
+        }
+        if (to.meta.adminOnly && !auth.user?.perfis?.includes('admin')) {
             return { path: '/', query: { acesso: 'negado' } }
         }
     }

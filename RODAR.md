@@ -4,68 +4,9 @@
 
 Abra no Cursor a pasta **`C:\Projetos\SisViNa`** (não só uma subpasta).
 
-Repositório remoto deste projeto:
+Repositório: `https://github.com/LucasCedro/SisViNa.git` (branch `main`).
 
-`https://github.com/LucasCedro/SisViNa.git` (branch `main`)
-
-### Enviar código para o GitHub (push)
-
-Tudo que mudou precisa de **commit** antes do **push**:
-
-```powershell
-cd c:\Projetos\SisViNa
-
-git status
-
-git add -A
-
-git commit -m "feat: descreva o que mudou"
-
-git push origin main
-```
-
-Exemplo de mensagem de commit:
-
-```powershell
-git commit -m "feat: coleta, produção sementeira→canteiro, estoques e integração API"
-```
-
-Antes do `git add -A`, confira se **não** aparece `.env` com senha — só `.env.example` deve ir pro Git.
-
-### Login no GitHub (HTTPS)
-
-Se o `git push` pedir usuário/senha:
-
-- **Usuário:** seu login do GitHub
-- **Senha:** um [Personal Access Token](https://github.com/settings/tokens) (não use a senha da conta)
-
-Alternativa com SSH (depois de cadastrar chave no GitHub):
-
-```powershell
-git remote set-url origin git@github.com:LucasCedro/SisViNa.git
-git push origin main
-```
-
-### Se o push for rejeitado
-
-Alguém pode ter subido commits antes. Atualize e envie de novo:
-
-```powershell
-git pull origin main
-git push origin main
-```
-
-### Primeira vez (repositório ainda sem remote)
-
-Crie no GitHub um repositório **vazio** (sem README) e:
-
-```powershell
-cd c:\Projetos\SisViNa
-git remote add origin https://github.com/SEU_USUARIO/SisViNa.git
-git push -u origin main
-```
-
-`.env` não é versionado (só `.env.example` na API).
+**Nunca** commite `.env` com senhas — só `.env.example` na API. Fluxo usual: `git status` → `git add` → `commit` → `push origin main`.
 
 ---
 
@@ -73,48 +14,68 @@ git push -u origin main
 
 Docker Desktop instalado e em execução.
 
+> **Fluxo oficial e arquitetura dos composes:** [docs/DEV_DOCKER.md](./docs/DEV_DOCKER.md)
+
 ## Subir o sistema
-
-### Se você já tinha Postgres/API rodando (seu caso comum)
-
-```powershell
-cd c:\Projetos\SisViNa\api_viveiro
-docker compose up -d --build
-
-cd c:\Projetos\SisViNa\sistema-viveiro-nativas
-docker compose up -d
-```
-
-Aguarde ~1–2 min no primeiro `npm ci` do front.
-
-### Tudo do zero (raiz — só se não houver containers `viveiro_*`)
 
 ```powershell
 cd c:\Projetos\SisViNa
-docker network create viveiro_network
-docker compose up -d --build
+.\scripts\dev.ps1 start          # Postgres + API
+cd sistema-viveiro-nativas
+npm run dev                      # front (recomendado)
 ```
 
-Se der conflito de nome de container, pare os antigos (`docker stop viveiro_postgres viveiro_api ...`) ou use o modo acima por pasta.
-
-### Erro da rede `viveiro_network` (label incorrect)
-
-A rede foi criada manualmente (`docker network create`). O `bd_viveiro` usa `external: true` — só precisa existir:
+Tudo em Docker (front + API + BD):
 
 ```powershell
-docker network create viveiro_network
+.\scripts\dev.ps1 start-all
 ```
 
-Se ainda falhar, reset limpo (apaga dados do Postgres):
+Demo consultor (site + PgAdmin):
 
 ```powershell
-docker stop viveiro_postgres viveiro_pgadmin viveiro_api viveiro_web 2>$null
-docker rm viveiro_postgres viveiro_pgadmin viveiro_api viveiro_web 2>$null
-docker network rm viveiro_network
-docker network create viveiro_network
-cd c:\Projetos\SisViNa\bd_viveiro
-docker compose up -d
+.\scripts\dev.ps1 start-demo
 ```
+
+Parar:
+
+```powershell
+.\scripts\dev.ps1 stop
+```
+
+Após editar `api_viveiro/.env`:
+
+```powershell
+.\scripts\dev.ps1 restart-api
+```
+
+### Reset limpo (apaga dados do Postgres)
+
+```powershell
+docker compose down -v
+.\scripts\dev.ps1 start
+.\scripts\dev.ps1 migrate
+```
+
+## NF-e (Focus) — `api_viveiro/.env`
+
+Se o bloco abaixo **não existir** no seu `.env`, copie de `.env.example`:
+
+```env
+FOCUS_NFE_TOKEN=
+FOCUS_NFE_URL_HOMOLOGACAO=https://homologacao.focusnfe.com.br
+FOCUS_NFE_URL_PRODUCAO=https://api.focusnfe.com.br
+FOCUS_NFE_TIMEOUT=60
+NFE_ALLOW_PRODUCAO=false
+```
+
+| Variável | Se ausente | Efeito |
+|----------|------------|--------|
+| `FOCUS_NFE_TOKEN` | vazio | Modo **simulação** (não chama Focus) — UI avisa |
+| URLs | defaults em `config.py` | Homologação OK |
+| `NFE_ALLOW_PRODUCAO` | `false` | Produção **bloqueada** |
+
+Após editar: `.\scripts\dev.ps1 restart-api`. Conferir: `docker compose logs api | Select-String "NF-e"`.
 
 ## Acessar
 
@@ -141,15 +102,10 @@ Na raiz do monorepo (já incluso no `docker compose` principal):
 
 ```powershell
 cd c:\Projetos\SisViNa
-docker compose up -d --build site web api postgres
+docker compose --profile site --profile docker-web up -d --build site web api postgres
 ```
 
-Só o site, na pasta `site/`:
-
-```powershell
-cd c:\Projetos\SisViNa\site
-docker compose up -d --build
-```
+Ou: `.\scripts\dev.ps1 start-demo`
 
 Variável opcional antes do build (produção):
 
@@ -186,7 +142,7 @@ No **Docker + Windows**, o Vite precisa de *polling* (já configurado em `vite.c
 Só reinicie o front se mudou `package.json`:
 
 ```powershell
-docker restart viveiro_web
+docker compose restart web
 ```
 
 ---
@@ -200,7 +156,7 @@ docker compose logs -f api web
 ## Parar
 
 ```powershell
-docker compose down
+.\scripts\dev.ps1 stop
 ```
 
 ## Schema coleta → produção → venda (banco via `bd_viveiro/init-scripts`)
@@ -216,33 +172,33 @@ Se `alembic upgrade head` falhar com «relation species already exists», o Post
 Banco **já com** coletas/lotes/semeadura (migração antiga) — só falta a view até venda:
 
 ```powershell
-Get-Content c:\Projetos\SisViNa\bd_viveiro\patches\cadeia-semente-muda-venda.sql -Raw | docker exec -i viveiro_postgres psql -U viveiro_admin -d viveiro_db
-docker restart viveiro_api
+Get-Content c:\Projetos\SisViNa\bd_viveiro\patches\cadeia-semente-muda-venda.sql -Raw | docker compose exec -T postgres psql -U viveiro_admin -d viveiro_db
+.\scripts\dev.ps1 restart-api
 ```
 
 Lançamentos financeiros (CAPEX/OPEX + view `vw_resumo_financeiro`):
 
 ```powershell
-Get-Content c:\Projetos\SisViNa\bd_viveiro\patches\lancamentos-financeiros.sql -Raw | docker exec -i viveiro_postgres psql -U viveiro_admin -d viveiro_db
-docker restart viveiro_api
+Get-Content c:\Projetos\SisViNa\bd_viveiro\patches\lancamentos-financeiros.sql -Raw | docker compose exec -T postgres psql -U viveiro_admin -d viveiro_db
+.\scripts\dev.ps1 restart-api
 ```
 
 Banco **sem** esse módulo ainda — script único `05-coleta-producao-cadeia.sql` (idempotente):
 
 ```powershell
-Get-Content c:\Projetos\SisViNa\bd_viveiro\init-scripts\05-coleta-producao-cadeia.sql -Raw | docker exec -i viveiro_postgres psql -U viveiro_admin -d viveiro_db
-docker restart viveiro_api
+Get-Content c:\Projetos\SisViNa\bd_viveiro\init-scripts\05-coleta-producao-cadeia.sql -Raw | docker compose exec -T postgres psql -U viveiro_admin -d viveiro_db
+.\scripts\dev.ps1 restart-api
 ```
 
-Só use `docker exec viveiro_api alembic upgrade head` em banco **novo** gerido só pelo Alembic.
+Use `.\scripts\dev.ps1 migrate` em banco **novo** gerido só pelo Alembic.
 
 ## Patch: produção, locais e estoques (`07`)
 
 Banco **já existente** sem `tipo_local` / transferências:
 
 ```powershell
-Get-Content c:\Projetos\SisViNa\bd_viveiro\patches\producao-locais-origem.sql -Raw | docker exec -i viveiro_postgres psql -U viveiro_admin -d viveiro_db
-docker restart viveiro_api
+Get-Content c:\Projetos\SisViNa\bd_viveiro\patches\producao-locais-origem.sql -Raw | docker compose exec -T postgres psql -U viveiro_admin -d viveiro_db
+.\scripts\dev.ps1 restart-api
 ```
 
 Depois, marque cada **canteiro** com `tipo_local`: `sementeira`, `canteiro` ou `armazem` (via API ou PgAdmin). Sem isso, semeadura e transferência não encontram locais corretos.
@@ -261,17 +217,12 @@ Se você já tinha um volume antigo sem seeds:
 
 ```powershell
 docker compose down -v
-docker compose up -d --build
+.\scripts\dev.ps1 start-all
+.\scripts\dev.ps1 migrate
 ```
 
 `-v` apaga os volumes (dados do Postgres).
 
-## Subir só BD ou só API (repos separados)
+## Referência Docker
 
-Ordem recomendada:
-
-1. `cd bd_viveiro` → `docker compose up -d`
-2. `cd api_viveiro` → `docker compose up -d --build`
-3. `cd sistema-viveiro-nativas` → `docker compose up -d`
-
-Use o `docker-compose.yml` da **raiz** para evitar essa ordem manual.
+Ver [docs/DEV_DOCKER.md](./docs/DEV_DOCKER.md) — único compose na raiz, `scripts/dev.ps1`.

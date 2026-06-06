@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.jwt import get_current_user
+from app.security.rbac import require_permission
 from app.crud import arvores_matriz as crud
 from app.database import get_db
 from app.schemas.arvores_matriz import ArvoreMatrizCreate, ArvoreMatrizOut, ArvoreMatrizUpdate
@@ -17,7 +18,7 @@ async def listar_arvores_matriz(
     skip: int = 0,
     limit: int = 500,
     db: AsyncSession = Depends(get_db),
-    current_user: FuncionarioOut = Depends(get_current_user),
+    current_user: FuncionarioOut = Depends(require_permission("coleta.view")),
 ):
     return await crud.get_arvores_matriz(db, skip=skip, limit=limit)
 
@@ -26,7 +27,7 @@ async def listar_arvores_matriz(
 async def obter_arvore_matriz(
     arvore_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: FuncionarioOut = Depends(get_current_user),
+    current_user: FuncionarioOut = Depends(require_permission("coleta.view")),
 ):
     arvore = await crud.get_arvore_matriz_out(db, arvore_id)
     if not arvore:
@@ -38,7 +39,7 @@ async def obter_arvore_matriz(
 async def criar_arvore_matriz(
     payload: ArvoreMatrizCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: FuncionarioOut = Depends(get_current_user),
+    current_user: FuncionarioOut = Depends(require_permission("coleta.create")),
 ):
     return await crud.create_arvore_matriz(db, payload)
 
@@ -48,7 +49,7 @@ async def atualizar_arvore_matriz(
     arvore_id: int,
     payload: ArvoreMatrizUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: FuncionarioOut = Depends(get_current_user),
+    current_user: FuncionarioOut = Depends(require_permission("coleta.edit")),
 ):
     arvore = await crud.update_arvore_matriz(db, arvore_id, payload)
     if not arvore:
@@ -60,7 +61,7 @@ async def atualizar_arvore_matriz(
 async def excluir_arvore_matriz(
     arvore_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: FuncionarioOut = Depends(get_current_user),
+    current_user: FuncionarioOut = Depends(require_permission("coleta.delete")),
 ):
     arvore = await crud.get_arvore_matriz_out(db, arvore_id)
     if not arvore:

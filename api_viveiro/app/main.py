@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
+import logging
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -29,8 +30,13 @@ from app.routes import (
     estoques,
     producao,
     referencia_viveiro,
+    nfe,
+    fiscal,
+    admin_cockpit,
 )
 from app.auth.router import router as auth_router
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -55,6 +61,20 @@ async def startup():
     await ensure_default_admin()
     await ensure_demo_especies()
     await ensure_demo_comprador()
+
+    token = (settings.FOCUS_NFE_TOKEN or "").strip()
+    if not token:
+        logger.warning(
+            "NF-e: FOCUS_NFE_TOKEN vazio — emissões em modo SIMULAÇÃO (não chama Focus/SEFAZ). "
+            "Configure api_viveiro/.env e reinicie o container viveiro_api."
+        )
+    if not settings.NFE_ALLOW_PRODUCAO:
+        logger.info(
+            "NF-e: NFE_ALLOW_PRODUCAO=false — URL Focus forçada para homologação; "
+            "emitente.ambiente=producao rejeitado na emissão."
+        )
+    else:
+        logger.warning("NF-e: NFE_ALLOW_PRODUCAO=true — emissão em produção POSSÍVEL. Cuidado!")
 
 
 @app.get("/")
@@ -209,4 +229,22 @@ app.include_router(
     referencia_viveiro.router,
     prefix=f"{settings.API_V1_STR}/referencia-viveiro",
     tags=["referencia-viveiro"],
+)
+
+app.include_router(
+    nfe.router,
+    prefix=f"{settings.API_V1_STR}/nfe",
+    tags=["nfe"],
+)
+
+app.include_router(
+    fiscal.router,
+    prefix=f"{settings.API_V1_STR}/fiscal",
+    tags=["fiscal"],
+)
+
+app.include_router(
+    admin_cockpit.router,
+    prefix=f"{settings.API_V1_STR}/admin/cockpit",
+    tags=["admin-cockpit"],
 )

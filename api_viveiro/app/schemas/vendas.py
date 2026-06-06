@@ -72,6 +72,17 @@ class VendaBase(BaseModel):
     forma_pagamento: Optional[str] = None
     status: str = "PENDENTE"
     observacoes: Optional[str] = None
+    tipo_operacao_fiscal: str = Field(
+        "domestica",
+        description="domestica | importacao — mudas de origem estrangeira no SN",
+    )
+
+    @validator("tipo_operacao_fiscal")
+    def tipo_operacao_fiscal_ok(cls, v):
+        v = (v or "domestica").lower()
+        if v not in ("domestica", "importacao"):
+            raise ValueError("tipo_operacao_fiscal deve ser domestica ou importacao")
+        return v
 
     @validator('status')
     def validate_status(cls, v):
@@ -109,9 +120,13 @@ class VendaUpdate(BaseModel):
     @validator('status')
     def validate_status(cls, v):
         if v is not None:
-            allowed_status = ['PENDENTE', 'PAGO', 'CANCELADO']
+            # PAGO só via POST /vendas/{id}/aprovar (vendas.approve)
+            allowed_status = ['PENDENTE', 'CANCELADO']
             if v not in allowed_status:
-                raise ValueError(f'Status deve ser um dos seguintes: {", ".join(allowed_status)}')
+                raise ValueError(
+                    f'Status deve ser um dos seguintes: {", ".join(allowed_status)}. '
+                    'Para marcar como PAGO use o endpoint /aprovar.'
+                )
         return v
 
 class VendaInDBBase(VendaBase):

@@ -1,0 +1,307 @@
+/* Modais — <dialog> nativo + overlays (.modal-overlay) centralizados */
+
+
+
+dialog {
+
+  border: none;
+
+  border-radius: var(--radius-xl);
+
+  padding: 0;
+
+  box-shadow: var(--shadow-lg);
+
+  background: var(--color-surface);
+
+  color: var(--color-text-primary);
+
+  max-width: min(540px, calc(100vw - 2rem));
+
+  max-height: calc(100vh - 2rem);
+
+  overflow: hidden;
+
+}
+
+
+
+dialog:not([open]) {
+
+  display: none;
+
+}
+
+
+
+dialog[open] {
+
+  display: flex;
+
+  flex-direction: column;
+
+  position: fixed;
+
+  top: 50%;
+
+  left: 50%;
+
+  transform: translate(-50%, -50%);
+
+  margin: 0;
+
+  width: min(540px, calc(100vw - 2rem));
+
+}
+
+
+
+dialog[open].app-dialog--wide,
+
+dialog[open].dialog-cliente {
+
+  width: min(640px, calc(100vw - 2rem));
+
+  max-width: min(640px, calc(100vw - 2rem));
+
+}
+
+
+
+dialog[open].app-dialog--xl {
+
+  width: min(820px, calc(100vw - 2rem));
+
+  max-width: min(820px, calc(100vw - 2rem));
+
+}
+
+
+
+dialog[open].estoque-dialog {
+
+  width: min(440px, calc(100vw - 2rem));
+
+  max-width: min(440px, calc(100vw - 2rem));
+
+}
+
+
+
+dialog::backdrop {
+
+  background: rgba(34, 42, 28, 0.48);
+
+  backdrop-filter: blur(2px);
+
+}
+
+
+
+.dialog-panel {
+
+  display: flex;
+
+  flex-direction: column;
+
+  max-height: calc(100vh - 2rem);
+
+  width: 100%;
+
+  margin: 0;
+
+  border: none;
+
+  background: transparent;
+
+}
+
+
+
+.dialog-panel__header {
+
+  padding: var(--spacing-lg);
+
+  border-bottom: 1px solid var(--color-border-subtle);
+
+  flex-shrink: 0;
+
+}
+
+
+
+.dialog-panel__header h3 {
+
+  margin: 0 0 0.25rem;
+
+  font-size: 1.125rem;
+
+  font-weight: 600;
+
+}
+
+
+
+.dialog-panel__header p {
+
+  margin: 0;
+
+  font-size: 0.875rem;
+
+  color: var(--color-text-secondary);
+
+}
+
+
+
+.dialog-panel__body {
+
+  padding: var(--spacing-lg);
+
+  overflow-y: auto;
+
+  flex: 1 1 auto;
+
+}
+
+
+
+.dialog-panel__footer {
+
+  padding: var(--spacing-md) var(--spacing-lg);
+
+  border-top: 1px solid var(--color-border-subtle);
+
+  display: flex;
+
+  justify-content: flex-end;
+
+  align-items: center;
+
+  gap: 0.5rem;
+
+  flex-shrink: 0;
+
+  background: var(--color-surface-muted);
+
+}
+
+
+
+.dialog-panel__footer .btn,
+
+.dialog-panel__footer .btn-prim,
+
+.dialog-panel__footer .btn-sec {
+
+  min-width: 5.5rem;
+
+}
+
+
+
+/* Overlays div-based (Estoques, Financeiro, Coleta, etc.) */
+
+.modal-overlay,
+
+.estoque-modal-overlay {
+
+  position: fixed;
+
+  inset: 0;
+
+  z-index: 1000;
+
+  background: rgba(34, 42, 28, 0.48);
+
+  backdrop-filter: blur(2px);
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  padding: var(--spacing-md);
+
+}
+
+
+
+.modal-box,
+
+.estoque-modal {
+
+  width: 100%;
+
+  max-width: min(540px, calc(100vw - 2rem));
+
+  max-height: calc(100vh - 2rem);
+
+  background: var(--color-surface);
+
+  border-radius: var(--radius-xl);
+
+  box-shadow: var(--shadow-lg);
+
+  overflow: hidden;
+
+  display: flex;
+
+  flex-direction: column;
+
+}
+
+
+
+.modal-head,
+
+.estoque-modal__header {
+
+  padding: var(--spacing-lg);
+
+  border-bottom: 1px solid var(--color-border-subtle);
+
+  flex-shrink: 0;
+
+}
+
+
+
+.modal-body,
+
+.estoque-modal__body {
+
+  padding: var(--spacing-lg);
+
+  overflow-y: auto;
+
+  flex: 1 1 auto;
+
+}
+
+
+
+.modal-foot,
+
+.estoque-modal__footer {
+
+  padding: var(--spacing-md) var(--spacing-lg);
+
+  border-top: 1px solid var(--color-border-subtle);
+
+  display: flex;
+
+  justify-content: flex-end;
+
+  align-items: center;
+
+  gap: 0.5rem;
+
+  flex-shrink: 0;
+
+  background: var(--color-surface-muted);
+
+}
+
+

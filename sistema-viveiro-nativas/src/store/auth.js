@@ -1,19 +1,23 @@
 import { defineStore } from 'pinia'
-import { login as apiLogin, fetchMe } from '../services/auth'
-import { resolvePerfisFromUser } from '@/constants/roles'
+import { login as apiLogin, fetchMe, updateMe, resetPassword } from '../services/auth'
+import { perfilLabelsFromUser } from '@/constants/roles'
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
     token: localStorage.getItem('token') || null,
     user: null,
+    permissions: [],
     loading: false,
-    error: null
+    error: null,
   }),
   getters: {
     isAuthenticated: (state) => Boolean(state.token),
-    perfis: (state) => resolvePerfisFromUser(state.user),
+    perfilLabels: (state) => perfilLabelsFromUser(state.user),
   },
   actions: {
+    can(permissionName) {
+      return this.permissions.includes(permissionName)
+    },
     async login(username, password) {
       this.loading = true
       this.error = null
@@ -31,7 +35,18 @@ export const useAuthStore = defineStore('auth', {
     },
     async loadUser() {
       if (!this.token) return
-      this.user = await fetchMe()
+      const data = await fetchMe()
+      this.user = data
+      this.permissions = Array.isArray(data.permissions) ? data.permissions : []
+    },
+    async updateProfile(payload) {
+      const data = await updateMe(payload)
+      this.user = data
+      this.permissions = Array.isArray(data.permissions) ? data.permissions : this.permissions
+      return data
+    },
+    async changePassword(oldPassword, newPassword) {
+      await resetPassword(oldPassword, newPassword)
     },
     async hydrate() {
       if (this.token && !this.user) {
@@ -45,7 +60,8 @@ export const useAuthStore = defineStore('auth', {
     logout() {
       this.token = null
       this.user = null
+      this.permissions = []
       localStorage.removeItem('token')
-    }
-  }
+    },
+  },
 })

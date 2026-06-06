@@ -9,37 +9,34 @@
                 class="header-brand-logo"
             />
             <div class="header-actions">
-                <span v-if="auth.user" class="user-label">{{ auth.user.nome }}</span>
-                <button v-if="auth.isAuthenticated" type="button" class="logout-btn" @click="onLogout">
-                    Sair
-                </button>
-                <button class="icon-button">
+                <div v-if="auth.isAuthenticated && auth.user" class="user-chip">
+                    <span class="user-chip__avatar" aria-hidden="true">{{ iniciais }}</span>
+                    <span class="user-chip__nome">{{ auth.user.nome }}</span>
+                </div>
+                <button
+                    type="button"
+                    class="icon-button"
+                    title="Notificações (em breve)"
+                    aria-label="Notificações — em breve"
+                    disabled
+                >
                     <svg xmlns="http://www.w3.org/2000/svg" class="icon" fill="none" viewBox="0 0 24 24"
                         stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                     </svg>
                 </button>
-                <button class="icon-button">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="icon" fill="none" viewBox="0 0 24 24"
-                        stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                </button>
+                <UserAccountMenu v-if="auth.isAuthenticated" />
             </div>
         </div>
     </header>
 </template>
 
 <script setup>
-import { defineProps } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, defineProps } from 'vue'
 import { useAuthStore } from '../../store/auth'
+import UserAccountMenu from './UserAccountMenu.vue'
 
-const router = useRouter()
 const auth = useAuthStore()
 
 defineProps({
@@ -53,10 +50,12 @@ defineProps({
     }
 })
 
-function onLogout() {
-    auth.logout()
-    router.push({ name: 'login' })
-}
+const iniciais = computed(() => {
+    const nome = auth.user?.nome?.trim() || '?'
+    const partes = nome.split(/\s+/).filter(Boolean)
+    if (partes.length >= 2) return (partes[0][0] + partes[partes.length - 1][0]).toUpperCase()
+    return nome.slice(0, 2).toUpperCase()
+})
 </script>
 
 <style>
@@ -85,12 +84,6 @@ function onLogout() {
     color: var(--color-text-primary);
 }
 
-.page-title--subtle {
-    font-size: 1rem;
-    font-weight: 500;
-    color: var(--color-text-muted);
-}
-
 .header-brand-logo {
     display: block;
     height: 2.25rem;
@@ -101,28 +94,38 @@ function onLogout() {
 .header-actions {
     display: flex;
     align-items: center;
-    gap: var(--spacing-md);
+    gap: var(--spacing-sm);
 }
 
-.user-label {
+.user-chip {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.25rem 0.6rem 0.25rem 0.25rem;
+    border-radius: var(--radius-full);
+    max-width: 14rem;
+}
+
+.user-chip__avatar {
+    width: 2rem;
+    height: 2rem;
+    border-radius: var(--radius-full);
+    background: var(--color-primary-muted, #e8f5e9);
+    color: var(--color-primary, #2e7d32);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+.user-chip__nome {
     font-size: 0.875rem;
     color: var(--color-text-secondary);
-}
-
-.logout-btn {
-    padding: 0.4rem 0.75rem;
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    background: var(--color-surface);
-    cursor: pointer;
-    font-size: 0.875rem;
-    color: var(--color-text-secondary);
-    font-family: inherit;
-    transition: background-color 0.2s;
-}
-
-.logout-btn:hover {
-    background: var(--color-background);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .icon-button {
@@ -138,8 +141,13 @@ function onLogout() {
     transition: background-color 0.2s;
 }
 
-.icon-button:hover {
+.icon-button:hover:not(:disabled) {
     background-color: var(--color-background);
+}
+
+.icon-button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
 }
 
 .icon-button .icon {
@@ -155,6 +163,10 @@ function onLogout() {
 
     .page-title {
         font-size: 1.25rem;
+    }
+
+    .user-chip__nome {
+        display: none;
     }
 }
 </style>

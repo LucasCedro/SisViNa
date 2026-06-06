@@ -71,7 +71,7 @@ async def test_user(db: AsyncSession) -> dict:
         "ativo": True
     }
     
-    db_user = Funcionario(**user_data)
+    db_user = Funcionario(**user_data, perfis=["admin"])
     db.add(db_user)
     await db.commit()
     await db.refresh(db_user)

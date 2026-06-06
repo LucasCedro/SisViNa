@@ -7,6 +7,7 @@ from app.database import get_db
 from app.schemas.canteiros import Canteiro, CanteiroCreate, CanteiroUpdate, CanteiroWithOcupacao
 from app.crud import canteiros as crud_canteiros
 from app.auth.jwt import get_current_user
+from app.security.rbac import require_permission
 from app.schemas.funcionarios import FuncionarioOut
 
 router = APIRouter()
@@ -18,7 +19,7 @@ async def read_canteiros(
     ativo: Optional[bool] = None,
     tipo_local: Optional[str] = Query(None, description="sementeira | canteiro | armazem"),
     db: AsyncSession = Depends(get_db),
-    current_user: FuncionarioOut = Depends(get_current_user)
+    current_user: FuncionarioOut = Depends(require_permission("viveiro.view"))
 ):
     """
     Recupera todos os canteiros.
@@ -34,7 +35,7 @@ async def read_canteiros_with_ocupacao(
     limit: int = 100,
     ativo: Optional[bool] = None,
     db: AsyncSession = Depends(get_db),
-    current_user: FuncionarioOut = Depends(get_current_user)
+    current_user: FuncionarioOut = Depends(require_permission("viveiro.view"))
 ):
     """
     Recupera todos os canteiros com informações de ocupação.
@@ -48,7 +49,7 @@ async def read_canteiros_with_ocupacao(
 async def read_canteiro(
     canteiro_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: FuncionarioOut = Depends(get_current_user)
+    current_user: FuncionarioOut = Depends(require_permission("viveiro.view"))
 ):
     """
     Recupera um canteiro específico pelo ID.
@@ -62,7 +63,7 @@ async def read_canteiro(
 async def create_canteiro(
     canteiro: CanteiroCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: FuncionarioOut = Depends(get_current_user)
+    current_user: FuncionarioOut = Depends(require_permission("viveiro.edit"))
 ):
     """
     Cria um novo canteiro.
@@ -80,7 +81,7 @@ async def update_canteiro(
     canteiro_id: int,
     canteiro: CanteiroUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: FuncionarioOut = Depends(get_current_user)
+    current_user: FuncionarioOut = Depends(require_permission("viveiro.edit"))
 ):
     """
     Atualiza um canteiro existente.
@@ -103,7 +104,7 @@ async def update_canteiro(
 async def delete_canteiro(
     canteiro_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: FuncionarioOut = Depends(get_current_user)
+    current_user: FuncionarioOut = Depends(require_permission("viveiro.edit"))
 ):
     """
     Remove o local do banco somente se não houver plantas ativas (nem sementes em produção).

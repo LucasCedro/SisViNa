@@ -17,3 +17,21 @@ export async function fetchMe() {
   const { data } = await api.get(`${API_V1}/auth/me`)
   return data
 }
+
+export async function updateMe(payload) {
+  const { data } = await api.patch(`${API_V1}/auth/me`, payload)
+  return data
+}
+
+export async function resetPassword(oldPassword, newPassword) {
+  const { data } = await api.post(`${API_V1}/auth/reset-password`, {
+    old_password: oldPassword,
+    new_password: newPassword,
+  })
+  return data
+}
+
+export async function validatePassword(password) {
+  const { data } = await api.post(`${API_V1}/auth/validate-password`, { password })
+  return data
+}

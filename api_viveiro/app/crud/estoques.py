@@ -1,11 +1,15 @@
+from datetime import date
 from typing import Any, Dict, List, Optional
 
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud import plantas as crud_plantas
+from app.crud.estoques_analytics import montar_analitico_mudas, verificar_integridade_cmv
+from app.crud.estoques_timeline import montar_timeline_especies
 from app.crud.lotes_sementes import get_lotes
 from app.crud.plantas_estoque import contar_mudas_pipeline
+from app.models.insumo_movimentacao import InsumoMovimentacao
 from app.models.insumos import Insumo
 from app.models.plantas import Planta
 
@@ -21,16 +25,40 @@ def _alerta_insumo(insumo: Insumo) -> Optional[str]:
     return None
 
 
-def _insumo_para_resumo(i: Insumo) -> dict:
+def _fmt_date(d) -> Optional[str]:
+    if d is None:
+        return None
+    return d.isoformat() if hasattr(d, "isoformat") else str(d)
+
+
+async def _mapa_movimentacoes_insumo(db: AsyncSession) -> Dict[int, Dict[str, Any]]:
+    rows = (
+        await db.execute(
+            select(
+                InsumoMovimentacao.id_insumo,
+                func.count(InsumoMovimentacao.id).label("qtd"),
+                func.max(InsumoMovimentacao.data_movimento).label("ultima"),
+            ).group_by(InsumoMovimentacao.id_insumo)
+        )
+    ).all()
+    return {
+        int(r.id_insumo): {"qtd_movimentacoes": int(r.qtd or 0), "ultima_movimentacao": r.ultima}
+        for r in rows
+    }
+
+
+def _insumo_para_resumo(i: Insumo, mov: Optional[Dict[str, Any]] = None) -> dict:
     qtd = float(i.quantidade_estoque or 0)
     preco = float(i.preco_unitario) if i.preco_unitario is not None else None
     valor = float(i.valor_estoque or 0)
     if valor <= 0 and preco is not None:
         valor = qtd * preco
+    mov = mov or {}
     return {
         "id": i.id,
         "nome": i.nome,
         "tipo": i.tipo,
+        "descricao": i.descricao,
         "unidade_medida": i.unidade_medida,
         "quantidade_estoque": qtd,
         "preco_unitario": preco,
@@ -38,20 +66,60 @@ def _insumo_para_resumo(i: Insumo) -> dict:
         "estoque_minimo": float(i.estoque_minimo or 0),
         "estoque_maximo": float(i.estoque_maximo) if i.estoque_maximo is not None else None,
         "fornecedor": i.fornecedor,
+        "data_ultima_compra": _fmt_date(i.data_ultima_compra),
+        "ultima_movimentacao": _fmt_date(mov.get("ultima_movimentacao")),
+        "qtd_movimentacoes": mov.get("qtd_movimentacoes", 0),
         "alerta_estoque": _alerta_insumo(i),
+    }
+
+
+def _lote_para_resumo(l: dict) -> dict:
+    hoje = date.today()
+    df = l.get("data_formacao_lote")
+    dias_arm = (hoje - df).days if df else None
+    qi = l.get("quantidade_inicial") or 0
+    qd = l.get("quantidade_disponivel") or 0
+    pct_consumido = round(100 * (qi - qd) / qi, 1) if qi > 0 else None
+    return {
+        "id": l["id"],
+        "codigo_lote": l["codigo_lote"],
+        "origem_lote": l.get("origem_lote", "coleta"),
+        "id_especie": l["id_especie"],
+        "especie_nome": l.get("especie_nome"),
+        "matriz_nome": l.get("matriz_nome"),
+        "quantidade_disponivel": qd,
+        "quantidade_inicial": qi,
+        "valor_total": l.get("valor_total"),
+        "custo_unitario": l.get("custo_unitario"),
+        "status": l["status"],
+        "condicoes_armazenamento": l.get("condicoes_armazenamento"),
+        "data_formacao_lote": _fmt_date(df),
+        "data_coleta": _fmt_date(l.get("data_coleta")),
+        "dias_armazenamento": dias_arm,
+        "percentual_consumido": pct_consumido,
+        "ultimo_teste_germinacao": l.get("ultimo_teste_germinacao"),
+        "beneficiamento": l.get("beneficiamento"),
+        "observacoes": l.get("observacoes"),
     }
 
 
 async def get_resumo_estoques(db: AsyncSession) -> Dict[str, Any]:
     lotes = await get_lotes(db, status="ativo", limit=500)
     lotes_ativos = [l for l in lotes if (l.get("quantidade_disponivel") or 0) > 0]
+    lotes_resumo = [_lote_para_resumo(l) for l in lotes_ativos]
+    valor_total_sementes = sum(float(l.get("valor_total") or 0) for l in lotes_ativos)
 
+    mov_map = await _mapa_movimentacoes_insumo(db)
     ins_result = await db.execute(select(Insumo).order_by(Insumo.nome))
     insumos_db = ins_result.scalars().all()
-    insumos = [_insumo_para_resumo(i) for i in insumos_db]
+    insumos = [_insumo_para_resumo(i, mov_map.get(i.id)) for i in insumos_db]
     valor_total_insumos = sum(i["valor_estoque"] for i in insumos)
 
     pipeline = await contar_mudas_pipeline(db)
+    analitico_viveiro = await montar_analitico_mudas(db, metrica_idade="viveiro")
+    analitico_rust = await montar_analitico_mudas(db, metrica_idade="rustificacao")
+    cmv_integridade = await verificar_integridade_cmv(db)
+    timeline_especies = await montar_timeline_especies(db)
 
     estoque_comercial_raw = await crud_plantas.get_estoque_resumo(db)
     estoque_comercial = [
@@ -70,6 +138,7 @@ async def get_resumo_estoques(db: AsyncSession) -> Dict[str, Any]:
         for e in estoque_comercial_raw
     ]
     total_mudas_aptas_venda = sum(e["quantidade"] for e in estoque_comercial)
+    valor_mudas_comercial = sum(e.get("valor_estoque_especie", 0) for e in estoque_comercial)
 
     valor_mudas_vivas = float(
         (
@@ -92,25 +161,15 @@ async def get_resumo_estoques(db: AsyncSession) -> Dict[str, Any]:
         "total_insumos": len(insumos),
         "total_mudas_aptas_venda": int(total_mudas_aptas_venda),
         "valor_total_insumos": valor_total_insumos,
+        "valor_total_sementes": round(valor_total_sementes, 2),
         "valor_total_mudas": valor_mudas_vivas,
+        "valor_mudas_comercial": round(valor_mudas_comercial, 2),
         "mudas_pipeline": pipeline,
         "estoque_comercial": estoque_comercial,
-        "lotes_sementes": [
-            {
-                "id": l["id"],
-                "codigo_lote": l["codigo_lote"],
-                "origem_lote": l.get("origem_lote", "coleta"),
-                "id_especie": l["id_especie"],
-                "especie_nome": l.get("especie_nome"),
-                "matriz_nome": l.get("matriz_nome"),
-                "quantidade_disponivel": l["quantidade_disponivel"],
-                "quantidade_inicial": l["quantidade_inicial"],
-                "valor_total": l.get("valor_total"),
-                "custo_unitario": l.get("custo_unitario"),
-                "status": l["status"],
-                "condicoes_armazenamento": l.get("condicoes_armazenamento"),
-            }
-            for l in lotes_ativos
-        ],
+        "analitico_mudas": analitico_viveiro,
+        "analitico_mudas_rustificacao": analitico_rust,
+        "cmv_integridade": cmv_integridade,
+        "timeline_especies": timeline_especies,
+        "lotes_sementes": lotes_resumo,
         "insumos": insumos,
     }
