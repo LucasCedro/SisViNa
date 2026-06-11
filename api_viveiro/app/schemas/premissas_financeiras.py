@@ -42,6 +42,18 @@ class PremissaUpdate(BaseModel):
     ordem: Optional[int] = None
     ativo: Optional[bool] = None
 
+    @validator("valor", pre=True)
+    def valor_vazio_como_zero(cls, v):
+        if v is None or v == "":
+            return 0.0
+        return v
+
+    @validator("quantidade", pre=True)
+    def quantidade_vazia_como_nulo(cls, v):
+        if v is None or v == "":
+            return None
+        return v
+
 
 class PremissaOut(PremissaBase):
     id: int

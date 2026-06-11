@@ -2,6 +2,11 @@ import api from './api'
 
 const API_V1 = '/api/v1'
 
+export async function getCustoCampoReferencia() {
+  const { data } = await api.get(`${API_V1}/coletas-sementes/custo-campo-referencia`)
+  return data
+}
+
 export async function listColetasSementes(params = {}) {
   const { data } = await api.get(`${API_V1}/coletas-sementes/`, { params })
   return data

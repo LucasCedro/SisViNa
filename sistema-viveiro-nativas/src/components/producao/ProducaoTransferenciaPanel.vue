@@ -218,7 +218,15 @@ async function transferir() {
       id_canteiro_destino: Number(idDestino.value),
       data_germinacao: dataGerminacao.value || null,
     })
-    sucesso.value = `${res.transferidas} muda(s) transferida(s) para o canteiro.`
+    let msg = `${res.transferidas} muda(s) transferida(s) para o canteiro.`
+    if (res.baixa_substrato) {
+      const b = res.baixa_substrato
+      msg += ` Baixa de substrato: ${b.quantidade} ${b.unidade} (${b.insumo_nome}).`
+    }
+    if (res.avisos?.length) {
+      msg += ` ${res.avisos.join(' ')}`
+    }
+    sucesso.value = msg
     await carregar()
     emit('atualizado')
   } catch (e) {

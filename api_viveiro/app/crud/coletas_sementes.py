@@ -10,7 +10,29 @@ from app.models.arvores_matriz import ArvoreMatriz
 from app.models.coletas_sementes import ColetaSementes
 from app.models.lotes_sementes import LoteSementes
 from app.schemas.coletas_sementes import ColetaSementesCreate, ColetaSementesUpdate
+from app.services.custeio import (
+    calcular_custo_coleta_campo,
+    definir_valor_lote_entrada,
+    obter_valor_hora_coleta_campo,
+)
 from app.utils.especies_display import formatar_nome_popular
+
+
+def _validar_reserva_teste(quantidade: int, reservadas: int) -> None:
+    reservadas = int(reservadas or 0)
+    if reservadas < 0:
+        raise ValueError("Reserva para teste não pode ser negativa")
+    if reservadas >= quantidade:
+        raise ValueError(
+            "As sementes reservadas para teste devem ser menores que a quantidade coletada "
+            "(o lote de armazém precisa de ao menos 1 semente)"
+        )
+
+
+def quantidade_lote_armazem(coleta: ColetaSementes) -> int:
+    """Quantidade que entra no lote — exclui sementes já separadas para teste."""
+    reservadas = int(getattr(coleta, "sementes_reservadas_teste", 0) or 0)
+    return int(coleta.quantidade_sementes) - reservadas
 
 
 def _para_resposta(coleta: ColetaSementes, lotes: Optional[list] = None) -> dict:
@@ -29,6 +51,11 @@ def _para_resposta(coleta: ColetaSementes, lotes: Optional[list] = None) -> dict
         "funcionario_nome": coleta.funcionario.nome if coleta.funcionario else "",
         "data_coleta": coleta.data_coleta,
         "quantidade_sementes": coleta.quantidade_sementes,
+        "sementes_reservadas_teste": int(coleta.sementes_reservadas_teste or 0),
+        "horas_campo": float(coleta.horas_campo) if coleta.horas_campo is not None else None,
+        "custo_campo_total": float(coleta.custo_campo_total)
+        if coleta.custo_campo_total is not None
+        else None,
         "observacoes": coleta.observacoes,
         "data_registro": coleta.data_registro,
         "lotes": lotes or [],
@@ -120,6 +147,49 @@ async def get_coletas(
     return saida
 
 
+async def _aplicar_custo_campo_coleta(
+    db: AsyncSession, coleta: ColetaSementes, lote=None
+) -> None:
+    valor_hora = await obter_valor_hora_coleta_campo(db)
+    qtd_lote = quantidade_lote_armazem(coleta)
+    total, _ = calcular_custo_coleta_campo(coleta.horas_campo, valor_hora, qtd_lote)
+    coleta.custo_campo_total = total if total > 0 else None
+    if lote is not None:
+        definir_valor_lote_entrada(lote, total if total > 0 else None)
+
+
+async def _recalcular_custo_lotes_coleta(db: AsyncSession, coleta: ColetaSementes) -> None:
+    valor_hora = await obter_valor_hora_coleta_campo(db)
+    qtd_lote = quantidade_lote_armazem(coleta)
+    total, _ = calcular_custo_coleta_campo(coleta.horas_campo, valor_hora, qtd_lote)
+    coleta.custo_campo_total = total if total > 0 else None
+    for lote in coleta.lotes or []:
+        if lote.id_coleta_sementes != coleta.id:
+            continue
+        disp = int(lote.quantidade_disponivel or 0)
+        inicial = int(lote.quantidade_inicial or 0)
+        if disp == inicial:
+            definir_valor_lote_entrada(lote, total if total > 0 else None)
+
+
+async def get_custo_campo_referencia(db: AsyncSession) -> dict:
+    from app.models.financeiro_premissa import FinanceiroPremissa
+    from sqlalchemy import select
+
+    from app.services.custeio import CHAVE_PREMISSA_COLETA_CAMPO
+
+    result = await db.execute(
+        select(FinanceiroPremissa).where(FinanceiroPremissa.chave == CHAVE_PREMISSA_COLETA_CAMPO)
+    )
+    prem = result.scalars().first()
+    valor = float(prem.valor or 0) if prem and prem.ativo else 0.0
+    return {
+        "valor_hora": valor,
+        "premissa_ativa": bool(prem and prem.ativo and valor > 0),
+        "nome": prem.nome if prem else "Mão de obra de coleta",
+    }
+
+
 async def create_coleta(
     db: AsyncSession, payload: ColetaSementesCreate, id_funcionario: int
 ) -> dict:
@@ -129,11 +199,16 @@ async def create_coleta(
 
     dados = payload.dict()
     gerar_lote = dados.pop("gerar_lote", True)
+    reservadas = int(dados.get("sementes_reservadas_teste") or 0)
+    _validar_reserva_teste(dados["quantidade_sementes"], reservadas)
+    horas = dados.get("horas_campo")
     db_coleta = ColetaSementes(
         id_arvore_matriz=dados["id_arvore_matriz"],
         id_funcionario=id_funcionario,
         data_coleta=dados["data_coleta"],
         quantidade_sementes=dados["quantidade_sementes"],
+        sementes_reservadas_teste=reservadas,
+        horas_campo=horas,
         observacoes=dados.get("observacoes"),
     )
     db.add(db_coleta)
@@ -142,7 +217,10 @@ async def create_coleta(
 
     coleta = await get_coleta(db, coleta_id)
     if gerar_lote:
-        await criar_lote_de_coleta(db, coleta)
+        lote = await criar_lote_de_coleta(db, coleta)
+        await _aplicar_custo_campo_coleta(db, db_coleta, lote)
+    elif horas is not None:
+        await _aplicar_custo_campo_coleta(db, db_coleta, None)
 
     await db.commit()
     await _atualizar_agregados_matriz(db, dados["id_arvore_matriz"])
@@ -158,6 +236,12 @@ async def update_coleta(
 
     id_matriz = db_coleta.id_arvore_matriz
     update_data = payload.dict(exclude_unset=True)
+    qtd = update_data.get("quantidade_sementes", db_coleta.quantidade_sementes)
+    reservadas = update_data.get(
+        "sementes_reservadas_teste", db_coleta.sementes_reservadas_teste or 0
+    )
+    if "quantidade_sementes" in update_data or "sementes_reservadas_teste" in update_data:
+        _validar_reserva_teste(qtd, reservadas)
     for field, value in update_data.items():
         setattr(db_coleta, field, value)
 
@@ -166,6 +250,12 @@ async def update_coleta(
         for lote in db_coleta.lotes or []:
             if lote.id_coleta_sementes == db_coleta.id:
                 lote.data_formacao_lote = nova_data
+
+    if any(
+        k in update_data
+        for k in ("horas_campo", "quantidade_sementes", "sementes_reservadas_teste")
+    ):
+        await _recalcular_custo_lotes_coleta(db, db_coleta)
 
     await db.commit()
     await _atualizar_agregados_matriz(db, id_matriz)

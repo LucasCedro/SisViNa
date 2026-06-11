@@ -6,11 +6,12 @@
         O sistema calcula o custo por muda e usa as despesas como referência na DRE.
       </p>
       <ul class="prem-intro__lista">
-        <li><span class="prem-tag prem-tag--cmv">CMV</span> entra no custo do lote na semeadura</li>
+        <li><span class="prem-tag prem-tag--cmv">CMV</span> coleta: horas × homem-hora; água, energia e folha: valor pago no mês ÷ mudas vivas</li>
         <li><span class="prem-tag prem-tag--dre">DRE</span> referência mensal — não compõe o custo da muda</li>
         <li>
-          Preços de substrato e hidrogel:
-          <router-link to="/estoques">Estoques → Insumos → Entrada</router-link>
+          Substrato: estoque em <strong>kg</strong> (saco), dosagem em <strong>gramas por recipiente</strong>
+          — estimativa prática, sem densidade. Baixa automática na transferência para o canteiro.
+          <router-link to="/estoques">Estoques → Insumos</router-link>
         </li>
       </ul>
     </div>
@@ -29,6 +30,25 @@
           <div class="prem-secao__head">
             <h3 class="prem-secao__titulo">{{ sec.titulo }}</h3>
             <p v-if="sec.descricao" class="prem-secao__desc">{{ sec.descricao }}</p>
+            <div v-if="sec.configPremissa && editLocal[sec.configPremissa.id]" class="prem-recipiente">
+              <span class="prem-recipiente__label">Como você semeia?</span>
+              <div class="prem-recipiente__opcoes">
+                <label
+                  v-for="(meta, key) in RECIPIENTES_SEMEADURA"
+                  :key="key"
+                  class="prem-recipiente__opcao"
+                  :class="{ 'prem-recipiente__opcao--ativa': recipienteAtual === key }"
+                >
+                  <input
+                    v-model="editLocal[sec.configPremissa.id].unidade"
+                    type="radio"
+                    :value="key"
+                    :disabled="!podeEditar"
+                  />
+                  <span>{{ meta.label }}</span>
+                </label>
+              </div>
+            </div>
           </div>
 
           <div class="prem-cards">
@@ -123,7 +143,16 @@
 import { ref, computed, onMounted, reactive } from 'vue'
 import { listPremissas, updatePremissa } from '@/services/financeiro'
 import { listInsumos } from '@/services/insumos'
-import { uiPremissa, secoesPremissas, insumosParaCampo as filtrarInsumos } from '@/constants/premissasUi'
+import {
+  uiPremissa,
+  secoesPremissas,
+  insumosParaCampo as filtrarInsumos,
+  RECIPIENTES_SEMEADURA,
+  CHAVE_RECIPIENTE,
+  CHAVE_SUBSTRATO,
+  normalizarRecipiente,
+  unidadePremissaSubstrato,
+} from '@/constants/premissasUi'
 
 const props = defineProps({
   podeEditar: { type: Boolean, default: false },
@@ -141,9 +170,18 @@ const erro = ref('')
 const editLocal = reactive({})
 const original = reactive({})
 
+const recipienteAtual = computed(() => {
+  const p = lista.value.find((x) => x.chave === CHAVE_RECIPIENTE)
+  if (!p) return 'tubete'
+  const loc = editLocal[p.id]
+  return normalizarRecipiente(loc?.unidade ?? p.unidade)
+})
+
 const ctx = computed(() => ({
   faturamento: props.faturamento || 0,
   mudasVivas: props.mudasVivas || 0,
+  recipiente: recipienteAtual.value,
+  insumos: insumos.value,
 }))
 
 const grupos = computed(() => [
@@ -151,40 +189,61 @@ const grupos = computed(() => [
     id: 'CUSTO',
     titulo: 'Custos de produção (CMV)',
     hint: 'Rateados automaticamente quando você semeia um lote.',
-    secoes: secoesPremissas('CUSTO', lista.value),
+    secoes: secoesPremissas('CUSTO', lista.value, recipienteAtual.value),
   },
   {
     id: 'DESPESA',
     titulo: 'Despesas operacionais (DRE)',
     hint: 'Referência para o resultado do período — não entram no custo unitário da muda.',
-    secoes: secoesPremissas('DESPESA', lista.value),
+    secoes: secoesPremissas('DESPESA', lista.value, recipienteAtual.value),
   },
 ])
 
+function snapPremissa(p) {
+  return {
+    valor: valorPremissa(p.valor),
+    quantidade: quantidadePremissa(p.quantidade),
+    id_insumo: p.id_insumo,
+    unidade:
+      p.chave === CHAVE_RECIPIENTE ? normalizarRecipiente(p.unidade) : p.unidade,
+  }
+}
+
+/** Campo vazio ou inválido → 0 (comissão, faturas, folha etc.). */
+function valorPremissa(v) {
+  if (v === null || v === undefined || v === '') return 0
+  const n = Number(v)
+  return Number.isFinite(n) ? n : 0
+}
+
+/** Opcional — vazio permanece null (ex.: L/muda/mês de referência). */
+function quantidadePremissa(v) {
+  if (v === null || v === undefined || v === '') return null
+  const n = Number(v)
+  return Number.isFinite(n) ? n : null
+}
+
+function premissaAlterada(p) {
+  const loc = editLocal[p.id]
+  const orig = original[p.id]
+  if (!loc || !orig) return false
+  return (
+    valorPremissa(loc.valor) !== valorPremissa(orig.valor) ||
+    quantidadePremissa(loc.quantidade) !== quantidadePremissa(orig.quantidade) ||
+    loc.id_insumo !== orig.id_insumo ||
+    loc.unidade !== orig.unidade
+  )
+}
+
 function syncEditLocal() {
   for (const p of lista.value) {
-    const snap = {
-      valor: p.valor,
-      quantidade: p.quantidade,
-      id_insumo: p.id_insumo,
-    }
+    const snap = snapPremissa(p)
     editLocal[p.id] = { ...snap }
     original[p.id] = { ...snap }
   }
 }
 
-const temAlteracoes = computed(() =>
-  lista.value.some((p) => {
-    const loc = editLocal[p.id]
-    const orig = original[p.id]
-    if (!loc || !orig) return false
-    return (
-      loc.valor !== orig.valor ||
-      loc.quantidade !== orig.quantidade ||
-      loc.id_insumo !== orig.id_insumo
-    )
-  })
-)
+const temAlteracoes = computed(() => lista.value.some(premissaAlterada))
 
 async function carregar() {
   carregando.value = true
@@ -206,12 +265,16 @@ async function carregar() {
   }
 }
 
+function ctxPremissa(p) {
+  return { ...ctx.value, premissaLocal: editLocal[p.id] }
+}
+
 function camposDe(p) {
-  return uiPremissa(p).campos
+  return uiPremissa(p, ctxPremissa(p)).campos
 }
 
 function badgeDe(p) {
-  return uiPremissa(p).badge || (p.natureza === 'CUSTO' ? 'CMV' : 'DRE')
+  return uiPremissa(p, ctx.value).badge || (p.natureza === 'CUSTO' ? 'CMV' : 'DRE')
 }
 
 function badgeClasse(p) {
@@ -223,15 +286,16 @@ function insumosParaCampo(campo) {
 }
 
 function textoCalculo(p) {
-  const ui = uiPremissa(p)
+  const ui = uiPremissa(p, ctxPremissa(p))
   const local = editLocal[p.id] || p
   const merged = { ...p, ...local }
   if (merged.id_insumo) {
     const ins = insumos.value.find((i) => i.id === merged.id_insumo)
     merged.preco_medio_insumo = ins?.preco_unitario
     merged.insumo_nome = ins?.nome
+    merged.insumo_unidade_medida = ins?.unidade_medida
   }
-  return ui.calculo(merged, ctx.value)
+  return ui.calculo(merged, ctxPremissa(p))
 }
 
 function fmtMoeda(v) {
@@ -249,25 +313,32 @@ async function salvarTudo() {
   if (!props.podeEditar || !temAlteracoes.value) return
   salvando.value = true
   try {
-    const updates = lista.value
-      .filter((p) => {
-        const loc = editLocal[p.id]
-        const orig = original[p.id]
-        if (!loc || !orig) return false
-        return (
-          loc.valor !== orig.valor ||
-          loc.quantidade !== orig.quantidade ||
-          loc.id_insumo !== orig.id_insumo
+    const updates = lista.value.filter(premissaAlterada).map((p) => {
+      const local = editLocal[p.id]
+      const payload = {
+        valor: valorPremissa(local.valor),
+        quantidade: quantidadePremissa(local.quantidade),
+        id_insumo: local.id_insumo,
+      }
+      if (p.chave === CHAVE_RECIPIENTE) {
+        payload.unidade = normalizarRecipiente(local.unidade)
+      }
+      return updatePremissa(p.id, payload)
+    })
+
+    const recPrem = lista.value.find((x) => x.chave === CHAVE_RECIPIENTE)
+    const recMudou = recPrem && premissaAlterada(recPrem)
+    if (recMudou) {
+      const sub = lista.value.find((x) => x.chave === CHAVE_SUBSTRATO)
+      if (sub) {
+        updates.push(
+          updatePremissa(sub.id, {
+            unidade: unidadePremissaSubstrato(normalizarRecipiente(editLocal[recPrem.id].unidade)),
+          })
         )
-      })
-      .map((p) => {
-        const local = editLocal[p.id]
-        return updatePremissa(p.id, {
-          valor: local.valor,
-          quantidade: local.quantidade,
-          id_insumo: local.id_insumo,
-        })
-      })
+      }
+    }
+
     await Promise.all(updates)
     await carregar()
     emit('atualizar')
@@ -342,6 +413,30 @@ onMounted(carregar)
 
 .prem-secao__desc {
   @apply text-sm text-text-muted m-0 max-w-3xl;
+}
+
+.prem-recipiente {
+  @apply mt-3 flex flex-wrap items-center gap-3;
+}
+
+.prem-recipiente__label {
+  @apply text-sm font-medium text-text-primary;
+}
+
+.prem-recipiente__opcoes {
+  @apply flex flex-wrap gap-2;
+}
+
+.prem-recipiente__opcao {
+  @apply inline-flex items-center gap-2 px-3 py-2 rounded-md border border-primary-100 bg-surface text-sm cursor-pointer transition-colors;
+}
+
+.prem-recipiente__opcao--ativa {
+  @apply border-primary bg-primary-50 text-primary-700;
+}
+
+.prem-recipiente__opcao input {
+  @apply accent-primary-600;
 }
 
 .prem-cards {

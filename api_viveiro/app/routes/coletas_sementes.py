@@ -8,7 +8,12 @@ from app.auth.jwt import get_current_user
 from app.security.rbac import require_permission
 from app.crud import coletas_sementes as crud
 from app.database import get_db
-from app.schemas.coletas_sementes import ColetaSementesCreate, ColetaSementesOut, ColetaSementesUpdate
+from app.schemas.coletas_sementes import (
+    ColetaSementesCreate,
+    ColetaSementesOut,
+    ColetaSementesUpdate,
+    CustoCampoReferenciaOut,
+)
 from app.schemas.funcionarios import FuncionarioOut
 
 router = APIRouter()
@@ -34,6 +39,14 @@ async def listar_coletas(
         data_inicio=data_inicio,
         data_fim=data_fim,
     )
+
+
+@router.get("/custo-campo-referencia", response_model=CustoCampoReferenciaOut)
+async def custo_campo_referencia(
+    db: AsyncSession = Depends(get_db),
+    current_user: FuncionarioOut = Depends(require_permission("coleta.view")),
+):
+    return await crud.get_custo_campo_referencia(db)
 
 
 @router.get("/{coleta_id}", response_model=ColetaSementesOut)

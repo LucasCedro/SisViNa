@@ -24,7 +24,23 @@
                     <span class="ocupacao-resumo-leg">ocupação</span>
                 </div>
 
+                <ul v-if="pendenciasLocal.length" class="pendencias-painel">
+                    <li v-for="p in pendenciasLocal" :key="p.tipo">
+                        <button type="button" class="pendencia-painel-btn" :class="`pendencia-painel-btn--${p.nivel}`" @click="irPendencia(p)">
+                            <span class="pendencia-painel-ico" aria-hidden="true">{{ p.icone }}</span>
+                            <span>
+                                <strong>{{ p.rotulo }}</strong>
+                                <small>{{ p.count }} pendência(s) — {{ p.titulo }}</small>
+                            </span>
+                        </button>
+                    </li>
+                </ul>
+
                 <dl class="info-lista">
+                    <div v-if="textoDimensoes" class="info-item">
+                        <dt>Dimensões no chão</dt>
+                        <dd>{{ textoDimensoes }}</dd>
+                    </div>
                     <div v-if="elementoSelecionado.capacidade" class="info-item">
                         <dt>Capacidade</dt>
                         <dd>{{ elementoSelecionado.capacidade }} mudas</dd>
@@ -182,9 +198,13 @@
 
 <script setup>
 import { computed, ref } from 'vue';
+import { useRouter } from 'vue-router';
+import { textoMetros } from '@/constants/viveiroDimensoes';
+import { pendenciasDoCanteiro } from '@/utils/viveiroPendenciasMapa';
 import { useViveiroStore } from '../../store/viveiro';
 
 const store = useViveiroStore();
+const router = useRouter();
 
 // Dados do store
 const elementoSelecionado = computed(() => store.elementoSelecionado);
@@ -204,6 +224,16 @@ const tituloDetalhes = computed(() => {
 });
 
 // Tipo de elemento selecionado formatado
+const textoDimensoes = computed(() => textoMetros(elementoSelecionado.value))
+
+const pendenciasLocal = computed(() =>
+    pendenciasDoCanteiro(store.pendenciasPorCanteiro, elementoSelecionado.value?.apiId)
+)
+
+function irPendencia(p) {
+    if (p?.rota) router.push(p.rota)
+}
+
 const tipoElemento = computed(() => {
     if (!elementoSelecionado.value) return '';
 
@@ -304,18 +334,18 @@ const salvarEdicao = () => {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    gap: 0.5rem;
-    margin-bottom: 1rem;
-    padding-bottom: 0.75rem;
+    gap: var(--v-s2);
+    margin-bottom: var(--v-s3);
+    padding-bottom: var(--v-s2);
     border-bottom: 1px solid var(--color-border-subtle);
 }
 
 .titulo {
-    font-size: 1.0625rem;
+    font-size: 1.125rem;
     font-weight: 600;
     color: var(--color-text-primary);
     margin: 0;
-    line-height: 1.35;
+    line-height: 1.3;
     word-break: break-word;
     overflow-wrap: anywhere;
     flex: 1;
@@ -324,24 +354,24 @@ const salvarEdicao = () => {
 
 .tipo-pill {
     display: inline-block;
-    margin: 0 0 0.75rem;
-    padding: 0.2rem 0.5rem;
-    font-size: 0.625rem;
+    margin: 0 0 var(--v-s2);
+    padding: var(--v-s1) var(--v-s2);
+    font-size: 0.8125rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     color: var(--color-primary);
     background: rgba(74, 124, 42, 0.1);
-    border-radius: 4px;
+    border-radius: var(--radius-md);
 }
 
 .ocupacao-resumo {
     text-align: center;
-    padding: 0.75rem;
-    margin-bottom: 1rem;
+    padding: var(--v-s3);
+    margin-bottom: var(--v-s3);
     background: linear-gradient(180deg, #f4f7f0 0%, #eef4e8 100%);
     border: 1px solid #d4e4c8;
-    border-radius: 10px;
+    border-radius: var(--radius-xl);
 }
 
 .ocupacao-resumo-num {
@@ -349,29 +379,84 @@ const salvarEdicao = () => {
     font-size: 1.375rem;
     font-weight: 700;
     color: #2d5016;
-    line-height: 1.2;
+    line-height: 1.15;
 }
 
 .ocupacao-resumo-leg {
     display: block;
-    margin-top: 0.15rem;
-    font-size: 0.6875rem;
+    margin-top: var(--v-s2);
+    font-size: 0.8125rem;
     color: var(--color-text-muted);
+    line-height: var(--v-line);
+}
+
+.pendencias-painel {
+    list-style: none;
+    margin: 0 0 var(--v-s3);
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--v-s2);
+}
+
+.pendencia-painel-btn {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--v-s2);
+    width: 100%;
+    padding: var(--v-s2) var(--v-s3);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: var(--radius-lg);
+    background: #fff;
+    text-align: left;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+.pendencia-painel-btn strong {
+    display: block;
+    font-size: 0.9375rem;
+    line-height: var(--v-line);
+}
+
+.pendencia-painel-btn small {
+    display: block;
+    margin-top: var(--v-s1);
+    font-size: 0.8125rem;
+    color: var(--color-text-secondary);
+    line-height: var(--v-line);
+}
+
+.pendencia-painel-btn--alto {
+    border-color: #fecaca;
+    background: #fef2f2;
+}
+
+.pendencia-painel-btn--medio {
+    border-color: #fde68a;
+    background: #fffbeb;
+}
+
+.pendencia-painel-ico {
+    font-size: 1rem;
+    font-weight: 800;
+    line-height: 1;
+    margin-top: 0.1rem;
 }
 
 .info-lista {
     margin: 0;
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: var(--v-s2);
 }
 
 .info-item {
     display: grid;
     grid-template-columns: minmax(0, 38%) minmax(0, 1fr);
-    gap: 0.35rem 0.65rem;
+    gap: var(--v-s2) var(--v-s3);
     align-items: baseline;
-    padding: 0.45rem 0;
+    padding: var(--v-s2) 0;
     border-bottom: 1px solid var(--color-border-subtle);
 }
 
@@ -381,20 +466,22 @@ const salvarEdicao = () => {
 
 .info-item dt {
     margin: 0;
-    font-size: 0.6875rem;
+    font-size: 0.8125rem;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.03em;
     color: var(--color-text-muted);
+    line-height: var(--v-line);
 }
 
 .info-item dd {
     margin: 0;
-    font-size: 0.875rem;
+    font-size: 0.9375rem;
     color: var(--color-text-primary);
     word-break: break-word;
     overflow-wrap: anywhere;
     text-align: right;
+    line-height: var(--v-line);
 }
 
 .btn-fechar {
@@ -422,27 +509,28 @@ const salvarEdicao = () => {
 }
 
 .secao {
-    margin-bottom: 1.5rem;
+    margin-bottom: var(--v-s4);
 }
 
 .subtitulo {
-    font-size: 0.8125rem;
+    font-size: 0.9375rem;
     font-weight: 600;
     color: var(--color-text-secondary);
-    margin: 0 0 0.65rem;
+    margin: 0 0 var(--v-s2);
+    line-height: var(--v-line);
 }
 
 .secao-mudas {
-    margin-top: 1.25rem;
-    padding-top: 1rem;
+    margin-top: var(--v-s3);
+    padding-top: var(--v-s3);
     border-top: 1px solid var(--color-border-subtle);
 }
 
 .lista-mudas {
     display: flex;
     flex-direction: column;
-    gap: 0.4rem;
-    max-height: 220px;
+    gap: var(--v-s2);
+    max-height: 260px;
     overflow-x: hidden;
     overflow-y: auto;
 }
@@ -451,10 +539,10 @@ const salvarEdicao = () => {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    gap: 0.5rem;
-    padding: 0.6rem 0.65rem;
+    gap: var(--v-s2);
+    padding: var(--v-s2) var(--v-s3);
     background-color: var(--color-surface-muted);
-    border-radius: 8px;
+    border-radius: var(--radius-lg);
     cursor: pointer;
     border-left: 3px solid var(--color-primary);
     min-width: 0;
@@ -475,27 +563,29 @@ const salvarEdicao = () => {
 
 .muda-nome {
     font-weight: 600;
-    font-size: 0.8125rem;
+    font-size: 0.9375rem;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    line-height: var(--v-line);
 }
 
 .muda-info {
-    font-size: 0.75rem;
+    font-size: 0.8125rem;
     color: var(--color-text-muted);
-    margin-top: 0.15rem;
+    margin-top: var(--v-s1);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    line-height: var(--v-line);
 }
 
 .muda-chip {
     flex-shrink: 0;
     max-width: 45%;
-    font-size: 0.625rem;
-    line-height: 1.25;
-    padding: 0.15rem 0.4rem;
+    font-size: 0.6875rem;
+    line-height: var(--v-line);
+    padding: var(--v-s1) var(--v-s2);
     border-radius: 999px;
     background-color: var(--color-success-bg);
     color: var(--color-success);
@@ -651,28 +741,33 @@ const salvarEdicao = () => {
     background-color: var(--color-info-dark);
 }
 
+.sem-selecao {
+    padding: var(--v-s4) var(--v-s3);
+    text-align: center;
+    background: var(--color-surface-muted);
+    border: 1px dashed var(--color-border);
+    border-radius: var(--radius-xl);
+}
+
+.sem-selecao-icon {
+    color: var(--color-text-muted);
+    opacity: 0.45;
+    margin-bottom: var(--v-s3);
+}
+
 .sem-selecao-titulo {
-    margin: 0 0 0.35rem;
+    margin: 0 0 var(--v-s2);
+    font-size: 0.9375rem;
     font-weight: 600;
     color: var(--color-text-primary);
+    line-height: var(--v-line);
 }
 
 .sem-selecao-hint {
     margin: 0;
     font-size: 0.875rem;
     color: var(--color-text-muted);
-    line-height: 1.45;
-}
-
-.sem-selecao {
-    padding: 1.5rem 0.5rem;
-    text-align: center;
-}
-
-.sem-selecao-icon {
-    color: var(--color-text-muted);
-    opacity: 0.5;
-    margin-bottom: 0.75rem;
+    line-height: var(--v-line);
 }
 
 @media (max-width: 400px) {

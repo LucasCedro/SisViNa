@@ -9,8 +9,14 @@
         <label class="module-field">Nome fantasia <input v-model="form.nome_fantasia" /></label>
       </div>
       <div class="module-form-row">
-        <label class="module-field">CNPJ <input v-model="form.cnpj" required /></label>
-        <label class="module-field">IE <input v-model="form.inscricao_estadual" required /></label>
+        <MaskedInput v-model="form.cnpj" mask="cnpj" label="CNPJ" required />
+        <MaskedInput
+          v-model="form.inscricao_estadual"
+          mask="ie"
+          label="Inscrição estadual (IE)"
+          required
+          hint="Somente números, sem pontuação"
+        />
         <label class="module-field">CRT (1=Simples) <input v-model.number="form.crt" type="number" min="1" max="3" /></label>
       </div>
 
@@ -24,11 +30,11 @@
       <div class="module-form-row">
         <label class="module-field">Bairro <input v-model="form.bairro" required /></label>
         <label class="module-field">Município <input v-model="form.municipio" required /></label>
-        <label class="module-field">UF <input v-model="form.uf" maxlength="2" required /></label>
-        <label class="module-field">IBGE <input v-model="form.codigo_municipio_ibge" required maxlength="7" /></label>
+        <MaskedInput v-model="form.uf" mask="uf" label="UF" required />
+        <MaskedInput v-model="form.codigo_municipio_ibge" mask="ibge" label="Código IBGE" required />
       </div>
       <div class="module-form-row">
-        <label class="module-field">Telefone <input v-model="form.telefone" /></label>
+        <MaskedInput v-model="form.telefone" mask="telefone" label="Telefone" />
         <label class="module-field">E-mail <input v-model="form.email" type="email" /></label>
         <label class="module-field">Série NF-e <input v-model.number="form.serie_nfe" type="number" min="1" /></label>
         <label class="module-field">Próximo número <input v-model.number="form.proximo_numero_nfe" type="number" min="1" /></label>
@@ -58,8 +64,11 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import CepInput from '@/components/form/CepInput.vue'
+import MaskedInput from '@/components/form/MaskedInput.vue'
 import { getEmitenteFiscal, saveEmitenteFiscal } from '@/services/fiscal'
 import { aplicarEnderecoCep } from '@/utils/cepAutofill'
+import { formatUf, onlyDigits, parseInscricaoEstadual } from '@/utils/inputMasks'
+import { mensagemErroApi } from '@/utils/apiError'
 
 const props = defineProps({
   podeEditar: { type: Boolean, default: false },
@@ -76,6 +85,56 @@ const producaoPermitida = computed(() => props.ambiente?.producao_permitida_sist
 
 function onCep(end) {
   aplicarEnderecoCep(form.value, end, 'emitente')
+}
+
+function normalizarEmitente(dados) {
+  if (!dados) return dados
+  return {
+    ...dados,
+    cnpj: onlyDigits(dados.cnpj).slice(0, 14),
+    inscricao_estadual: parseInscricaoEstadual(dados.inscricao_estadual),
+    cep: onlyDigits(dados.cep).slice(0, 8),
+    telefone: onlyDigits(dados.telefone).slice(0, 11),
+    codigo_municipio_ibge: onlyDigits(dados.codigo_municipio_ibge).slice(0, 7),
+    uf: formatUf(dados.uf),
+  }
+}
+
+/** Apenas campos aceitos pelo PUT /fiscal/emitente (sem id, ativo, etc.). */
+function payloadEmitente(dados) {
+  const n = normalizarEmitente(dados)
+  return {
+    razao_social: (n.razao_social || '').trim(),
+    nome_fantasia: (n.nome_fantasia || '').trim() || null,
+    cnpj: n.cnpj,
+    inscricao_estadual: n.inscricao_estadual,
+    crt: Math.min(3, Math.max(1, Number(n.crt) || 1)),
+    cnae: (n.cnae || '').trim() || null,
+    logradouro: (n.logradouro || '').trim(),
+    numero: String(n.numero ?? '').trim(),
+    complemento: (n.complemento || '').trim() || null,
+    bairro: (n.bairro || '').trim(),
+    codigo_municipio_ibge: n.codigo_municipio_ibge,
+    municipio: (n.municipio || '').trim(),
+    uf: n.uf,
+    cep: n.cep,
+    telefone: n.telefone || null,
+    email: (n.email || '').trim() || null,
+    serie_nfe: Math.max(1, Number(n.serie_nfe) || 1),
+    proximo_numero_nfe: Math.max(1, Number(n.proximo_numero_nfe) || 1),
+    ambiente: n.ambiente || 'homologacao',
+  }
+}
+
+function validarEmitenteLocal(dados) {
+  const n = normalizarEmitente(dados)
+  const erros = []
+  if (n.cnpj.length !== 14) erros.push('CNPJ deve ter 14 dígitos')
+  if (!n.inscricao_estadual) erros.push('Inscrição estadual obrigatória')
+  if (n.cep.length !== 8) erros.push('CEP deve ter 8 dígitos')
+  if (n.codigo_municipio_ibge.length !== 7) erros.push('Código IBGE deve ter 7 dígitos')
+  if (n.uf.length !== 2) erros.push('UF deve ter 2 letras')
+  return erros
 }
 
 function emitenteVazio() {
@@ -104,12 +163,12 @@ function emitenteVazio() {
 async function carregar() {
   erroCarregar.value = null
   try {
-    form.value = await getEmitenteFiscal()
+    form.value = normalizarEmitente(await getEmitenteFiscal())
   } catch (e) {
     if (e.response?.status === 404) {
       form.value = emitenteVazio()
     } else {
-      erroCarregar.value = e.response?.data?.detail || 'Falha ao carregar emitente.'
+      erroCarregar.value = mensagemErroApi(e, 'Falha ao carregar emitente.')
     }
   }
 }
@@ -121,13 +180,19 @@ async function salvar() {
     form.value.ambiente = 'homologacao'
     return
   }
+  const errosLocal = validarEmitenteLocal(form.value)
+  if (errosLocal.length) {
+    alert(errosLocal.join('\n'))
+    return
+  }
   salvando.value = true
   try {
-    form.value = await saveEmitenteFiscal(form.value)
+    const salvo = await saveEmitenteFiscal(payloadEmitente(form.value))
+    form.value = { ...form.value, ...normalizarEmitente(salvo) }
     emit('salvo')
     alert('Emitente salvo.')
   } catch (e) {
-    alert(e.response?.data?.detail || 'Erro ao salvar emitente.')
+    alert(mensagemErroApi(e, 'Erro ao salvar emitente.'))
   } finally {
     salvando.value = false
   }

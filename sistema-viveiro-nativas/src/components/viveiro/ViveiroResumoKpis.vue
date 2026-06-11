@@ -38,31 +38,31 @@ const areasProdutivas = computed(() =>
 <style scoped>
 .viveiro-kpis {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: var(--spacing-md);
-  margin-bottom: var(--spacing-lg);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
 }
 
 .kpi {
   background: var(--color-surface);
   border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-md);
-  padding: var(--spacing-md) var(--spacing-lg);
+  border-radius: var(--radius-lg);
+  padding: 1rem 1.125rem;
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
+  gap: 0.375rem;
 }
 
 .kpi-valor {
-  font-size: 1.5rem;
+  font-size: 1.375rem;
   font-weight: 700;
-  color: var(--color-text-primary);
+  color: var(--color-primary);
   line-height: 1.2;
 }
 
 .kpi-label {
-  font-size: 0.8125rem;
-  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  line-height: 1.35;
 }
 
 .kpi--alerta .kpi-valor {

@@ -6,7 +6,9 @@
       role="dialog"
       aria-modal="true"
       :aria-label="`Foto ${indice + 1} de ${urls.length}`"
-      @click.self="fechar"
+      @pointerdown.self="onOverlayPointerDown"
+      @pointerup.self="onOverlayPointerUp"
+      @pointercancel.self="cancelarFechamentoOverlay"
     >
       <button type="button" class="lightbox-btn lightbox-fechar" aria-label="Fechar" @click="fechar">
         ×
@@ -20,7 +22,7 @@
       >
         ‹
       </button>
-      <figure class="lightbox-figure" @click.stop>
+      <figure class="lightbox-figure" @pointerdown="onModalPointerDown">
         <img
           v-if="urlAtual"
           :src="urlFullSize(urlAtual)"
@@ -51,6 +53,7 @@
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted } from "vue";
 import { urlFullSize } from "@/utils/bibliotecaImagens";
+import { useModalOverlayClose } from "@/composables/useModalOverlayClose";
 
 const props = defineProps({
   urls: { type: Array, default: () => [] },
@@ -67,9 +70,22 @@ const erro = ref(false);
 
 const urlAtual = computed(() => props.urls[indice.value] || "");
 
-function fechar() {
+function fecharInterno() {
   aberto.value = false;
   emit("close");
+}
+
+const {
+  onModalPointerDown,
+  onOverlayPointerDown,
+  onOverlayPointerUp,
+  cancelarFechamentoOverlay,
+  resetOverlayPress,
+} = useModalOverlayClose(fecharInterno);
+
+function fechar() {
+  resetOverlayPress();
+  fecharInterno();
 }
 
 function anterior() {

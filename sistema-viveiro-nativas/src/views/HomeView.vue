@@ -18,7 +18,9 @@
     </section>
 
     <p v-if="acessoNegado" class="alert alert-error home-erro" role="alert">
-      Você não tem permissão para acessar essa área.
+      Você não tem permissão para acessar
+      <strong>{{ rotaNegadaLabel }}</strong>.
+      <span v-if="rotaNegada"> O painel inicial continua disponível.</span>
     </p>
 
     <p v-if="erroApi" class="alert alert-error home-erro" role="alert">
@@ -121,7 +123,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/store/auth'
 import { usePermissions } from '@/composables/usePermissions'
@@ -131,6 +133,7 @@ import { loadHomeData, fmtMoeda } from '@/services/home'
 const router = useRouter()
 const route = useRoute()
 const acessoNegado = ref(false)
+const rotaNegada = ref('')
 const auth = useAuthStore()
 const { can } = usePermissions()
 
@@ -174,6 +177,32 @@ const fluxoVisivel = computed(() =>
 const mostrarOnboarding = computed(
   () => !carregando.value && resumo.value && resumo.value.matrizes === 0
 )
+
+const rotaNegadaLabel = computed(() => {
+  const map = {
+    '/financeiro': 'Financeiro',
+    '/coleta': 'Coleta de Sementes',
+    '/producao': 'Produção',
+    '/viveiro': 'Viveiro',
+    '/estoques': 'Estoques',
+    '/vendas': 'Vendas',
+    '/biblioteca': 'Biblioteca',
+    '/fitossanidade': 'Fitossanidade',
+    '/fertilizacao': 'Fertilização',
+    '/contabilidade': 'Contabilidade',
+    '/configuracoes': 'Configurações',
+    '/admin/god-mode': 'God Mode (admin)',
+  }
+  const path = String(rotaNegada.value || '').split('?')[0]
+  return map[path] || (path ? path : 'essa área')
+})
+
+function capturarAcessoNegado() {
+  if (route.query.acesso !== 'negado') return
+  acessoNegado.value = true
+  rotaNegada.value = typeof route.query.de === 'string' ? route.query.de : ''
+  router.replace({ path: '/', query: {} })
+}
 
 const statsVisiveis = computed(() => {
   if (!resumo.value) return []
@@ -234,11 +263,27 @@ const statsVisiveis = computed(() => {
 })
 
 function ir(path) {
-  router.push(path)
+  const raw = String(path || '')
+  const q = raw.indexOf('?')
+  if (q === -1) {
+    router.push(raw)
+    return
+  }
+  router.push({
+    path: raw.slice(0, q),
+    query: Object.fromEntries(new URLSearchParams(raw.slice(q + 1))),
+  })
 }
 
+watch(
+  () => route.query.acesso,
+  (v) => {
+    if (v === 'negado') capturarAcessoNegado()
+  },
+  { immediate: true }
+)
+
 onMounted(async () => {
-  acessoNegado.value = route.query.acesso === 'negado'
   carregando.value = true
   try {
     const data = await loadHomeData()

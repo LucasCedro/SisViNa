@@ -17,6 +17,11 @@ def _codigo_lote(matriz_id: int, coleta_id: int) -> str:
     return f"LS-{date.today().year}-{matriz_id:03d}-{coleta_id:04d}"
 
 
+def _qtd_lote_da_coleta(coleta: ColetaSementes) -> int:
+    reservadas = int(getattr(coleta, "sementes_reservadas_teste", 0) or 0)
+    return int(coleta.quantidade_sementes) - reservadas
+
+
 def _para_resposta(lote: LoteSementes, ultimo_teste: Optional[float] = None) -> dict:
     arvore = lote.arvore_matriz
     coleta = lote.coleta
@@ -137,7 +142,9 @@ async def criar_lote_de_coleta(
 ) -> LoteSementes:
     arvore = coleta.arvore_matriz or await db.get(ArvoreMatriz, coleta.id_arvore_matriz)
     codigo = codigo_lote or _codigo_lote(coleta.id_arvore_matriz, coleta.id)
-    qtd = coleta.quantidade_sementes
+    qtd = _qtd_lote_da_coleta(coleta)
+    if qtd <= 0:
+        raise ValueError("Quantidade do lote deve ser maior que zero")
     db_lote = LoteSementes(
         codigo_lote=codigo,
         id_coleta_sementes=coleta.id,
@@ -160,7 +167,9 @@ async def create_lote(db: AsyncSession, payload: LoteSementesCreate) -> dict:
     if not coleta:
         raise ValueError("Coleta não encontrada")
 
-    qtd = payload.quantidade_inicial or coleta.quantidade_sementes
+    qtd = payload.quantidade_inicial
+    if qtd is None:
+        qtd = _qtd_lote_da_coleta(coleta)
     if qtd <= 0:
         raise ValueError("Quantidade do lote deve ser maior que zero")
 

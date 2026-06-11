@@ -28,10 +28,12 @@ ALTER TABLE plantas ADD COLUMN IF NOT EXISTS custo_inicial DECIMAL(10,2);
 
 INSERT INTO financeiro_premissas (chave, nome, descricao, natureza, tipo_calculo, unidade, valor, quantidade, ordem)
 VALUES
+('coleta_campo', 'Mão de obra de coleta', 'Valor homem-hora (R$/h). Horas informadas em cada coleta; custo rateado no lote de sementes.', 'CUSTO', 'valor_hora', 'R$/h', 0, NULL, 5),
+('recipiente_semeadura', 'Recipiente na semeadura', 'Tubete ou saquinho — define os rótulos e a unidade de referência do substrato e hidrogel no CMV.', 'CUSTO', 'config', 'tubete', 0, NULL, 8),
 ('substrato_tubete', 'Substrato por tubete', 'Quantidade do insumo por tubete — custo via preço médio do estoque', 'CUSTO', 'insumo_medio', 'un/tubete', 0, 1, 10),
-('agua_muda_dia', 'Água por muda/dia', 'Litros por muda/dia × preço médio (insumo água ou valor)', 'CUSTO', 'insumo_medio', 'L/muda/dia', 0, 2, 20),
-('cif_energia_muda', 'CIF energia por muda', 'Rateio produtivo — entra no CMV', 'CUSTO', 'por_muda', 'R$/muda', 0, NULL, 30),
-('cif_mo_producao_muda', 'MO produtiva por muda', 'Mão de obra produtiva rateada por muda do lote', 'CUSTO', 'por_muda', 'R$/muda', 0, NULL, 40),
+('agua_muda_dia', 'Água — produção', 'Conta mensal de água das áreas produtivas — rateio pelas mudas vivas', 'CUSTO', 'mensal_rateio', 'R$/mês', 0, NULL, 20),
+('cif_energia_muda', 'Energia — produção', 'Fatura mensal das áreas produtivas — rateio pelas mudas vivas', 'CUSTO', 'mensal_rateio', 'R$/mês', 0, NULL, 30),
+('cif_mo_producao_muda', 'Mão de obra — produção', 'Folha mensal total da equipe de campo — rateio pelas mudas vivas', 'CUSTO', 'mensal_rateio', 'R$/mês', 0, NULL, 40),
 ('energia_fatura_mes', 'Energia (fatura)', 'Despesa operacional — DRE, não CMV', 'DESPESA', 'mensal', 'R$/mês', 0, NULL, 100),
 ('agua_fatura_mes', 'Água (fatura)', 'Despesa operacional mensal', 'DESPESA', 'mensal', 'R$/mês', 0, NULL, 110),
 ('salarios_admin_mes', 'Salários administrativos', 'Despesa — não compõe custo da muda', 'DESPESA', 'mensal', 'R$/mês', 0, NULL, 120),

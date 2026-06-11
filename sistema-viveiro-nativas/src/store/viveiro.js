@@ -1,7 +1,12 @@
 import { defineStore } from 'pinia'
 import { listCanteirosComOcupacao } from '@/services/canteiros'
 import { mapOcupacaoPorApiId } from '@/utils/viveiroOcupacao'
-import { listPlantasComRelacoes } from '@/services/plantas'
+import {
+  listPlantasComRelacoes,
+  listPendentesTransferencia,
+  listAptasRustificacaoCanteiro,
+} from '@/services/plantas'
+import { agruparPendenciasPorCanteiro } from '@/utils/viveiroPendenciasMapa'
 import { getDashboardResumo } from '@/services/dashboard'
 import { listPragasPlantas } from '@/services/pragas'
 import { buildLayoutFromCanteiros, buildLayoutFromPlantaSalva, mapPlantaApi } from '@/utils/viveiroApiMapper'
@@ -21,6 +26,7 @@ export const useViveiroStore = defineStore('viveiro', {
     elementoSelecionado: null,
     mudaSelecionada: null,
     dadosAmbientais: { alertas: [] },
+    pendenciasPorCanteiro: {},
     metricas: {
       totalMudas: 0,
       mudaEspecie: [],
@@ -71,13 +77,16 @@ export const useViveiroStore = defineStore('viveiro', {
       this.carregando = true
       this.erro = null
       try {
-        const [canteiros, plantas, resumo, pragas, plantaSalva] = await Promise.all([
-          listCanteirosComOcupacao({ ativo: true }),
-          listPlantasComRelacoes({ limit: 500 }),
-          getDashboardResumo(),
-          listPragasPlantas({ limit: 100 }).catch(() => []),
-          getViveiroLayout().catch(() => ({})),
-        ])
+        const [canteiros, plantas, resumo, pragas, plantaSalva, pendentesTransf, aptasRust] =
+          await Promise.all([
+            listCanteirosComOcupacao({ ativo: true }),
+            listPlantasComRelacoes({ limit: 500 }),
+            getDashboardResumo(),
+            listPragasPlantas({ limit: 100 }).catch(() => []),
+            getViveiroLayout().catch(() => ({})),
+            listPendentesTransferencia({ limit: 500 }).catch(() => []),
+            listAptasRustificacaoCanteiro({ limit: 500 }).catch(() => []),
+          ])
 
         const ativas = plantas.filter((p) => !['VENDIDA', 'MORTA'].includes(p.status))
         this.mudas = ativas.map(mapPlantaApi)
@@ -94,6 +103,17 @@ export const useViveiroStore = defineStore('viveiro', {
         }
 
         this.dadosAmbientais.alertas = buildAlertasFromPragas(pragas, canteiros, ativas)
+
+        const plantasPorId = new Map(
+          ativas.map((p) => [p.id, { idCanteiro: p.id_canteiro, id_canteiro: p.id_canteiro }])
+        )
+        this.pendenciasPorCanteiro = agruparPendenciasPorCanteiro({
+          pendentesTransferencia: pendentesTransf,
+          aptasRustificacao: aptasRust,
+          pragas,
+          plantasPorId,
+        })
+
         this.hidratado = true
       } catch (e) {
         console.error('[viveiro] falha ao carregar', e)

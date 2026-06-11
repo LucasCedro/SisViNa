@@ -5,7 +5,6 @@ from app.database import AsyncSessionLocal
 from app.models.especies import Especie
 from app.models.funcionarios import Funcionario
 from app.models.compradores import Comprador
-from app.models.compradores import Comprador
 
 ALL_PERFIS = ["admin", "gestor", "campo", "financeiro", "rh", "consulta"]
 
@@ -21,15 +20,10 @@ DEFAULT_ADMIN = {
 
 
 async def ensure_default_admin() -> None:
+    """Seed somente em banco vazio (1º deploy). Renomear/trocar senha não recria admin."""
     async with AsyncSessionLocal() as db:
-        result = await db.execute(
-            select(Funcionario).where(Funcionario.usuario == DEFAULT_ADMIN["usuario"])
-        )
-        admin = result.scalars().first()
-        if admin:
-            if not admin.perfis:
-                admin.perfis = list(ALL_PERFIS)
-                await db.commit()
+        result = await db.execute(select(Funcionario).limit(1))
+        if result.scalars().first():
             return
 
         db.add(

@@ -1,6 +1,12 @@
 <template>
-  <div v-if="aberto" class="modal-overlay" @click.self="fechar">
-    <div class="modal-card modal-wide" role="dialog">
+  <div
+    v-if="aberto"
+    class="modal-overlay"
+    @pointerdown.self="onOverlayPointerDown"
+    @pointerup.self="onOverlayPointerUp"
+    @pointercancel.self="cancelarFechamentoOverlay"
+  >
+    <div class="modal-card modal-wide" role="dialog" @pointerdown="onModalPointerDown">
       <header class="modal-header">
         <h2>Registrar semeadura (produção)</h2>
         <button type="button" class="btn-fechar" @click="fechar">×</button>
@@ -67,6 +73,7 @@ import { ref, watch, onMounted } from 'vue'
 import { listCanteiros } from '@/services/canteiros'
 import { createSemeadura } from '@/services/semeaduras'
 import { useColetaStore } from '@/store/coleta'
+import { useModalOverlayClose } from '@/composables/useModalOverlayClose'
 
 const props = defineProps({
   aberto: Boolean,
@@ -111,8 +118,21 @@ function formatarData(d) {
   return new Date(d + 'T12:00:00').toLocaleDateString('pt-BR')
 }
 
-function fechar() {
+function fecharInterno() {
   emit('fechar')
+}
+
+const {
+  onModalPointerDown,
+  onOverlayPointerDown,
+  onOverlayPointerUp,
+  cancelarFechamentoOverlay,
+  resetOverlayPress,
+} = useModalOverlayClose(fecharInterno)
+
+function fechar() {
+  resetOverlayPress()
+  fecharInterno()
 }
 
 async function salvar() {

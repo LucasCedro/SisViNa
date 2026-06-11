@@ -8,6 +8,7 @@ TIPOS_ORIGEM = (
     "fragmento_floresta",
     "app",
     "reserva_legal",
+    "rppn",
     "remanescente",
     "plantio_experimental",
     "outro",

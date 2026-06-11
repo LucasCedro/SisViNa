@@ -4,7 +4,11 @@
     <p class="meta">Gerado em {{ dataGeracao }}</p>
     <section>
       <h2>Resumo</h2>
-      <p>{{ store.arvoresMatriz.length }} matrizes · {{ store.coletas.length }} coletas · {{ store.lotes.length }} lotes</p>
+      <p>
+        {{ store.matrizesFiltradas.length }} matrizes · {{ store.coletasFiltradas.length }} coletas ·
+        {{ store.lotesFiltrados.length }} lotes
+        <template v-if="store.temFiltroAtivo"> (filtro ativo)</template>
+      </p>
     </section>
     <section v-if="store.matrizSelecionada">
       <h2>Matriz selecionada: {{ store.matrizSelecionada.nome }}</h2>

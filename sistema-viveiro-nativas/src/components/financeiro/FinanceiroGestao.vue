@@ -160,8 +160,14 @@
     </div>
 
     <!-- Modal lançamento -->
-    <div v-if="modalAberto" class="modal-overlay" @click="fecharModal">
-      <div class="modal-box" @click.stop>
+    <div
+      v-if="modalAberto"
+      class="modal-overlay"
+      @pointerdown.self="onOverlayPointerDown"
+      @pointerup.self="onOverlayPointerUp"
+      @pointercancel.self="cancelarFechamentoOverlay"
+    >
+      <div class="modal-box" @pointerdown="onModalPointerDown">
         <div class="modal-head">
           <h3>{{ form.id ? 'Editar' : 'Novo' }} {{ form.tipo }}</h3>
           <button type="button" class="btn-icon" @click="fecharModal">✕</button>
@@ -213,6 +219,7 @@ import {
   deleteLancamento,
 } from '@/services/lancamentosFinanceiros'
 import { CHART_PALETTE } from '@/constants/chartColors'
+import { useModalOverlayClose } from '@/composables/useModalOverlayClose'
 
 const props = defineProps({
   painel: { type: Object, required: true },
@@ -360,8 +367,21 @@ function editar(item) {
   modalAberto.value = true
 }
 
-function fecharModal() {
+function fecharModalInterno() {
   modalAberto.value = false
+}
+
+const {
+  onModalPointerDown,
+  onOverlayPointerDown,
+  onOverlayPointerUp,
+  cancelarFechamentoOverlay,
+  resetOverlayPress,
+} = useModalOverlayClose(fecharModalInterno)
+
+function fecharModal() {
+  resetOverlayPress()
+  fecharModalInterno()
 }
 
 async function salvar() {

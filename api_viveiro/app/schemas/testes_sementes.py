@@ -35,6 +35,8 @@ class TesteSementesOut(BaseModel):
     codigo_lote: str
     id_arvore_matriz: int
     matriz_nome: str
+    id_especie: Optional[int] = None
+    especie_nome: Optional[str] = None
     data_teste: date
     tipo_teste: str
     metodologia: Optional[str] = None
@@ -45,6 +47,7 @@ class TesteSementesOut(BaseModel):
     id_funcionario: int
     funcionario_nome: str
     data_registro: datetime
+    taxa_germinacao_especie_media: Optional[float] = None
 
     class Config:
         orm_mode = True

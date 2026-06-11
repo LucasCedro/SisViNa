@@ -20,12 +20,11 @@
 
         <label class="field">
           Espécie
-          <select v-model="form.id_especie" required :disabled="carregandoEspecies">
-            <option value="">Selecione...</option>
-            <option v-for="e in especies" :key="e.id" :value="e.id">
-              {{ e.nome_popular || e.nome_cientifico }}
-            </option>
-          </select>
+          <SeletorEspecie
+            v-model="form.id_especie"
+            :especies="especies"
+            :disabled="carregandoEspecies"
+          />
         </label>
 
         <div class="field-row">
@@ -35,7 +34,12 @@
           </label>
           <label class="field">
             UF
-            <input v-model="form.estado" type="text" maxlength="2" placeholder="DF" />
+            <select v-model="form.estado">
+              <option value="">Selecione...</option>
+              <option v-for="uf in UFS_BRASIL" :key="uf.sigla" :value="uf.sigla">
+                {{ uf.sigla }} — {{ uf.nome }}
+              </option>
+            </select>
           </label>
         </div>
 
@@ -179,8 +183,10 @@ import { ref, computed, watch, nextTick } from 'vue'
 import { listEspecies } from '@/services/especies'
 import { useColetaStore } from '@/store/coleta'
 import MapaSeletorCoordenadas from '@/components/coleta/MapaSeletorCoordenadas.vue'
+import SeletorEspecie from '@/components/coleta/SeletorEspecie.vue'
 import { utmParaLatLng, latLngParaUtm } from '@/utils/coordenadas'
-import { TIPOS_ORIGEM, ESTAGIOS_FRUTIFICACAO, MESES } from '@/constants/coletaDominio'
+import { TIPOS_ORIGEM, ESTAGIOS_FRUTIFICACAO, MESES, UFS_BRASIL } from '@/constants/coletaDominio'
+import { useModalOverlayClose } from '@/composables/useModalOverlayClose'
 
 const props = defineProps({
   aberto: { type: Boolean, default: false },
@@ -222,6 +228,20 @@ const formPadrao = () => ({
 })
 
 const form = ref(formPadrao())
+
+function ordenarEspecies(lista) {
+  return [...lista].sort((a, b) => {
+    const nomeA = (a.nome_popular || a.nome_cientifico || '').localeCompare(
+      b.nome_popular || b.nome_cientifico || '',
+      'pt-BR',
+      { sensitivity: 'base' }
+    )
+    if (nomeA !== 0) return nomeA
+    return (a.nome_cientifico || '').localeCompare(b.nome_cientifico || '', 'pt-BR', {
+      sensitivity: 'base',
+    })
+  })
+}
 
 function preencherForm(matriz) {
   if (!matriz) {
@@ -304,7 +324,8 @@ async function carregarEspecies() {
   if (especies.value.length) return
   carregandoEspecies.value = true
   try {
-    especies.value = await listEspecies()
+    const data = await listEspecies({ limit: 500 })
+    especies.value = ordenarEspecies(data)
   } catch {
     especies.value = []
   } finally {
@@ -324,29 +345,21 @@ watch(
   }
 )
 
-/** Fecha só se pressionar e soltar no fundo escuro (evita fechar ao selecionar texto e soltar fora). */
-let overlayPress = false
-
-function onModalPointerDown() {
-  overlayPress = false
+function fecharInterno() {
+  emit('fechar')
 }
 
-function onOverlayPointerDown() {
-  overlayPress = true
-}
-
-function onOverlayPointerUp() {
-  if (overlayPress) fechar()
-  overlayPress = false
-}
-
-function cancelarFechamentoOverlay() {
-  overlayPress = false
-}
+const {
+  onModalPointerDown,
+  onOverlayPointerDown,
+  onOverlayPointerUp,
+  cancelarFechamentoOverlay,
+  resetOverlayPress,
+} = useModalOverlayClose(fecharInterno)
 
 function fechar() {
-  overlayPress = false
-  emit('fechar')
+  resetOverlayPress()
+  fecharInterno()
 }
 
 function montarPayload() {

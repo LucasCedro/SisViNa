@@ -1,6 +1,6 @@
 <template>
   <div class="export-bar">
-    <span class="label">Exportar</span>
+    <span class="label" title="CSV usa os dados visíveis com os filtros atuais">Exportar</span>
     <button type="button" class="btn-exp" :disabled="carregando" @click="exp('matrizes')">
       Matrizes CSV
     </button>
@@ -29,10 +29,10 @@
 import { ref, computed } from 'vue'
 import { useColetaStore } from '@/store/coleta'
 import {
-  exportMatrizesCsv,
-  exportColetasCsv,
-  exportLotesCsv,
-  exportRastreabilidadeMatrizCsv
+  exportMatrizesCsvFromStore,
+  exportColetasCsvFromStore,
+  exportLotesCsvFromStore,
+  exportRastreabilidadeMatrizFromStore
 } from '@/services/coletaRelatorios'
 
 const store = useColetaStore()
@@ -41,21 +41,21 @@ const gerandoPdf = ref(false)
 
 const idMatriz = computed(() => store.matrizSelecionada?.id)
 
-async function exp(tipo) {
+function exp(tipo) {
   carregando.value = true
   try {
-    if (tipo === 'matrizes') await exportMatrizesCsv()
-    else if (tipo === 'coletas') await exportColetasCsv(idMatriz.value)
-    else if (tipo === 'lotes') await exportLotesCsv(idMatriz.value)
+    if (tipo === 'matrizes') exportMatrizesCsvFromStore(store)
+    else if (tipo === 'coletas') exportColetasCsvFromStore(store)
+    else if (tipo === 'lotes') exportLotesCsvFromStore(store)
     else if (tipo === 'rastreio') {
       if (!idMatriz.value) {
         alert('Selecione uma matriz no mapa para exportar o dossiê de rastreabilidade.')
         return
       }
-      await exportRastreabilidadeMatrizCsv(idMatriz.value)
+      exportRastreabilidadeMatrizFromStore(store, idMatriz.value)
     }
   } catch (e) {
-    alert(e.response?.data?.detail || e.message || 'Erro na exportação')
+    alert(e.message || 'Erro na exportação')
   } finally {
     carregando.value = false
   }

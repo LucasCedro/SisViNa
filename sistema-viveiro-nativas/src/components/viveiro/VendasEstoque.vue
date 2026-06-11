@@ -100,8 +100,14 @@
     </div>
     
     <!-- Modal de edição de estoque -->
-    <div class="modal-overlay" v-if="modalEstoqueAberto" @click.self="fecharModalEstoque">
-      <div class="modal-content">
+    <div
+      v-if="modalEstoqueAberto"
+      class="modal-overlay"
+      @pointerdown.self="overlayEstoque.onOverlayPointerDown"
+      @pointerup.self="overlayEstoque.onOverlayPointerUp"
+      @pointercancel.self="overlayEstoque.cancelarFechamentoOverlay"
+    >
+      <div class="modal-content" @pointerdown="overlayEstoque.onModalPointerDown">
         <div class="modal-header">
           <h2 class="modal-title">Preço de venda da espécie</h2>
           <button class="btn-fechar" @click="fecharModalEstoque">×</button>
@@ -162,8 +168,14 @@
     </div>
     
     <!-- Modal de Nova Venda -->
-    <div class="modal-overlay" v-if="modalVendaAberto" @click.self="fecharModalVenda">
-      <div class="modal-content">
+    <div
+      v-if="modalVendaAberto"
+      class="modal-overlay"
+      @pointerdown.self="overlayVenda.onOverlayPointerDown"
+      @pointerup.self="overlayVenda.onOverlayPointerUp"
+      @pointercancel.self="overlayVenda.cancelarFechamentoOverlay"
+    >
+      <div class="modal-content" @pointerdown="overlayVenda.onModalPointerDown">
         <div class="modal-header">
           <h2 class="modal-title">Registrar Nova Venda</h2>
           <button class="btn-fechar" @click="fecharModalVenda">×</button>
@@ -254,6 +266,7 @@ import {
 } from '@/services/plantas'
 import { listVendas, createVenda } from '@/services/vendas'
 import { listCompradores } from '@/services/compradores'
+import { useModalOverlayClose } from '@/composables/useModalOverlayClose'
 
 const auth = useAuthStore()
 const carregando = ref(true)
@@ -344,8 +357,15 @@ function abrirFormularioNovaVenda() {
   modalVendaAberto.value = true
 }
 
+function fecharModalVendaInterno() {
+  modalVendaAberto.value = false
+}
+
+const overlayVenda = useModalOverlayClose(fecharModalVendaInterno)
+
 function fecharModalVenda() {
-  modalVendaAberto.value = false;
+  overlayVenda.resetOverlayPress()
+  fecharModalVendaInterno()
 }
 
 function atualizarDadosEspecie() {
@@ -400,8 +420,15 @@ function editarEstoque(item) {
   modalEstoqueAberto.value = true
 }
 
-function fecharModalEstoque() {
+function fecharModalEstoqueInterno() {
   modalEstoqueAberto.value = false
+}
+
+const overlayEstoque = useModalOverlayClose(fecharModalEstoqueInterno)
+
+function fecharModalEstoque() {
+  overlayEstoque.resetOverlayPress()
+  fecharModalEstoqueInterno()
 }
 
 async function salvarEstoque() {

@@ -1,13 +1,15 @@
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.jwt import get_current_user
 from app.security.rbac import require_permission
 from app.crud import testes_sementes as crud
-from app.crud.testes_sementes import _para_resposta
+from app.crud.testes_sementes import _para_resposta, calcular_taxa_germinacao_especie
 from app.database import get_db
+from app.models.lotes_sementes import LoteSementes
 from app.schemas.funcionarios import FuncionarioOut
 from app.schemas.testes_sementes import TesteSementesCreate, TesteSementesOut, TesteSementesUpdate
 
@@ -31,6 +33,39 @@ async def listar_testes(
         id_arvore_matriz=id_arvore_matriz,
     )
     return [_para_resposta(t) for t in testes]
+
+
+@router.get("/kpi-especies")
+async def kpi_germinacao_especies(
+    db: AsyncSession = Depends(get_db),
+    current_user: FuncionarioOut = Depends(require_permission("coleta.view")),
+):
+    """Média de germinação por espécie (último teste por lote)."""
+    from app.models.especies import Especie
+    from app.utils.especies_display import formatar_nome_popular
+
+    result = await db.execute(
+        select(LoteSementes.id_especie).where(LoteSementes.id_especie.isnot(None)).distinct()
+    )
+    ids = [row[0] for row in result.all()]
+    saida = []
+    for id_esp in ids:
+        taxa = await calcular_taxa_germinacao_especie(db, id_esp)
+        if taxa is None:
+            continue
+        esp = await db.get(Especie, id_esp)
+        nome = formatar_nome_popular(esp.nome_popular) if esp else None
+        if esp and not nome:
+            nome = esp.nome_cientifico
+        saida.append(
+            {
+                "id_especie": id_esp,
+                "especie_nome": nome or f"Espécie #{id_esp}",
+                "taxa_germinacao_media": taxa,
+            }
+        )
+    saida.sort(key=lambda x: x["especie_nome"])
+    return saida
 
 
 @router.post("/", response_model=TesteSementesOut, status_code=201)

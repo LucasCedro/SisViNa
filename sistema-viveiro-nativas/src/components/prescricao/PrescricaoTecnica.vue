@@ -64,8 +64,14 @@
     </div>
 
     <!-- Modal de prescrição -->
-    <div class="modal-overlay" v-if="modalAberto" @click.self="fecharModal">
-      <div class="modal-content">
+    <div
+      v-if="modalAberto"
+      class="modal-overlay"
+      @pointerdown.self="onOverlayPointerDown"
+      @pointerup.self="onOverlayPointerUp"
+      @pointercancel.self="cancelarFechamentoOverlay"
+    >
+      <div class="modal-content" @pointerdown="onModalPointerDown">
         <div class="modal-header">
           <h2 class="modal-title">Prescrição Técnica: {{ especieSelecionada?.nome }}</h2>
           <button class="btn-fechar" @click="fecharModal">×</button>
@@ -129,6 +135,7 @@
 import { ref, onMounted, computed } from 'vue'
 import html2pdf from 'html2pdf.js'
 import { listEspecies } from '@/services/especies'
+import { useModalOverlayClose } from '@/composables/useModalOverlayClose'
 
 // Estado do componente
 const filtro = ref('');
@@ -179,9 +186,22 @@ const selecionarEspecie = (especie) => {
   modalAberto.value = true;
 };
 
+const fecharModalInterno = () => {
+  modalAberto.value = false
+}
+
+const {
+  onModalPointerDown,
+  onOverlayPointerDown,
+  onOverlayPointerUp,
+  cancelarFechamentoOverlay,
+  resetOverlayPress,
+} = useModalOverlayClose(fecharModalInterno)
+
 const fecharModal = () => {
-  modalAberto.value = false;
-};
+  resetOverlayPress()
+  fecharModalInterno()
+}
 
 const exportarPDF = () => {
   const elemento = document.getElementById('prescricao-para-pdf');

@@ -57,8 +57,14 @@
     </div>
     
     <!-- Modal de Cadastro/Edição de Mudas -->
-    <div class="modal-overlay" v-if="modalAberto" @click.self="fecharModal">
-      <div class="modal-content">
+    <div
+      v-if="modalAberto"
+      class="modal-overlay"
+      @pointerdown.self="onOverlayPointerDown"
+      @pointerup.self="onOverlayPointerUp"
+      @pointercancel.self="cancelarFechamentoOverlay"
+    >
+      <div class="modal-content" @pointerdown="onModalPointerDown">
         <div class="modal-header">
           <h2 class="modal-title">{{ modoEdicao ? 'Editar Muda' : 'Cadastrar Nova Muda' }}</h2>
           <button class="btn-fechar" @click="fecharModal">×</button>
@@ -198,6 +204,7 @@ import {
   cadastroLotePlantas,
   updatePlanta
 } from '@/services/plantas'
+import { useModalOverlayClose } from '@/composables/useModalOverlayClose'
 
 const STATUS_MAP = {
   SEMENTE: 'Emergência',
@@ -289,8 +296,21 @@ function editarMuda(muda) {
   modalAberto.value = true
 }
 
-function fecharModal() {
+function fecharModalInterno() {
   modalAberto.value = false
+}
+
+const {
+  onModalPointerDown,
+  onOverlayPointerDown,
+  onOverlayPointerUp,
+  cancelarFechamentoOverlay,
+  resetOverlayPress,
+} = useModalOverlayClose(fecharModalInterno)
+
+function fecharModal() {
+  resetOverlayPress()
+  fecharModalInterno()
 }
 
 function resetarFormulario() {

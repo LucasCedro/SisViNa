@@ -1,8 +1,8 @@
 # SisViNa — único ponto de entrada Docker (projeto: sisvina)
 #
 #   .\scripts\dev.ps1 start          Postgres + API
-#   .\scripts\dev.ps1 start-all      + front em Docker
-#   .\scripts\dev.ps1 start-demo     + site + PgAdmin
+#   .\scripts\dev.ps1 start-all      + front + site em Docker
+#   .\scripts\dev.ps1 start-demo     + PgAdmin (tools)
 #   .\scripts\dev.ps1 stop
 #   .\scripts\dev.ps1 migrate
 #

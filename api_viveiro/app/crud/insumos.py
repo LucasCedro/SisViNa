@@ -209,6 +209,10 @@ async def registrar_movimentacao(
         valor_total_mov = float(payload.valor_total or 0)
         if valor_total_mov <= 0:
             preco_ref = float(db_insumo.preco_unitario or 0)
+            if preco_ref <= 0 and qtd_atual <= 0:
+                raise ValueError(
+                    "Informe o valor total pago na compra (NF) para calcular o preço médio do estoque."
+                )
             valor_total_mov = qtd_mov * preco_ref if preco_ref > 0 else 0
         preco_unit_mov = valor_total_mov / qtd_mov if qtd_mov else 0
         nova_qtd, preco_medio = _recalcular_preco_medio(

@@ -43,10 +43,10 @@ switch ($Command) {
     'start-all' {
         Stop-Orphans
         Ensure-Network
-        Invoke-Compose --profile, docker-web, up, -d, --build, postgres, api, web
+        Invoke-Compose --profile, docker-web, --profile, site, up, -d, --build, postgres, api, web, site
         Start-Sleep -Seconds 3
         Invoke-Compose exec, -T, api, alembic, upgrade, head
-        Write-Host "OK — http://localhost:5173 | http://localhost:8000/docs" -ForegroundColor Green
+        Write-Host "OK — app :5173 | site :3000 | API :8000/docs" -ForegroundColor Green
     }
     'start-demo' {
         Stop-Orphans
@@ -81,8 +81,8 @@ switch ($Command) {
 SisViNa — dev.ps1 (Docker oficial)
 
   .\scripts\dev.ps1 start       Postgres + API
-  .\scripts\dev.ps1 start-all   + front Vue em Docker
-  .\scripts\dev.ps1 start-demo  + site + PgAdmin (consultor)
+  .\scripts\dev.ps1 start-all   + front Vue + site marketing (:5173 + :3000)
+  .\scripts\dev.ps1 start-demo  + PgAdmin (:5050) — mesmo stack do start-all
   .\scripts\dev.ps1 stop        para tudo (mantem dados)
   .\scripts\dev.ps1 restart-api recria API apos editar .env
   .\scripts\dev.ps1 migrate     alembic upgrade head

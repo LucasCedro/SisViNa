@@ -57,8 +57,14 @@
 
     <div v-else-if="!carregando && !erro" class="vazio">Nenhuma espécie encontrada.</div>
 
-    <div v-if="selecionada" class="modal-overlay" @click.self="fecharModal">
-      <div class="modal-card">
+    <div
+      v-if="selecionada"
+      class="modal-overlay"
+      @pointerdown.self="onOverlayPointerDown"
+      @pointerup.self="onOverlayPointerUp"
+      @pointercancel.self="cancelarFechamentoOverlay"
+    >
+      <div class="modal-card" @pointerdown="onModalPointerDown">
         <header class="modal-header">
           <h3>{{ selecionada.nome_popular || selecionada.nome_cientifico }}</h3>
           <button type="button" class="btn-fechar" @click="fecharModal">×</button>
@@ -127,6 +133,7 @@ import { ref, computed, onMounted } from "vue";
 import PageLayout from "@/components/layout/PageLayout.vue";
 import BibliotecaLightbox from "@/components/biblioteca/BibliotecaLightbox.vue";
 import { listEspeciesBiblioteca, getImagensExternasEspecie } from "@/services/especies";
+import { useModalOverlayClose } from "@/composables/useModalOverlayClose";
 import {
   capaDaEspecie,
   urlThumbnail,
@@ -267,11 +274,24 @@ function abrirEspecie(especie) {
   carregarFotosModal(especie);
 }
 
-function fecharModal() {
+function fecharModalInterno() {
   selecionada.value = null;
   fotosModalUrls.value = [];
   fotosVisiveis.value = [];
   lightboxRef.value?.fechar();
+}
+
+const {
+  onModalPointerDown,
+  onOverlayPointerDown,
+  onOverlayPointerUp,
+  cancelarFechamentoOverlay,
+  resetOverlayPress,
+} = useModalOverlayClose(fecharModalInterno);
+
+function fecharModal() {
+  resetOverlayPress();
+  fecharModalInterno();
 }
 
 function abrirZoom(indice) {

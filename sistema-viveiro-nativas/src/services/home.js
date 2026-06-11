@@ -49,8 +49,12 @@ export async function loadHomeData() {
   const atividades = atividadesRes.status === 'fulfilled' ? atividadesRes.value : []
   const vendas = vendasRes.status === 'fulfilled' ? vendasRes.value : []
 
-  const lotesComTeste = new Set(testes.map((t) => t.id_lote))
-  const lotesSemTeste = lotes.filter((l) => l.status === 'ativo' && !lotesComTeste.has(l.id))
+  const lotesComTesteGerm = new Set(
+    testes.filter((t) => t.tipo_teste === 'germinacao').map((t) => t.id_lote_sementes)
+  )
+  const lotesSemTeste = lotes.filter(
+    (l) => l.status === 'ativo' && !lotesComTesteGerm.has(l.id)
+  )
 
   const pragasAlerta = pragas.filter((p) => {
     const n = String(p.nivel_infestacao || '').toUpperCase()
@@ -87,7 +91,7 @@ export async function loadHomeData() {
       nivel: lotesSemTeste.length >= 5 ? 'medio' : 'baixo',
       titulo: `${lotesSemTeste.length} lote(s) sem teste de germinação`,
       descricao: 'Registre qualidade antes da semeadura.',
-      rota: '/coleta',
+      rota: '/coleta?aba=germinacao',
       permissao: 'coleta.view',
     })
   }
@@ -108,7 +112,7 @@ function buildFluxoCounts(resumo) {
     return [
       { id: 'matriz', label: 'Matrizes', count: '—', rota: '/coleta', permissao: 'coleta.view' },
       { id: 'coleta', label: 'Coletas', count: '—', rota: '/coleta', permissao: 'coleta.view' },
-      { id: 'lote', label: 'Lotes', count: '—', rota: '/coleta', permissao: 'coleta.view' },
+      { id: 'lote', label: 'Lotes', count: '—', rota: '/coleta?aba=germinacao', permissao: 'coleta.view' },
       { id: 'sementeira', label: 'Sementeira', count: '—', rota: '/producao', permissao: 'producao.view' },
       { id: 'canteiro', label: 'Canteiro', count: '—', rota: '/viveiro', permissao: 'viveiro.view' },
       { id: 'venda', label: 'Vendas (mês)', count: '—', rota: '/vendas', permissao: 'vendas.view' },

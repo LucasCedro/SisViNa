@@ -1,89 +1,104 @@
 <template>
-  <PageLayout full-height>
-    <header class="viveiro-page-header">
-      <div>
-        <p class="page-desc">
-          Planta baixa integrada à produção — clique em uma área para ver ocupação e mudas.
-        </p>
-      </div>
-      <button type="button" class="btn btn-primary" @click="editarPlantaBaixa">
-        Editar layout
-      </button>
-    </header>
-
-    <p v-if="store.carregando" class="status-msg">Carregando viveiro…</p>
-    <p v-else-if="store.erro" class="alert alert-error">{{ store.erro }}</p>
-
-    <template v-else>
-      <ViveiroResumoKpis />
-
-      <nav class="guias-navegacao" aria-label="Seções do viveiro">
-        <button type="button" class="guia" :class="{ ativa: guiaAtiva === 'gestao' }" @click="guiaAtiva = 'gestao'">
-          Mapa e gestão
+  <PageLayout full-height class="viveiro-page-root">
+    <div class="viveiro-page">
+      <header class="viveiro-hero">
+        <div class="viveiro-hero__texto">
+          <p class="viveiro-hero__eyebrow">Operação</p>
+          <h1 class="viveiro-hero__titulo">Planta do viveiro</h1>
+          <p class="viveiro-hero__desc">
+            Mapa em escala real, ocupação ao vivo e pendências por local.
+          </p>
+        </div>
+        <button type="button" class="btn btn-primary viveiro-hero__cta" @click="editarPlantaBaixa">
+          Editar / Montar layout
         </button>
-        <button type="button" class="guia" :class="{ ativa: guiaAtiva === 'cadastro' }" @click="guiaAtiva = 'cadastro'">
-          Cadastro de mudas
-        </button>
-        <button type="button" class="guia" :class="{ ativa: guiaAtiva === 'locais' }" @click="guiaAtiva = 'locais'">
-          Locais
-        </button>
-      </nav>
+      </header>
 
-      <div v-if="guiaAtiva === 'gestao'" class="gestao-grid">
-        <section class="mapa-panel" aria-label="Planta baixa">
-          <div v-if="!store.layout.elementos.length" class="empty-state">
-            <div class="empty-icon" aria-hidden="true">
-              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <rect x="3" y="3" width="7" height="7" rx="1" />
-                <rect x="14" y="3" width="7" height="7" rx="1" />
-                <rect x="3" y="14" width="7" height="7" rx="1" />
-                <rect x="14" y="14" width="7" height="7" rx="1" />
-              </svg>
-            </div>
-            <h2 class="empty-title">Nenhuma área desenhada ainda</h2>
-            <p class="empty-text">
-              Monte sementeiras, canteiros e rustificação no editor. Ao salvar, os locais ficam disponíveis na produção.
-            </p>
-            <button type="button" class="btn btn-primary" @click="editarPlantaBaixa">
-              Começar planta baixa
+      <p v-if="store.carregando" class="viveiro-status">Carregando viveiro…</p>
+      <p v-else-if="store.erro" class="alert alert-error viveiro-erro">{{ store.erro }}</p>
+
+      <template v-else>
+        <div class="viveiro-chrome">
+          <ViveiroResumoKpis class="viveiro-kpis-wrap" />
+
+          <nav class="viveiro-tabs" aria-label="Seções do viveiro">
+            <button type="button" class="viveiro-tab" :class="{ 'viveiro-tab--on': guiaAtiva === 'gestao' }" @click="guiaAtiva = 'gestao'">
+              Mapa
             </button>
-          </div>
-          <PlantaBaixa v-else />
-        </section>
+            <button type="button" class="viveiro-tab" :class="{ 'viveiro-tab--on': guiaAtiva === 'cadastro' }" @click="guiaAtiva = 'cadastro'">
+              Cadastro
+            </button>
+            <button type="button" class="viveiro-tab" :class="{ 'viveiro-tab--on': guiaAtiva === 'locais' }" @click="guiaAtiva = 'locais'">
+              Locais
+            </button>
+          </nav>
+        </div>
 
-        <aside class="sidebar-panel" aria-label="Detalhes e alertas">
-          <div class="sidebar-card sidebar-card--detalhes">
-            <PainelDetalhes />
-            <ViveiroAlertasLista />
-          </div>
-          <nav v-if="store.layout.elementos.length" class="sidebar-card areas-rapidas" aria-label="Ir para área">
-            <h3 class="areas-rapidas-titulo">Atalhos</h3>
-            <div class="areas-rapidas-lista">
-              <button
-                v-for="el in store.layout.elementos"
-                :key="el.id"
-                type="button"
-                class="area-chip"
-                :class="{ ativo: store.elementoSelecionado?.id === el.id }"
-                @click="store.selecionarElemento(el.id)"
-              >
-                <span class="area-chip-cor" :style="{ background: el.cor }" />
-                <span class="area-chip-texto">
-                  <span class="area-chip-nome">{{ el.nome }}</span>
-                  <span v-if="el.badgeOcupacao != null && el.apiId" class="area-chip-badge">{{ el.badgeOcupacao }}</span>
-                </span>
+        <div v-if="guiaAtiva === 'gestao'" class="viveiro-workspace">
+          <section class="viveiro-mapa" aria-label="Planta baixa">
+            <div v-if="!store.layout.elementos.length" class="viveiro-empty">
+              <div class="viveiro-empty__icon" aria-hidden="true">
+                <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25">
+                  <rect x="3" y="3" width="7" height="7" rx="1" />
+                  <rect x="14" y="3" width="7" height="7" rx="1" />
+                  <rect x="3" y="14" width="7" height="7" rx="1" />
+                  <rect x="14" y="14" width="7" height="7" rx="1" />
+                </svg>
+              </div>
+              <h2 class="viveiro-empty__titulo">Monte a planta do viveiro</h2>
+              <p class="viveiro-empty__texto">
+                Desenhe sementeiras, canteiros e rustificação. Ao salvar, os locais entram na produção.
+              </p>
+              <button type="button" class="btn btn-primary" @click="editarPlantaBaixa">
+                Abrir editor
               </button>
             </div>
-          </nav>
-        </aside>
-      </div>
+            <PlantaBaixa v-else />
+          </section>
 
-      <section v-else-if="guiaAtiva === 'cadastro'" class="cadastro-panel">
-        <CadastroMudas />
-      </section>
+          <aside class="viveiro-sidebar" aria-label="Detalhes e atalhos">
+            <div class="viveiro-sidebar__scroll">
+              <PainelDetalhes />
+              <ViveiroAlertasLista />
+            </div>
 
-      <ViveiroLocaisPanel v-else-if="guiaAtiva === 'locais'" />
-    </template>
+            <div v-if="store.layout.elementos.length" class="viveiro-atalhos">
+              <div class="viveiro-atalhos__head">
+                <h3 class="viveiro-atalhos__titulo">Locais</h3>
+                <span class="viveiro-atalhos__qtd">{{ store.layout.elementos.length }}</span>
+              </div>
+              <div class="viveiro-atalhos__lista">
+                <button
+                  v-for="el in store.layout.elementos"
+                  :key="el.id"
+                  type="button"
+                  class="viveiro-atalho"
+                  :class="{ 'viveiro-atalho--on': store.elementoSelecionado?.id === el.id }"
+                  @click="store.selecionarElemento(el.id)"
+                >
+                  <span class="viveiro-atalho__swatch" :style="{ background: el.cor }" />
+                  <span class="viveiro-atalho__corpo">
+                    <span class="viveiro-atalho__nome">{{ el.nome }}</span>
+                    <span class="viveiro-atalho__meta">
+                      <span v-if="pendenciasChip(el).length" class="viveiro-atalho__pend" :title="tituloPendenciasChip(el)">
+                        {{ pendenciasChip(el).map((p) => p.icone).join('') }}
+                      </span>
+                      <span v-if="el.badgeOcupacao != null && el.apiId">{{ el.badgeOcupacao }}</span>
+                    </span>
+                  </span>
+                </button>
+              </div>
+            </div>
+          </aside>
+        </div>
+
+        <section v-else-if="guiaAtiva === 'cadastro'" class="viveiro-tab-panel">
+          <CadastroMudas />
+        </section>
+
+        <ViveiroLocaisPanel v-else-if="guiaAtiva === 'locais'" class="viveiro-tab-panel" />
+      </template>
+    </div>
   </PageLayout>
 </template>
 
@@ -98,10 +113,21 @@ import ViveiroResumoKpis from '@/components/viveiro/ViveiroResumoKpis.vue'
 import ViveiroAlertasLista from '@/components/viveiro/ViveiroAlertasLista.vue'
 import ViveiroLocaisPanel from '@/components/viveiro/ViveiroLocaisPanel.vue'
 import { useViveiroStore } from '@/store/viveiro'
+import { pendenciasDoCanteiro } from '@/utils/viveiroPendenciasMapa'
 
 const store = useViveiroStore()
 const router = useRouter()
 const guiaAtiva = ref('gestao')
+
+function pendenciasChip(el) {
+  return pendenciasDoCanteiro(store.pendenciasPorCanteiro, el.apiId)
+}
+
+function tituloPendenciasChip(el) {
+  return pendenciasChip(el)
+    .map((p) => `${p.rotulo}: ${p.count}`)
+    .join(' · ')
+}
 
 function editarPlantaBaixa() {
   router.push('/viveiro/planta-editor')
@@ -111,263 +137,348 @@ onMounted(() => store.carregar())
 </script>
 
 <style scoped>
-.viveiro-page-header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--spacing-md);
-  margin-bottom: var(--spacing-lg);
-  padding: 0 var(--spacing-lg);
-  padding-top: var(--spacing-md);
-}
-
-.page-desc {
-  margin: 0;
-  font-size: 0.9375rem;
-  color: var(--color-text-secondary);
-  max-width: 42rem;
-}
-
-.status-msg {
-  padding: 0 var(--spacing-lg);
-  font-size: 0.875rem;
-  color: var(--color-text-secondary);
-}
-
-.alert-error {
-  margin: 0 var(--spacing-lg) var(--spacing-md);
-}
-
-.guias-navegacao {
-  display: flex;
+.viveiro-page-root.page-layout,
+.viveiro-page-root.page-layout--full {
+  padding: 0;
   gap: 0;
-  border-bottom: 1px solid var(--color-border);
-  margin: 0 var(--spacing-lg) var(--spacing-lg);
-}
-
-.guia {
-  padding: var(--spacing-md) var(--spacing-lg);
-  background: none;
-  border: none;
-  border-bottom: 3px solid transparent;
-  font-size: 0.9375rem;
-  font-weight: 500;
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  font-family: inherit;
-  margin-bottom: -1px;
-}
-
-.guia:hover {
-  color: var(--color-primary);
-}
-
-.guia.ativa {
-  color: var(--color-primary);
-  border-bottom-color: var(--color-primary);
-  font-weight: 600;
-}
-
-.gestao-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
-  gap: var(--spacing-lg);
-  padding: 0 var(--spacing-lg) var(--spacing-xl);
-  align-items: stretch;
-  min-height: 520px;
-}
-
-.mapa-panel {
-  display: flex;
-  flex-direction: column;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-  min-height: 480px;
-  min-width: 0;
-}
-
-.sidebar-panel {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-md);
-  min-width: 0;
-  max-height: calc(100vh - 220px);
-  position: sticky;
-  top: var(--spacing-md);
-}
-
-.sidebar-card {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-lg);
-  min-width: 0;
-  overflow: hidden;
-}
-
-.sidebar-card--detalhes {
-  flex: 1;
-  min-height: 200px;
-  max-height: min(52vh, 520px);
-  overflow-x: hidden;
-  overflow-y: auto;
-  padding: var(--spacing-lg);
-  -webkit-overflow-scrolling: touch;
-}
-
-.areas-rapidas {
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  padding: var(--spacing-md);
-  max-height: min(240px, 32vh);
-}
-
-.areas-rapidas-lista {
-  flex: 1;
+  height: 100%;
   min-height: 0;
-  overflow-x: hidden;
-  overflow-y: auto;
+  overflow: visible;
+}
+
+.viveiro-page {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
-  margin: 0 -0.15rem;
-  padding: 0 0.15rem;
+  height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
-.areas-rapidas-titulo {
-  margin: 0 0 var(--spacing-sm);
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--color-text-muted);
-}
-
-.area-chip {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--spacing-sm);
-  width: 100%;
-  max-width: 100%;
-  box-sizing: border-box;
-  padding: 0.45rem 0.55rem;
-  border: 1px solid transparent;
-  border-radius: var(--radius-md);
-  background: var(--color-surface-muted, #f5f5f4);
-  cursor: pointer;
-  font-family: inherit;
-  font-size: 0.8125rem;
-  text-align: left;
-}
-
-.area-chip:hover {
-  border-color: var(--color-border);
-}
-
-.area-chip.ativo {
-  border-color: var(--color-primary);
-  background: rgba(74, 124, 42, 0.08);
-}
-
-.area-chip-cor {
-  width: 10px;
-  height: 10px;
-  border-radius: 2px;
-  flex-shrink: 0;
-}
-
-.area-chip-texto {
-  flex: 1;
-  min-width: 0;
+.viveiro-hero {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.25rem 0.4rem;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.25rem 1.75rem;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border-subtle);
+  flex-shrink: 0;
 }
 
-.area-chip-nome {
-  flex: 1 1 auto;
+.viveiro-hero__eyebrow {
+  margin: 0 0 0.125rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.viveiro-hero__titulo {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--color-text-primary);
+}
+
+.viveiro-hero__desc {
+  margin: 0.25rem 0 0;
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+  max-width: 36rem;
+}
+
+.viveiro-hero__cta {
+  flex-shrink: 0;
+}
+
+.viveiro-status,
+.viveiro-erro {
+  padding: 0.75rem 1.5rem;
+  flex-shrink: 0;
+}
+
+.viveiro-chrome {
+  flex-shrink: 0;
+  padding: 1.25rem 1.75rem 0;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.viveiro-kpis-wrap {
+  padding: 0 0 1.25rem;
+  margin: 0;
+}
+
+.viveiro-kpis-wrap :deep(.viveiro-kpis) {
+  margin-bottom: 0;
+}
+
+.viveiro-tabs {
+  display: flex;
+  gap: 0.375rem;
+  padding: 0;
+  margin: 0;
+  border-bottom: none;
+  background: transparent;
+  flex-shrink: 0;
+}
+
+.viveiro-tab {
+  padding: 0.75rem 1.125rem;
+  margin-bottom: 0;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+}
+
+.viveiro-tab--on {
+  color: var(--color-primary);
+  font-weight: 600;
+  border-bottom-color: var(--color-primary);
+  background: var(--color-background);
+}
+
+.viveiro-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 420px);
+  grid-template-rows: minmax(560px, auto);
+  flex: 1 0 auto;
+  min-height: calc(100vh - 280px);
+  background: var(--color-background);
+}
+
+.viveiro-mapa {
+  display: flex;
+  flex-direction: column;
   min-width: 0;
+  min-height: 560px;
+  overflow: hidden;
+  border-right: 1px solid var(--color-border-subtle);
+}
+
+.viveiro-sidebar {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 560px;
+  overflow: hidden;
+  background: var(--color-surface);
+}
+
+.viveiro-sidebar__scroll {
+  flex: 0 1 auto;
+  max-height: 42%;
+  min-height: 140px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 1.5rem;
+}
+
+.viveiro-atalhos {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 300px;
+  border-top: 1px solid var(--color-border-subtle);
+  background: var(--color-surface-muted);
+}
+
+.viveiro-atalhos__head {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 1rem 1.25rem 0.75rem;
+  flex-shrink: 0;
+}
+
+.viveiro-atalhos__titulo {
+  margin: 0;
+  flex: 1;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.viveiro-atalhos__lista {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 1rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.viveiro-atalho {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  transition: border-color 0.12s, box-shadow 0.12s;
+}
+
+.viveiro-atalho__swatch {
+  width: 12px;
+  height: 36px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.viveiro-atalho__nome {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-weight: 500;
-  line-height: 1.3;
 }
 
-.area-chip-badge {
-  flex-shrink: 0;
-  font-size: 0.6875rem;
+.viveiro-atalho__meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
   font-weight: 600;
-  padding: 0.1rem 0.45rem;
-  border-radius: 999px;
-  background: #fff;
-  color: var(--color-text-secondary);
-  border: 1px solid var(--color-border-subtle);
+  color: var(--color-text-muted);
 }
 
-.empty-state {
+.viveiro-tab:hover {
+  color: var(--color-primary);
+  background: var(--color-primary-subtle);
+}
+
+.viveiro-atalhos__qtd {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--color-primary);
+  background: var(--color-surface);
+  padding: 0.2rem 0.625rem;
+  border-radius: var(--radius-full);
+}
+
+.viveiro-atalho:hover {
+  border-color: var(--color-border);
+  box-shadow: var(--shadow-sm);
+}
+
+.viveiro-atalho--on {
+  border-color: var(--color-primary);
+  background: var(--color-primary-subtle);
+}
+
+.viveiro-atalho__corpo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.viveiro-atalho__pend {
+  padding: 0 0.375rem;
+  border-radius: 3px;
+  background: var(--color-attention-bg);
+  color: var(--color-complement-dark);
+}
+
+.viveiro-empty {
+  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   text-align: center;
-  padding: 3rem 2rem;
-  min-height: 420px;
+  padding: 2.5rem 1.5rem;
+  background: var(--color-surface-muted);
 }
 
-.empty-icon {
+.viveiro-empty__icon {
   color: var(--color-text-muted);
-  margin-bottom: var(--spacing-md);
-  opacity: 0.7;
+  opacity: 0.65;
+  margin-bottom: 1rem;
 }
 
-.empty-title {
-  margin: 0 0 var(--spacing-sm);
+.viveiro-empty__titulo {
+  margin: 0 0 0.5rem;
   font-size: 1.125rem;
   font-weight: 600;
 }
 
-.empty-text {
-  margin: 0 0 var(--spacing-lg);
-  max-width: 360px;
-  font-size: 0.9375rem;
+.viveiro-empty__texto {
+  margin: 0 0 1.25rem;
+  max-width: 24rem;
+  font-size: 0.875rem;
   color: var(--color-text-secondary);
   line-height: 1.5;
 }
 
-.cadastro-panel {
-  padding: 0 var(--spacing-lg) var(--spacing-xl);
+.viveiro-tab-panel {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 1.25rem 1.5rem 1.5rem;
 }
 
-@media (max-width: 1100px) {
-  .gestao-grid {
+@media (max-width: 1024px) {
+  .viveiro-mapa {
+    border-right: none;
+    border-bottom: 1px solid var(--color-border-subtle);
+  }
+
+  .viveiro-workspace {
     grid-template-columns: 1fr;
+    grid-template-rows: minmax(420px, auto) minmax(360px, auto);
+    min-height: auto;
   }
 
-  .sidebar-panel {
-    position: static;
-    max-height: none;
+  .viveiro-mapa,
+  .viveiro-sidebar {
+    min-height: 420px;
+  }
+
+  .viveiro-sidebar {
+    min-height: 360px;
   }
 }
 
-@media (max-width: 768px) {
-  .viveiro-page-header,
-  .guias-navegacao,
-  .gestao-grid,
-  .cadastro-panel {
-    padding-left: var(--spacing-md);
-    padding-right: var(--spacing-md);
+@media (max-width: 640px) {
+  .viveiro-hero,
+  .viveiro-chrome {
+    padding-left: 1rem;
+    padding-right: 1rem;
   }
 
-  .guias-navegacao {
+  .viveiro-mapa {
+    border-right: none;
+    border-bottom: 1px solid var(--color-border-subtle);
+  }
+
+  .viveiro-tabs {
     overflow-x: auto;
   }
 
-  .guia {
+  .viveiro-tab {
     white-space: nowrap;
   }
 }

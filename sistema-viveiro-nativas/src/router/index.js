@@ -19,7 +19,7 @@ const routes = [
         path: '/viveiro',
         name: 'viveiro',
         component: () => import('../views/viveiro/ViveiroView.vue'),
-        meta: { permission: 'viveiro.view' }
+        meta: { permission: 'viveiro.view', contentFill: true, hidePageTitle: true }
     },
     {
         path: '/producao',
@@ -37,7 +37,7 @@ const routes = [
         path: '/viveiro/planta-editor',
         name: 'planta-editor',
         component: () => import('../views/viveiro/PlantaBaixaEditorView.vue'),
-        meta: { permission: 'viveiro.edit' }
+        meta: { permission: 'viveiro.edit', contentFill: true, hidePageTitle: true, hideHeader: true }
     },
     {
         path: '/fitossanidade',
@@ -138,10 +138,10 @@ router.beforeEach(async (to) => {
             auth.permissions = auth.user.permissions || []
         }
         if (!auth.can(perm)) {
-            return { path: '/', query: { acesso: 'negado' } }
+            return { path: '/', query: { acesso: 'negado', de: to.fullPath } }
         }
         if (to.meta.adminOnly && !auth.user?.perfis?.includes('admin')) {
-            return { path: '/', query: { acesso: 'negado' } }
+            return { path: '/', query: { acesso: 'negado', de: to.fullPath } }
         }
     }
 

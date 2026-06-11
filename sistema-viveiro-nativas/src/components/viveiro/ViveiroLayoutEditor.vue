@@ -1,20 +1,26 @@
 <template>
   <div class="layout-editor">
     <header class="editor-header">
-      <div class="header-left">
-        <button type="button" class="btn-ghost" @click="emit('voltar')">← Voltar ao viveiro</button>
+      <div class="editor-header__brand">
+        <button type="button" class="btn-back" @click="emit('voltar')">
+          <span aria-hidden="true">←</span> Voltar
+        </button>
+        <div class="editor-header__titles">
+          <h1 class="editor-header__title">Editor da planta</h1>
+          <p class="editor-header__sub">Arraste áreas · marque várias na lista · snap ao soltar</p>
+        </div>
       </div>
-      <div class="header-actions">
-        <button type="button" class="btn-primary" @click="wizardAberto = true">+ Adicionar área</button>
-        <div class="zoom-bar" role="group" aria-label="Zoom">
-          <button type="button" class="btn-icon" @click="ajustarZoom(-0.15)">−</button>
-          <span>{{ Math.round(zoom * 100) }}%</span>
-          <button type="button" class="btn-icon" @click="ajustarZoom(0.15)">+</button>
-          <button type="button" class="btn-ghost-sm" @click="enquadrarTudo">Enquadrar</button>
-          <button type="button" class="btn-ghost-sm" title="Zoom 100%" @click="zoomUmParaUm">100%</button>
+      <div class="editor-header__actions">
+        <button type="button" class="btn-add" @click="wizardAberto = true">+ Adicionar área</button>
+        <div class="viveiro-toolbar__group" role="group" aria-label="Zoom">
+          <button type="button" class="viveiro-toolbar__btn" @click="ajustarZoom(-0.15)">−</button>
+          <span class="viveiro-toolbar__label">{{ Math.round(zoom * 100) }}%</span>
+          <button type="button" class="viveiro-toolbar__btn" @click="ajustarZoom(0.15)">+</button>
+          <button type="button" class="viveiro-toolbar__btn viveiro-toolbar__btn--text" @click="enquadrarTudo">Enquadrar</button>
+          <button type="button" class="viveiro-toolbar__btn viveiro-toolbar__btn--text" @click="zoomUmParaUm">100%</button>
         </div>
         <button type="button" class="btn-save" :disabled="salvando" @click="salvarEVoltar">
-          {{ salvando ? 'Salvando…' : 'Salvar layout' }}
+          {{ salvando ? 'Salvando…' : 'Salvar' }}
         </button>
       </div>
     </header>
@@ -24,41 +30,50 @@
     <div class="editor-main">
       <div
         ref="canvasEl"
-        class="canvas"
+        class="canvas viveiro-map-canvas-bg"
         :class="{ 'canvas--panning': panning, 'canvas--dragging': !!dragCampo, 'canvas--space-pan': spacePan }"
         @wheel.prevent="onWheel"
         @pointerdown="onViewportPointerDown"
         @dblclick="onViewportDblClick"
       >
-        <div class="canvas-inner" :style="canvasInnerStyle">
-          <svg
-            ref="svgEl"
-            class="mapa-svg"
-            :width="viewBox.w"
-            :height="viewBox.h"
-            :viewBox="`0 0 ${viewBox.w} ${viewBox.h}`"
-          >
-            <defs>
-              <pattern id="editor-grid" width="32" height="32" patternUnits="userSpaceOnUse">
-                <path d="M 32 0 L 0 0 0 32" fill="none" stroke="#cccbc6" stroke-width="0.75" />
-              </pattern>
-            </defs>
-            <rect
-              :width="viewBox.w"
-              :height="viewBox.h"
-              fill="url(#editor-grid)"
-              class="mapa-fundo"
-              @pointerdown.stop.prevent="iniciarPan"
-            />
+        <div class="canvas-stage">
+          <div class="canvas-inner" :style="canvasInnerStyle">
+            <svg
+              ref="svgEl"
+              class="mapa-svg"
+              :width="svgFrame.w"
+              :height="svgFrame.h"
+              :viewBox="svgViewBoxAttr"
+            >
+              <defs>
+                <pattern id="editor-grid-minor" width="24" height="24" patternUnits="userSpaceOnUse">
+                  <path d="M 24 0 L 0 0 0 24" fill="none" stroke="#d8d6d0" stroke-width="0.5" />
+                </pattern>
+                <pattern id="editor-grid-major" width="96" height="96" patternUnits="userSpaceOnUse">
+                  <rect width="96" height="96" fill="url(#editor-grid-minor)" />
+                  <path d="M 96 0 L 0 0 0 96" fill="none" stroke="#c5c2ba" stroke-width="1" />
+                </pattern>
+              </defs>
+              <rect
+                x="0"
+                y="0"
+                :width="svgFrame.w"
+                :height="svgFrame.h"
+                fill="url(#editor-grid-major)"
+                class="mapa-fundo"
+                @pointerdown.stop.prevent="iniciarPan"
+              />
 
             <g class="areas-layer">
             <g
               v-for="campo in planta.campos"
               :key="campo.id"
               class="area-grupo"
-              :class="{ 'area-grupo--sel': selecionado?.id === campo.id }"
+              :class="{
+                'area-grupo--sel': estaSelecionado(campo),
+                'area-grupo--prim': selecionado?.id === campo.id,
+              }"
               @pointerdown.stop="iniciarDrag($event, campo)"
-              @click.stop="selecionar(campo)"
             >
               <rect
                 :x="campo.x"
@@ -66,10 +81,24 @@
                 :width="campo.largura"
                 :height="campo.altura"
                 :fill="corArea(campo)"
-                :stroke="selecionado?.id === campo.id ? '#2d5016' : 'rgba(0,0,0,0.15)'"
-                :stroke-width="selecionado?.id === campo.id ? 3 : 1"
+                :stroke="estaSelecionado(campo) ? '#2d5016' : 'rgba(0,0,0,0.15)'"
+                :stroke-width="estaSelecionado(campo) ? (selecionado?.id === campo.id ? 3 : 2) : 1"
                 rx="6"
               />
+              <template v-if="guiasFaixa(campo).length">
+                <line
+                  v-for="(g, gi) in guiasFaixa(campo)"
+                  :key="`${campo.id}-guia-${gi}`"
+                  :x1="g.x1"
+                  :y1="g.y1"
+                  :x2="g.x2"
+                  :y2="g.y2"
+                  stroke="rgba(255,255,255,0.35)"
+                  stroke-width="1"
+                  stroke-dasharray="4 3"
+                  pointer-events="none"
+                />
+              </template>
               <rect
                 v-if="barraOcupacao(campo) > 0"
                 :x="campo.x + 4"
@@ -97,6 +126,7 @@
                   :class="linha.class"
                   :text-anchor="linha.anchor || 'start'"
                   :font-size="linha.fontSize"
+                  :transform="linha.transform"
                 >{{ linha.text }}</text>
               </g>
             </g>
@@ -108,16 +138,99 @@
           Nenhuma área ainda. Use <strong>+ Adicionar área</strong> para começar o croqui.
         </p>
         <p class="canvas-hint" aria-hidden="true">
-          Arraste o grid (fundo) para mover · Espaço + arraste em qualquer lugar · Scroll = zoom
+          Espaço + arraste = mover · Scroll = zoom · Ctrl/Shift + clique = multiseleção
         </p>
+        </div>
       </div>
 
-      <aside class="inspector" aria-label="Propriedades da área">
+      <aside class="inspector" aria-label="Painel do editor">
+        <section class="inspector-areas" aria-label="Lista de áreas">
+          <header class="inspector-areas__head">
+            <div class="inspector-areas__titulos">
+              <h2 class="inspector-areas__title">Áreas do viveiro</h2>
+              <p class="inspector-areas__sub">{{ planta.campos.length }} cadastrada(s)</p>
+            </div>
+            <span v-if="selecionados.length" class="inspector-areas__sel">{{ selecionados.length }} sel.</span>
+            <button
+              v-if="selecionados.length"
+              type="button"
+              class="btn-limpar-sel"
+              @click="limparSelecao"
+            >
+              Limpar
+            </button>
+          </header>
+
+          <p v-if="!planta.campos.length" class="inspector-areas__empty">
+            Nenhuma área. Clique em <strong>+ Adicionar área</strong> para começar.
+          </p>
+
+          <ul v-else class="lista-areas">
+            <li v-for="c in planta.campos" :key="c.id">
+              <div
+                class="lista-item"
+                :class="{
+                  'lista-item--sel': estaSelecionado(c),
+                  'lista-item--prim': selecionado?.id === c.id,
+                }"
+                role="button"
+                tabindex="0"
+                @click="focarCampo(c)"
+                @keydown.enter="focarCampo(c)"
+              >
+                <input
+                  type="checkbox"
+                  class="lista-check"
+                  :checked="estaSelecionado(c)"
+                  :aria-label="`Marcar ${c.nome}`"
+                  @click.stop
+                  @change="toggleCheckboxLista(c, $event.target.checked)"
+                />
+                <span class="lista-cor" :style="{ background: corArea(c) }" aria-hidden="true" />
+                <span class="lista-texto">
+                  <strong>{{ c.nome }}</strong>
+                  <small>{{ rotuloTipo(c.tipo) }}{{ textoBadge(c) ? ` · ${textoBadge(c)}` : '' }}</small>
+                </span>
+              </div>
+            </li>
+          </ul>
+        </section>
+
+        <div class="inspector-detalhes">
         <template v-if="selecionado">
           <header class="inspector-top">
-            <span class="inspector-tipo">{{ rotuloTipo(selecionado.tipo) }}</span>
+            <span class="inspector-tipo">
+              {{ selecionados.length > 1 ? `${selecionados.length} áreas selecionadas` : rotuloTipo(selecionado.tipo) }}
+            </span>
             <h2 class="inspector-nome">{{ selecionado.nome }}</h2>
+            <p v-if="selecionados.length > 1" class="inspector-multi-hint">
+              Ajuste posição no mapa ou use alinhar abaixo.
+            </p>
           </header>
+
+          <section
+            v-if="selecionados.length >= 2"
+            class="inspector-secao inspector-secao--alinhar"
+            aria-labelledby="sec-alinhar"
+          >
+            <h3 id="sec-alinhar" class="inspector-secao-titulo">Alinhar seleção</h3>
+            <div class="alinhar-grid">
+              <button type="button" class="btn-alinhar" title="Alinhar borda esquerda" @click="alinhar('esquerda')">Esq.</button>
+              <button type="button" class="btn-alinhar" title="Centralizar horizontalmente" @click="alinhar('centro-h')">Centro H</button>
+              <button type="button" class="btn-alinhar" title="Alinhar borda direita" @click="alinhar('direita')">Dir.</button>
+              <button type="button" class="btn-alinhar" title="Alinhar topo" @click="alinhar('topo')">Topo</button>
+              <button type="button" class="btn-alinhar" title="Centralizar verticalmente" @click="alinhar('centro-v')">Centro V</button>
+              <button type="button" class="btn-alinhar" title="Alinhar base" @click="alinhar('base')">Base</button>
+            </div>
+            <div class="alinhar-grid alinhar-grid--2">
+              <button type="button" class="btn-alinhar btn-alinhar--wide" @click="distribuir('horizontal')">
+                Distribuir H
+              </button>
+              <button type="button" class="btn-alinhar btn-alinhar--wide" @click="distribuir('vertical')">
+                Distribuir V
+              </button>
+            </div>
+          </section>
 
           <div class="inspector-body">
             <div v-if="textoBadge(selecionado)" class="ocupacao-card">
@@ -125,8 +238,9 @@
               <span class="ocupacao-leg">plantas ativas / capacidade</span>
             </div>
 
-            <section class="inspector-secao" aria-labelledby="sec-dimensoes">
-              <h3 id="sec-dimensoes" class="inspector-secao-titulo">Dimensões</h3>
+            <section v-if="selecionados.length === 1" class="inspector-secao" aria-labelledby="sec-dimensoes">
+              <h3 id="sec-dimensoes" class="inspector-secao-titulo">Dimensões reais</h3>
+              <PresetDimensoes :ativo-id="presetDimAtivo" @aplicar="aplicarPresetDimensao" />
               <div class="field-row">
                 <label class="field">
                   Largura (m)
@@ -136,6 +250,7 @@
                     min="0.5"
                     step="0.1"
                     @change="aplicarMetros"
+                    @input="presetDimAtivo = null"
                   />
                 </label>
                 <label class="field">
@@ -146,12 +261,16 @@
                     min="0.5"
                     step="0.1"
                     @change="aplicarMetros"
+                    @input="presetDimAtivo = null"
                   />
                 </label>
               </div>
+              <button type="button" class="btn-inverter" @click="inverterOrientacao">
+                ↻ Inverter orientação
+              </button>
             </section>
 
-            <section class="inspector-secao" aria-labelledby="sec-identidade">
+            <section v-if="selecionados.length === 1" class="inspector-secao" aria-labelledby="sec-identidade">
               <h3 id="sec-identidade" class="inspector-secao-titulo">Identificação</h3>
               <label class="field">
                 Nome
@@ -199,32 +318,23 @@
               Há plantas neste local. Transfira ou retire as mudas na produção antes de excluir.
             </p>
           </div>
-
-          <footer class="inspector-footer">
-            <button type="button" class="btn-danger" :disabled="!podeExcluir || excluindo" @click="pedirExclusao">
-              {{ excluindo ? 'Excluindo…' : 'Excluir área' }}
-            </button>
-          </footer>
         </template>
+        <div v-else class="inspector-detalhes__vazio">
+          <p class="inspector-detalhes__vazio-titulo">Nenhuma área selecionada</p>
+          <p class="inspector-detalhes__vazio-texto">
+            Clique em uma área no mapa ou na lista acima para editar nome, dimensões e capacidade.
+          </p>
+        </div>
+        </div>
 
-        <template v-else>
-          <header class="inspector-top inspector-top--lista">
-            <h2 class="inspector-title">Áreas do viveiro</h2>
-            <p class="inspector-hint">Clique no mapa ou escolha abaixo.</p>
-          </header>
-          <ul class="inspector-body lista-areas">
-            <li v-for="c in planta.campos" :key="c.id">
-              <button type="button" class="lista-btn" @click="selecionar(c)">
-                <span class="lista-cor" :style="{ background: corArea(c) }" />
-                <span class="lista-texto">
-                  <strong>{{ c.nome }}</strong>
-                  <small>{{ rotuloTipo(c.tipo) }}{{ textoBadge(c) ? ` · ${textoBadge(c)}` : '' }}</small>
-                </span>
-              </button>
-            </li>
-            <li v-if="!planta.campos.length" class="lista-vazia">Nenhuma área cadastrada.</li>
-          </ul>
-        </template>
+        <footer v-if="selecionado" class="inspector-footer">
+          <button type="button" class="btn-duplicate" @click="duplicarSelecionado">
+            Duplicar área
+          </button>
+          <button type="button" class="btn-danger" :disabled="!podeExcluir || excluindo" @click="pedirExclusao">
+            {{ excluindo ? 'Excluindo…' : 'Excluir área' }}
+          </button>
+        </footer>
       </aside>
     </div>
 
@@ -259,7 +369,8 @@
 <script setup>
 import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue'
 import ViveiroComponentWizard from './ViveiroComponentWizard.vue'
-import { criarComponenteNoMapa } from '@/utils/viveiroLayout'
+import PresetDimensoes from './PresetDimensoes.vue'
+import { criarComponenteNoMapa, duplicarCampoNoMapa, nomeDuplicado } from '@/utils/viveiroLayout'
 import { sanitizarCamposLayout } from '@/utils/viveiroLayoutSanitize'
 import { getViveiroLayout, saveViveiroLayout } from '@/services/viveiroLayout'
 import {
@@ -278,14 +389,24 @@ import {
 } from '@/utils/viveiroOcupacao'
 import { CATALOGO_PRODUTIVO, CATALOGO_VISUAL } from '@/constants/viveiroComponentes'
 import { layoutRotulosArea } from '@/utils/viveiroAreaRotulos'
-
-const PX_POR_METRO = 24
+import {
+  PX_POR_METRO,
+  aplicarMetrosAoCampo,
+  inverterOrientacaoCampo,
+  orientacaoFaixa,
+} from '@/constants/viveiroDimensoes'
+import {
+  snapVarios,
+  alinharCampos,
+  distribuirCampos,
+} from '@/utils/viveiroLayoutSnap'
 const emit = defineEmits(['voltar'])
 
 const viveiroStore = useViveiroStore()
 const planta = reactive({ campos: [], nome: 'Planta do Viveiro', data: '' })
 const layoutAoAbrir = ref(null)
 const selecionado = ref(null)
+const selecionadosIds = ref(new Set())
 const wizardAberto = ref(false)
 const salvando = ref(false)
 const excluindo = ref(false)
@@ -294,6 +415,7 @@ const dialogExcluir = ref(false)
 const dialogErro = ref(null)
 const ocupacaoPorApiId = ref({})
 const metrosEdit = reactive({ largura: null, altura: null })
+const presetDimAtivo = ref(null)
 
 const canvasEl = ref(null)
 const svgEl = ref(null)
@@ -301,15 +423,39 @@ const zoom = ref(1)
 const pan = reactive({ x: 40, y: 40 })
 const viewBox = reactive({ w: 900, h: 600 })
 
+const MARGEM_SVG = 48
+
+const svgFrame = computed(() => {
+  if (!planta.campos.length) {
+    return { vbX: 0, vbY: 0, w: viewBox.w, h: viewBox.h }
+  }
+  const { minX, minY, maxX, maxY } = boundsConteudo(0)
+  const bw = maxX - minX
+  const bh = maxY - minY
+  return {
+    vbX: minX - MARGEM_SVG,
+    vbY: minY - MARGEM_SVG,
+    w: Math.max(320, bw + MARGEM_SVG * 2),
+    h: Math.max(240, bh + MARGEM_SVG * 2),
+  }
+})
+
+const svgViewBoxAttr = computed(() => {
+  const f = svgFrame.value
+  return `${f.vbX} ${f.vbY} ${f.w} ${f.h}`
+})
+
 const canvasInnerStyle = computed(() => ({
-  width: `${viewBox.w}px`,
-  height: `${viewBox.h}px`,
+  width: `${svgFrame.value.w}px`,
+  height: `${svgFrame.value.h}px`,
   transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom.value})`,
   transformOrigin: '0 0',
 }))
 
 const dragCampo = ref(null)
-let dragStart = null
+const DRAG_THRESHOLD = 5
+/** @type {{ campo: object, aditivo: boolean, px: number, py: number, moved: boolean, origens: { c: object, ox: number, oy: number }[] } | null} */
+let dragSessao = null
 const panning = ref(false)
 const spacePan = ref(false)
 let panStart = null
@@ -328,6 +474,10 @@ const ROTULOS = {
 
 const CORES = Object.fromEntries(
   [...CATALOGO_PRODUTIVO, ...CATALOGO_VISUAL].map((c) => [c.tipo, c.corPadrao])
+)
+
+const selecionados = computed(() =>
+  planta.campos.filter((c) => selecionadosIds.value.has(c.id))
 )
 
 const capacidadeCanteiro = computed(() => {
@@ -371,7 +521,38 @@ function rotulosArea(campo) {
     rotuloTipo: rotuloTipo(campo.tipo),
     nome: campo.nome,
     badge: textoBadge(campo),
+    metros: campo.metros,
   })
+}
+
+function guiasFaixa(campo) {
+  if (!['canteiro', 'sementeira', 'rustificacao'].includes(campo.tipo)) return []
+  const orient = orientacaoFaixa(campo.largura, campo.altura)
+  if (!orient) return []
+  const linhas = []
+  const pad = 8
+  if (orient === 'vertical') {
+    const passo = Math.max(28, Math.round(campo.altura / 8))
+    for (let y = campo.y + passo; y < campo.y + campo.altura - pad; y += passo) {
+      linhas.push({
+        x1: campo.x + pad,
+        y1: y,
+        x2: campo.x + campo.largura - pad,
+        y2: y,
+      })
+    }
+  } else {
+    const passo = Math.max(28, Math.round(campo.largura / 8))
+    for (let x = campo.x + passo; x < campo.x + campo.largura - pad; x += passo) {
+      linhas.push({
+        x1: x,
+        y1: campo.y + pad,
+        x2: x,
+        y2: campo.y + campo.altura - pad,
+      })
+    }
+  }
+  return linhas
 }
 
 function barraOcupacao(campo) {
@@ -393,30 +574,126 @@ function ajustarViewBox() {
   viewBox.h = maxY
 }
 
-function selecionar(campo) {
-  selecionado.value = campo
-  metrosEdit.largura = campo.metros?.largura ?? (campo.largura ? +(campo.largura / PX_POR_METRO).toFixed(1) : null)
-  metrosEdit.altura = campo.metros?.altura ?? (campo.altura ? +(campo.altura / PX_POR_METRO).toFixed(1) : null)
-  if (campo.tipo === 'canteiro' && !campo.config) {
-    campo.config = { linhas: 4, colunas: 4, capacidade: 16 }
+function estaSelecionado(campo) {
+  return selecionadosIds.value.has(campo.id)
+}
+
+function ehSelecaoAditiva(event) {
+  return event.shiftKey || event.ctrlKey || event.metaKey
+}
+
+function aplicarMetrosInspector(c) {
+  if (!c) return
+  metrosEdit.largura = c.metros?.largura ?? (c.largura ? +(c.largura / PX_POR_METRO).toFixed(1) : null)
+  metrosEdit.altura = c.metros?.altura ?? (c.altura ? +(c.altura / PX_POR_METRO).toFixed(1) : null)
+  if (c.tipo === 'canteiro' && !c.config) {
+    c.config = { linhas: 4, colunas: 4, capacidade: 16 }
   }
+}
+
+function selecionar(campo, { aditivo = false } = {}) {
+  if (!campo) return
+  if (aditivo) {
+    const next = new Set(selecionadosIds.value)
+    if (next.has(campo.id)) next.delete(campo.id)
+    else next.add(campo.id)
+    selecionadosIds.value = next
+    if (!next.size) {
+      selecionado.value = null
+      return
+    }
+    selecionado.value = campo
+  } else {
+    selecionadosIds.value = new Set([campo.id])
+    selecionado.value = campo
+  }
+  aplicarMetrosInspector(selecionado.value)
+}
+
+function toggleCheckboxLista(campo, marcado) {
+  const next = new Set(selecionadosIds.value)
+  if (marcado) next.add(campo.id)
+  else next.delete(campo.id)
+  selecionadosIds.value = next
+  if (next.size) {
+    selecionado.value = campo
+    aplicarMetrosInspector(campo)
+  } else {
+    selecionado.value = null
+  }
+}
+
+function focarCampo(campo) {
+  selecionar(campo, { aditivo: false })
+}
+
+function limparSelecao() {
+  selecionadosIds.value = new Set()
+  selecionado.value = null
+}
+
+function grupoArrastePara(campo) {
+  const inSel = selecionadosIds.value.has(campo.id)
+  if (inSel && selecionadosIds.value.size > 1) {
+    return planta.campos.filter((c) => selecionadosIds.value.has(c.id))
+  }
+  return [campo]
+}
+
+function alinhar(modo) {
+  const grupo = selecionados.value
+  if (grupo.length < 2) return
+  alinharCampos(grupo, modo)
+  snapVarios(grupo, planta.campos)
+  marcarDirty()
+}
+
+function distribuir(eixo) {
+  const grupo = selecionados.value
+  if (grupo.length < 3) return
+  distribuirCampos(grupo, eixo === 'vertical' ? 'vertical' : 'horizontal')
+  snapVarios(grupo, planta.campos)
+  marcarDirty()
 }
 
 function marcarDirty() {
   ajustarViewBox()
 }
 
+function duplicarSelecionado() {
+  const orig = selecionado.value
+  if (!orig) return
+  const copia = duplicarCampoNoMapa(orig)
+  if (!copia) return
+  copia.nome = nomeDuplicado(orig.nome, planta.campos.map((c) => c.nome))
+  planta.campos.push(copia)
+  selecionar(copia, { aditivo: false })
+  marcarDirty()
+}
+
 function aplicarMetros() {
   const c = selecionado.value
   if (!c) return
-  const largura = Number(metrosEdit.largura)
-  const altura = Number(metrosEdit.altura)
-  if (largura > 0 && altura > 0) {
-    c.metros = { largura, altura }
-    c.largura = Math.round(largura * PX_POR_METRO)
-    c.altura = Math.round(altura * PX_POR_METRO)
+  if (aplicarMetrosAoCampo(c, metrosEdit.largura, metrosEdit.altura)) {
     ajustarViewBox()
   }
+}
+
+function aplicarPresetDimensao(preset) {
+  metrosEdit.largura = preset.largura
+  metrosEdit.altura = preset.altura
+  presetDimAtivo.value = preset.id
+  aplicarMetros()
+}
+
+function inverterOrientacao() {
+  const c = selecionado.value
+  if (!c) return
+  inverterOrientacaoCampo(c)
+  metrosEdit.largura = c.metros?.largura ?? metrosEdit.largura
+  metrosEdit.altura = c.metros?.altura ?? metrosEdit.altura
+  presetDimAtivo.value = null
+  marcarDirty()
 }
 
 function atualizarCapacidadeCanteiro() {
@@ -457,34 +734,38 @@ function boundsConteudo(padding = 40) {
 function enquadrarTudo() {
   const el = canvasEl.value
   if (!el) return
-  const pad = 56
-  const { minX, minY, maxX, maxY } = boundsConteudo()
-  const bw = Math.max(80, maxX - minX)
-  const bh = Math.max(60, maxY - minY)
+  const pad = 32
+  const f = svgFrame.value
+  const bw = f.w
+  const bh = f.h
   const cw = el.clientWidth
   const ch = el.clientHeight
   const scaleX = (cw - pad * 2) / bw
   const scaleY = (ch - pad * 2) / bh
-  zoom.value = Math.min(2.5, Math.max(0.2, Math.min(scaleX, scaleY, 1.25)))
-  pan.x = (cw - bw * zoom.value) / 2 - minX * zoom.value
-  pan.y = (ch - bh * zoom.value) / 2 - minY * zoom.value
+  zoom.value = Math.min(2.5, Math.max(0.55, Math.min(scaleX, scaleY)))
+  pan.x = (cw - bw * zoom.value) / 2
+  pan.y = (ch - bh * zoom.value) / 2
 }
 
 function zoomUmParaUm() {
   zoom.value = 1
   const el = canvasEl.value
-  if (!el || !planta.campos.length) {
-    pan.x = 40
-    pan.y = 40
-    return
-  }
-  const { minX, minY, maxX, maxY } = boundsConteudo()
-  const bw = maxX - minX
-  const bh = maxY - minY
+  if (!el) return
+  const f = svgFrame.value
   const cw = el.clientWidth
   const ch = el.clientHeight
-  pan.x = (cw - bw) / 2 - minX
-  pan.y = (ch - bh) / 2 - minY
+  pan.x = (cw - f.w) / 2
+  pan.y = (ch - f.h) / 2
+}
+
+let canvasRo
+function observarCanvas() {
+  canvasRo?.disconnect()
+  if (!canvasEl.value) return
+  canvasRo = new ResizeObserver(() => {
+    if (!dragCampo.value && !panning.value) enquadrarTudo()
+  })
+  canvasRo.observe(canvasEl.value)
 }
 
 function iniciarPan(event) {
@@ -499,6 +780,7 @@ function iniciarPan(event) {
   panPointerId = event.pointerId
   panStart = { mx: event.clientX, my: event.clientY, px: pan.x, py: pan.y }
   selecionado.value = null
+  selecionadosIds.value = new Set()
 
   const cap = canvasEl.value
   if (cap?.setPointerCapture) {
@@ -527,30 +809,61 @@ function onViewportDblClick(event) {
 
 function iniciarDrag(event, campo) {
   if (event.button !== 0) return
+  event.preventDefault()
   if (spacePan.value) {
     iniciarPan(event)
     return
   }
-  selecionar(campo)
-  dragCampo.value = campo
+
   const p = svgPoint(event)
-  dragStart = { px: p.x, py: p.y, ox: campo.x, oy: campo.y }
+  const grupo = grupoArrastePara(campo)
+  dragCampo.value = campo
+  dragSessao = {
+    campo,
+    aditivo: ehSelecaoAditiva(event),
+    px: p.x,
+    py: p.y,
+    moved: false,
+    origens: grupo.map((c) => ({ c, ox: c.x, oy: c.y })),
+  }
   window.addEventListener('pointermove', onDragMove)
   window.addEventListener('pointerup', onDragEnd)
   window.addEventListener('pointercancel', onDragEnd)
 }
 
 function onDragMove(event) {
-  if (!dragCampo.value || !dragStart) return
+  if (!dragSessao) return
   const p = svgPoint(event)
-  dragCampo.value.x = Math.max(0, dragStart.ox + (p.x - dragStart.px))
-  dragCampo.value.y = Math.max(0, dragStart.oy + (p.y - dragStart.py))
+  const dx = p.x - dragSessao.px
+  const dy = p.y - dragSessao.py
+
+  if (!dragSessao.moved) {
+    if (Math.abs(dx) <= DRAG_THRESHOLD && Math.abs(dy) <= DRAG_THRESHOLD) return
+    dragSessao.moved = true
+    if (!dragSessao.aditivo && dragSessao.origens.length === 1) {
+      selecionar(dragSessao.campo)
+      dragSessao.origens = [{ c: dragSessao.campo, ox: dragSessao.campo.x, oy: dragSessao.campo.y }]
+    }
+  }
+
+  for (const { c, ox, oy } of dragSessao.origens) {
+    c.x = Math.max(0, ox + dx)
+    c.y = Math.max(0, oy + dy)
+  }
   ajustarViewBox()
 }
 
 function onDragEnd() {
+  if (!dragSessao) return
+  if (!dragSessao.moved) {
+    selecionar(dragSessao.campo, { aditivo: dragSessao.aditivo })
+  } else {
+    const grupo = dragSessao.origens.map((o) => o.c)
+    snapVarios(grupo, planta.campos)
+    marcarDirty()
+  }
   dragCampo.value = null
-  dragStart = null
+  dragSessao = null
   window.removeEventListener('pointermove', onDragMove)
   window.removeEventListener('pointerup', onDragEnd)
   window.removeEventListener('pointercancel', onDragEnd)
@@ -579,17 +892,25 @@ function onPanEnd(event) {
   window.removeEventListener('pointercancel', onPanEnd)
 }
 
+function focoEmCampoTexto() {
+  const el = document.activeElement
+  if (!el) return false
+  const tag = el.tagName
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true
+  return Boolean(el.isContentEditable)
+}
+
 function onKeyDown(event) {
-  if (event.code === 'Space' && !event.repeat) {
-    spacePan.value = true
-    event.preventDefault()
-  }
+  if (event.code !== 'Space' || event.repeat) return
+  if (focoEmCampoTexto()) return
+  spacePan.value = true
+  event.preventDefault()
 }
 
 function onKeyUp(event) {
-  if (event.code === 'Space') {
-    spacePan.value = false
-  }
+  if (event.code !== 'Space') return
+  if (focoEmCampoTexto()) return
+  spacePan.value = false
 }
 
 function onWheel(event) {
@@ -751,9 +1072,14 @@ onMounted(() => {
   carregarLayout()
   window.addEventListener('keydown', onKeyDown)
   window.addEventListener('keyup', onKeyUp)
+  requestAnimationFrame(() => {
+    observarCanvas()
+    enquadrarTudo()
+  })
 })
 
 onUnmounted(() => {
+  canvasRo?.disconnect()
   window.removeEventListener('keydown', onKeyDown)
   window.removeEventListener('keyup', onKeyUp)
   window.removeEventListener('pointermove', onDragMove)
@@ -766,7 +1092,10 @@ onUnmounted(() => {
 
 watch(
   () => planta.campos.length,
-  () => ajustarViewBox()
+  () => {
+    ajustarViewBox()
+    requestAnimationFrame(() => enquadrarTudo())
+  }
 )
 </script>
 
@@ -776,7 +1105,16 @@ watch(
   flex-direction: column;
   height: 100%;
   min-height: 0;
-  background: #ecece8;
+  background: var(--color-background);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.layout-editor input,
+.layout-editor textarea,
+.layout-editor select {
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 .editor-header {
@@ -784,107 +1122,111 @@ watch(
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0.65rem 1rem;
-  background: #fff;
-  border-bottom: 1px solid #e0e0dc;
+  gap: 0.75rem 1rem;
+  padding: 0.75rem 1.5rem;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border-subtle);
   flex-shrink: 0;
+  z-index: 5;
 }
 
-.header-actions {
+.editor-header__brand {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.editor-header__title {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  letter-spacing: -0.01em;
+}
+
+.editor-header__sub {
+  margin: 0.125rem 0 0;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  line-height: 1.45;
+}
+
+.editor-header__actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: flex-end;
   gap: 0.5rem;
 }
 
-.btn-ghost {
-  border: none;
-  background: none;
-  color: var(--color-primary, #4a7c2a);
+.btn-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
   font-size: 0.875rem;
   font-weight: 500;
   cursor: pointer;
   font-family: inherit;
-  padding: 0.35rem 0.5rem;
+  flex-shrink: 0;
 }
 
-.btn-ghost-sm {
-  border: none;
-  background: none;
-  font-size: 0.75rem;
-  color: #666;
-  cursor: pointer;
-  font-family: inherit;
+.btn-back:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
 }
 
-.btn-primary {
-  padding: 0.45rem 0.9rem;
+.btn-add {
+  padding: 0.5rem 0.875rem;
   border: none;
-  border-radius: 8px;
-  background: var(--color-primary, #4a7c2a);
-  color: #fff;
+  border-radius: var(--radius-md);
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
   font-weight: 600;
   font-size: 0.875rem;
   cursor: pointer;
   font-family: inherit;
+  white-space: nowrap;
 }
 
 .btn-save {
-  padding: 0.45rem 1rem;
+  padding: 0.5rem 1.25rem;
   border: none;
-  border-radius: 8px;
-  background: #2d5016;
+  border-radius: var(--radius-md);
+  background: var(--color-analog-1);
   color: #fff;
   font-weight: 600;
   font-size: 0.875rem;
   cursor: pointer;
   font-family: inherit;
+  white-space: nowrap;
 }
 
 .btn-save:disabled {
   opacity: 0.55;
 }
 
-.zoom-bar {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  padding: 0.2rem 0.4rem;
-  background: #f4f4f2;
-  border-radius: 8px;
-  border: 1px solid #e0e0dc;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: #555;
-}
-
-.btn-icon {
-  width: 28px;
-  height: 28px;
-  border: none;
-  background: #fff;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 1rem;
-  font-family: inherit;
-}
-
 .erro-bar {
   margin: 0;
-  padding: 0.5rem 1rem;
-  background: #fef3f2;
-  color: #b42318;
-  font-size: 0.8125rem;
+  padding: 0.625rem 1.5rem;
+  background: var(--color-error-bg);
+  color: var(--color-error);
+  font-size: 0.875rem;
   border-bottom: 1px solid #fecaca;
+  flex-shrink: 0;
 }
 
 .editor-main {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(260px, 340px);
+  grid-template-columns: minmax(0, 1fr) minmax(380px, 440px);
   flex: 1;
   min-height: 0;
-  gap: 0;
+  overflow: hidden;
 }
 
 .canvas {
@@ -892,9 +1234,301 @@ watch(
   min-height: 0;
   overflow: hidden;
   cursor: grab;
-  background: #d8d8d4;
-  background-image: radial-gradient(circle at 1px 1px, #c4c4be 1px, transparent 0);
-  background-size: 20px 20px;
+  padding: 1.25rem 1.5rem;
+  box-sizing: border-box;
+}
+
+.canvas-stage {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 420px;
+}
+
+.canvas-inner {
+  position: absolute;
+  top: 0;
+  left: 0;
+  will-change: transform;
+}
+
+.mapa-svg {
+  display: block;
+  background: #fafaf8;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 12px 40px rgba(44, 45, 42, 0.14);
+  user-select: none;
+}
+
+.mapa-svg text {
+  user-select: none;
+  pointer-events: none;
+  font-family: var(--font-sans);
+}
+
+.area-rotulos text {
+  paint-order: stroke fill;
+  stroke: rgba(255, 255, 255, 0.92);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+}
+
+.lbl-tipo {
+  font-size: 10px;
+  font-weight: 700;
+  fill: rgba(0, 0, 0, 0.62);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.lbl-nome {
+  font-size: 13px;
+  font-weight: 700;
+  fill: #141414;
+}
+
+.lbl-badge {
+  font-size: 11px;
+  font-weight: 700;
+  fill: #1a1a1a;
+}
+
+.canvas-hint {
+  position: absolute;
+  bottom: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 0.5rem 1rem;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-full);
+  pointer-events: none;
+  z-index: 2;
+  max-width: calc(100% - 3rem);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: var(--shadow-sm);
+}
+
+.inspector {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--color-surface);
+  border-left: 1px solid var(--color-border-subtle);
+}
+
+.inspector-areas {
+  display: flex;
+  flex-direction: column;
+  flex: 0 1 42%;
+  min-height: 240px;
+  max-height: 48%;
+  border-bottom: 1px solid var(--color-border-subtle);
+  background: var(--color-surface-muted);
+}
+
+.inspector-areas__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1.125rem 1.25rem 0.875rem;
+  flex-shrink: 0;
+}
+
+.inspector-areas__titulos {
+  flex: 1;
+  min-width: 0;
+}
+
+.inspector-areas__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  line-height: 1.3;
+}
+
+.inspector-areas__sub {
+  margin: 0.25rem 0 0;
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+}
+
+.inspector-areas__sel {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--color-primary);
+  background: var(--color-primary-subtle);
+  padding: 0.25rem 0.625rem;
+  border-radius: var(--radius-full);
+}
+
+.inspector-areas__empty {
+  margin: 0;
+  padding: 1rem 1.25rem 1.25rem;
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+
+.inspector-detalhes {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.inspector-detalhes__vazio {
+  padding: 1.5rem 1.25rem;
+  text-align: center;
+}
+
+.inspector-detalhes__vazio-titulo {
+  margin: 0 0 0.5rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.inspector-detalhes__vazio-texto {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+  max-width: 22rem;
+  margin-inline: auto;
+}
+
+.inspector-top {
+  flex-shrink: 0;
+  padding: 1.125rem 1.25rem 1rem;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.inspector-body {
+  padding: 1rem 1.25rem 1.25rem;
+}
+
+.inspector-footer {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  padding: 1rem 1.25rem 1.25rem;
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.btn-limpar-sel {
+  flex-shrink: 0;
+  border: 1px solid var(--color-border-subtle);
+  background: var(--color-surface);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  font-family: inherit;
+  padding: 0.35rem 0.75rem;
+  border-radius: var(--radius-md);
+}
+
+.btn-limpar-sel:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.lista-areas {
+  list-style: none;
+  margin: 0;
+  padding: 0 1rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.lista-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.75rem 0.875rem;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.lista-item:hover {
+  border-color: var(--color-border);
+  box-shadow: var(--shadow-sm);
+}
+
+.lista-item--sel {
+  border-color: var(--color-primary);
+  background: var(--color-primary-subtle);
+}
+
+.lista-item--prim {
+  box-shadow: 0 0 0 2px rgba(74, 124, 42, 0.25);
+}
+
+.lista-check {
+  flex-shrink: 0;
+  margin: 0;
+  width: 18px;
+  height: 18px;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+}
+
+.lista-cor {
+  width: 12px;
+  height: 36px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.lista-texto {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+  flex: 1;
+  text-align: left;
+}
+
+.lista-texto strong {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lista-texto small {
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .canvas--panning {
@@ -904,21 +1538,7 @@ watch(
 
 .canvas--dragging {
   cursor: move;
-}
-
-.canvas-inner {
-  position: absolute;
-  top: 0;
-  left: 0;
-  will-change: transform;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
-}
-
-.mapa-svg {
-  display: block;
-  background: #f7f7f4;
-  border: 1px solid #b8b8b2;
-  border-radius: 2px;
+  user-select: none;
 }
 
 .mapa-fundo {
@@ -947,46 +1567,59 @@ watch(
   cursor: move;
 }
 
-.canvas-hint {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  margin: 0;
-  padding: 0.4rem 0.75rem;
-  font-size: 0.6875rem;
-  color: #555;
-  background: rgba(255, 255, 255, 0.92);
-  border-top: 1px solid #d0d0ca;
-  pointer-events: none;
-  z-index: 2;
-}
-
 .area-grupo--sel rect:first-child {
-  filter: drop-shadow(0 2px 8px rgba(45, 80, 22, 0.35));
+  filter: drop-shadow(0 1px 6px rgba(45, 80, 22, 0.28));
 }
 
-.lbl-tipo {
-  font-size: 9px;
-  font-weight: 700;
-  fill: rgba(0, 0, 0, 0.55);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  pointer-events: none;
+.area-grupo--prim rect:first-child {
+  filter: drop-shadow(0 2px 10px rgba(45, 80, 22, 0.4));
 }
 
-.lbl-nome {
-  font-size: 12px;
+.inspector-multi-hint {
+  margin: 0.35rem 0 0;
+  font-size: 0.75rem;
+  color: #888;
+  line-height: 1.35;
+}
+
+.inspector-secao--alinhar {
+  background: #f4f7f0;
+  border-color: #d4e4c8;
+}
+
+.alinhar-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+}
+
+.alinhar-grid--2 {
+  margin-top: 0.5rem;
+  grid-template-columns: 1fr 1fr;
+}
+
+.btn-alinhar {
+  padding: 0.5rem 0.375rem;
+  border: 1px solid #d1d5db;
+  border-radius: var(--radius-md);
+  background: #fff;
+  font-size: 0.75rem;
   font-weight: 600;
-  fill: #1a1a1a;
-  pointer-events: none;
+  color: #374151;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: center;
+  min-height: 2.25rem;
 }
 
-.lbl-badge {
-  font-size: 11px;
-  font-weight: 700;
-  fill: #1a1a1a;
-  pointer-events: none;
+.btn-alinhar:hover {
+  border-color: #4a7c2a;
+  background: #eef4e8;
+  color: #2d5016;
+}
+
+.btn-alinhar--wide {
+  font-size: 0.7rem;
 }
 
 .canvas-empty {
@@ -1003,73 +1636,67 @@ watch(
   pointer-events: none;
 }
 
-.inspector {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  min-height: 0;
-  background: #fafaf9;
-  border-left: 1px solid #e0e0dc;
-  box-shadow: -4px 0 16px rgba(0, 0, 0, 0.04);
-}
-
-.inspector-top {
-  flex-shrink: 0;
-  padding: 1rem 1rem 0.75rem;
+.btn-duplicate {
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid #4a7c2a;
+  border-radius: 8px;
   background: #fff;
-  border-bottom: 1px solid #ebebe8;
-}
-
-.inspector-top--lista {
-  padding-bottom: 0.5rem;
-}
-
-.inspector-body {
-  flex: 1;
-  min-height: 0;
-  overflow-x: hidden;
-  overflow-y: auto;
-  padding: 0.85rem 1rem 1rem;
-  -webkit-overflow-scrolling: touch;
-}
-
-.inspector-footer {
-  flex-shrink: 0;
-  padding: 0.75rem 1rem 1rem;
-  background: #fff;
-  border-top: 1px solid #ebebe8;
-}
-
-.inspector-title {
-  margin: 0;
-  font-size: 0.9375rem;
+  color: #2d5016;
   font-weight: 600;
-  color: #1a1a1a;
+  font-size: 0.875rem;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s ease, border-color 0.15s ease;
 }
 
-.inspector-hint {
-  margin: 0.35rem 0 0;
+.btn-duplicate:hover {
+  background: #eef4e8;
+  border-color: #2d5016;
+}
+
+.btn-inverter {
+  width: 100%;
+  margin-top: 0.35rem;
+  padding: 0.45rem 0.65rem;
+  border: 1px dashed #c5c5c0;
+  border-radius: 8px;
+  background: #fafaf8;
+  color: #555;
   font-size: 0.8125rem;
-  color: #666;
-  line-height: 1.4;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.btn-inverter:hover {
+  border-color: #4a7c2a;
+  color: #2d5016;
+  background: #f4f7f0;
+}
+
+:deep(.lbl-metros) {
+  fill: rgba(0, 0, 0, 0.5);
+  font-weight: 600;
+  font-size: 10px;
 }
 
 .inspector-tipo {
   display: inline-block;
-  font-size: 0.625rem;
+  font-size: 0.8125rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: #4a7c2a;
   background: #eef4e8;
-  padding: 0.2rem 0.45rem;
-  border-radius: 4px;
-  margin-bottom: 0.4rem;
+  padding: var(--v-s1) var(--v-s2);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--v-s2);
 }
 
 .inspector-nome {
   margin: 0;
-  font-size: 1.0625rem;
+  font-size: 1.125rem;
   font-weight: 600;
   line-height: 1.35;
   word-break: break-word;
@@ -1078,16 +1705,16 @@ watch(
 }
 
 .inspector-secao {
-  margin-bottom: 1rem;
-  padding: 0.75rem;
+  margin-bottom: var(--v-s3);
+  padding: var(--v-s3);
   background: #fff;
   border: 1px solid #ebebe8;
-  border-radius: 10px;
+  border-radius: var(--radius-xl);
 }
 
 .inspector-secao-titulo {
-  margin: 0 0 0.65rem;
-  font-size: 0.6875rem;
+  margin: 0 0 var(--v-s2);
+  font-size: 0.8125rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -1097,9 +1724,9 @@ watch(
 .ocupacao-card {
   background: linear-gradient(180deg, #f4f7f0 0%, #eef4e8 100%);
   border: 1px solid #d4e4c8;
-  border-radius: 10px;
-  padding: 0.85rem 0.75rem;
-  margin-bottom: 0.85rem;
+  border-radius: var(--radius-xl);
+  padding: var(--v-s3);
+  margin-bottom: var(--v-s3);
   text-align: center;
 }
 
@@ -1108,23 +1735,23 @@ watch(
   font-size: 1.375rem;
   font-weight: 700;
   color: #2d5016;
-  line-height: 1.2;
+  line-height: 1.15;
 }
 
 .ocupacao-leg {
   display: block;
-  margin-top: 0.2rem;
-  font-size: 0.6875rem;
+  margin-top: var(--v-s2);
+  font-size: 0.8125rem;
   color: #666;
-  line-height: 1.35;
+  line-height: var(--v-line);
 }
 
 .field {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
-  margin-bottom: 0.65rem;
-  font-size: 0.75rem;
+  gap: var(--v-s2);
+  margin-bottom: var(--v-s3);
+  font-size: 0.8125rem;
   font-weight: 600;
   color: #555;
   min-width: 0;
@@ -1138,10 +1765,10 @@ watch(
   width: 100%;
   box-sizing: border-box;
   min-width: 0;
-  padding: 0.5rem 0.6rem;
+  padding: var(--v-s2) var(--v-s3);
   border: 1px solid #d1d5db;
-  border-radius: 8px;
-  font-size: 0.875rem;
+  border-radius: var(--radius-lg);
+  font-size: 0.9375rem;
   font-family: inherit;
   background: #fff;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
@@ -1156,7 +1783,7 @@ watch(
 .field-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 0.5rem;
+  gap: var(--v-s3);
 }
 
 .field-row .field {
@@ -1207,76 +1834,6 @@ watch(
   cursor: not-allowed;
 }
 
-.lista-areas {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-}
-
-.lista-vazia {
-  padding: 1.5rem 0.5rem;
-  text-align: center;
-  font-size: 0.8125rem;
-  color: #888;
-}
-
-.lista-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  width: 100%;
-  max-width: 100%;
-  box-sizing: border-box;
-  padding: 0.55rem 0.65rem;
-  border: 1px solid #e8e8e4;
-  border-radius: 10px;
-  background: #fff;
-  cursor: pointer;
-  text-align: left;
-  font-family: inherit;
-  transition: border-color 0.15s ease, background 0.15s ease;
-}
-
-.lista-btn:hover {
-  border-color: #4a7c2a;
-  background: #f4f7f0;
-}
-
-.lista-cor {
-  width: 14px;
-  height: 14px;
-  border-radius: 4px;
-  flex-shrink: 0;
-  border: 1px solid rgba(0, 0, 0, 0.08);
-}
-
-.lista-texto {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-  min-width: 0;
-  flex: 1;
-}
-
-.lista-texto strong {
-  font-size: 0.8125rem;
-  font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.lista-texto small {
-  font-size: 0.6875rem;
-  color: #666;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .dialog-overlay {
   position: fixed;
   inset: 0;
@@ -1322,14 +1879,31 @@ watch(
 @media (max-width: 900px) {
   .editor-main {
     grid-template-columns: 1fr;
-    grid-template-rows: minmax(0, 1fr) auto;
+    grid-template-rows: minmax(340px, 1fr) minmax(300px, 44vh);
   }
 
   .inspector {
     border-left: none;
-    border-top: 1px solid #e0e0dc;
-    max-height: min(42vh, 360px);
-    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.06);
+    border-top: 1px solid var(--color-border-subtle);
+  }
+
+  .editor-header__sub {
+    display: none;
+  }
+
+  .canvas-hint {
+    display: none;
+  }
+}
+
+@media (max-width: 520px) {
+  .editor-header__titles {
+    display: none;
+  }
+
+  .editor-header__actions {
+    width: 100%;
+    justify-content: space-between;
   }
 }
 </style>

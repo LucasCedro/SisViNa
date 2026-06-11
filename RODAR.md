@@ -8,6 +8,16 @@ Repositório: `https://github.com/LucasCedro/SisViNa.git` (branch `main`).
 
 **Nunca** commite `.env` com senhas — só `.env.example` na API. Fluxo usual: `git status` → `git add` → `commit` → `push origin main`.
 
+cd c:\Projetos\SisViNa
+
+git status
+
+git add -A
+
+git commit -m "feat: descreva o que mudou"
+
+git push origin main
+
 ---
 
 ## Pré-requisito

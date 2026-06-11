@@ -75,14 +75,15 @@
             </option>
           </select>
         </label>
+        <PresetDimensoes :ativo-id="presetAtivo" @aplicar="aplicarPreset" />
         <div class="field-row">
           <label class="field">
             Largura real (m)
-            <input v-model.number="form.metrosLargura" type="number" min="0.5" max="200" step="0.1" />
+            <input v-model.number="form.metrosLargura" type="number" min="0.5" max="200" step="0.1" @input="presetAtivo = null" />
           </label>
           <label class="field">
             Comprimento real (m)
-            <input v-model.number="form.metrosAltura" type="number" min="0.5" max="200" step="0.1" />
+            <input v-model.number="form.metrosAltura" type="number" min="0.5" max="200" step="0.1" @input="presetAtivo = null" />
           </label>
         </div>
         <footer class="wizard-footer">
@@ -100,14 +101,15 @@
           Capacidade aproximada (mudas)
           <input v-model.number="form.capacidade" type="number" min="1" max="9999" />
         </label>
+        <PresetDimensoes :ativo-id="presetAtivo" @aplicar="aplicarPreset" />
         <div class="field-row">
           <label class="field">
             Largura real (m)
-            <input v-model.number="form.metrosLargura" type="number" min="0.5" max="200" step="0.1" />
+            <input v-model.number="form.metrosLargura" type="number" min="0.5" max="200" step="0.1" @input="presetAtivo = null" />
           </label>
           <label class="field">
             Comprimento real (m)
-            <input v-model.number="form.metrosAltura" type="number" min="0.5" max="200" step="0.1" />
+            <input v-model.number="form.metrosAltura" type="number" min="0.5" max="200" step="0.1" @input="presetAtivo = null" />
           </label>
         </div>
         <footer class="wizard-footer">
@@ -125,14 +127,20 @@
           Capacidade aproximada (mudas)
           <input v-model.number="form.capacidade" type="number" min="1" max="9999" />
         </label>
+        <PresetDimensoes
+          :ativo-id="presetAtivo"
+          hint="Rustificação costuma ser mais larga que longa."
+          :presets="presetsRustificacao"
+          @aplicar="aplicarPreset"
+        />
         <div class="field-row">
           <label class="field">
             Largura real (m)
-            <input v-model.number="form.metrosLargura" type="number" min="0.5" max="200" step="0.1" />
+            <input v-model.number="form.metrosLargura" type="number" min="0.5" max="200" step="0.1" @input="presetAtivo = null" />
           </label>
           <label class="field">
             Comprimento real (m)
-            <input v-model.number="form.metrosAltura" type="number" min="0.5" max="200" step="0.1" />
+            <input v-model.number="form.metrosAltura" type="number" min="0.5" max="200" step="0.1" @input="presetAtivo = null" />
           </label>
         </div>
         <footer class="wizard-footer">
@@ -173,6 +181,9 @@ import {
   TIPOS_COMPONENTE,
 } from '@/constants/viveiroComponentes'
 import { listEspecies } from '@/services/especies'
+import { useModalOverlayClose } from '@/composables/useModalOverlayClose'
+import PresetDimensoes from './PresetDimensoes.vue'
+import { METROS_PADRAO_PRODUTIVO, PRESETS_DIMENSAO } from '@/constants/viveiroDimensoes'
 
 const props = defineProps({
   aberto: { type: Boolean, default: false },
@@ -185,6 +196,11 @@ const especies = ref([])
 const carregandoEspecies = ref(false)
 
 const form = ref(criarFormPadrao())
+const presetAtivo = ref(null)
+
+const presetsRustificacao = PRESETS_DIMENSAO.filter((p) =>
+  ['quad-10x8', 'quad-6x6', 'faixa-4x20'].includes(p.id)
+)
 
 const tituloEtapa = computed(() => {
   const map = {
@@ -222,12 +238,19 @@ function criarFormPadrao() {
   }
 }
 
+function aplicarPreset(preset) {
+  form.value.metrosLargura = preset.largura
+  form.value.metrosAltura = preset.altura
+  presetAtivo.value = preset.id
+}
+
 watch(
   () => props.aberto,
   async (aberto) => {
     if (!aberto) return
     etapa.value = 'tipo'
     form.value = criarFormPadrao()
+    presetAtivo.value = null
     if (especies.value.length) return
     carregandoEspecies.value = true
     try {
@@ -251,14 +274,26 @@ const NOMES_PADRAO = {
 }
 
 function escolherTipo(tipo) {
-  form.value = { ...criarFormPadrao(), tipo, nome: NOMES_PADRAO[tipo] || 'Área' }
+  const base = { ...criarFormPadrao(), tipo, nome: NOMES_PADRAO[tipo] || 'Área' }
+  presetAtivo.value = null
   if (tipo === TIPOS_COMPONENTE.CANTEIRO) {
+    form.value = {
+      ...base,
+      metrosLargura: METROS_PADRAO_PRODUTIVO.largura,
+      metrosAltura: METROS_PADRAO_PRODUTIVO.altura,
+    }
+    presetAtivo.value = 'faixa-4x40'
     etapa.value = 'canteiro'
   } else if (tipo === TIPOS_COMPONENTE.SEMENTEIRA) {
+    form.value = { ...base, metrosLargura: 6, metrosAltura: 24 }
+    presetAtivo.value = 'faixa-6x24'
     etapa.value = 'sementeira'
   } else if (tipo === TIPOS_COMPONENTE.RUSTIFICACAO) {
+    form.value = { ...base, metrosLargura: 10, metrosAltura: 8 }
+    presetAtivo.value = 'quad-10x8'
     etapa.value = 'rustificacao'
   } else {
+    form.value = base
     etapa.value = 'visual'
   }
 }
@@ -268,29 +303,21 @@ function voltarTipo() {
   form.value = criarFormPadrao()
 }
 
-/** Fecha só se pressionar e soltar no fundo escuro (evita fechar ao selecionar texto e soltar fora). */
-let overlayPress = false
-
-function onModalPointerDown() {
-  overlayPress = false
+function fecharInterno() {
+  emit('fechar')
 }
 
-function onOverlayPointerDown() {
-  overlayPress = true
-}
-
-function onOverlayPointerUp() {
-  if (overlayPress) fechar()
-  overlayPress = false
-}
-
-function cancelarFechamentoOverlay() {
-  overlayPress = false
-}
+const {
+  onModalPointerDown,
+  onOverlayPointerDown,
+  onOverlayPointerUp,
+  cancelarFechamentoOverlay,
+  resetOverlayPress,
+} = useModalOverlayClose(fecharInterno)
 
 function fechar() {
-  overlayPress = false
-  emit('fechar')
+  resetOverlayPress()
+  fecharInterno()
 }
 
 function confirmar() {

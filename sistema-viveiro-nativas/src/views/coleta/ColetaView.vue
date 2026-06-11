@@ -4,7 +4,7 @@
             <section class="coleta-panel coleta-toolbar">
                 <div class="toolbar-info">
                     <p class="coleta-desc">
-                        Matrizes, coletas de sementes, lotes, qualidade e semeadura no viveiro — com rastreio até a venda da muda.
+                        Matrizes, coletas de sementes, lotes, qualidade e teste de germinação.
                     </p>
                     <p v-if="store.carregando" class="status-carregando">Carregando dados...</p>
                     <p v-else class="status-resumo">
@@ -45,8 +45,14 @@
                     />
                 </section>
 
-                <section class="coleta-secao" aria-label="Gráficos">
-                    <GraficosColeta />
+                <section class="coleta-secao" aria-label="Painéis operacionais">
+                    <GraficosColeta
+                        @coletar="abrirCadastroColeta"
+                        @editar="abrirEdicao"
+                        @registrar-teste="abrirTeste"
+                        @ir-aba="(aba) => (abaTabelaAtiva = aba)"
+                        @focar-matriz="focarMatrizNoMapa"
+                    />
                 </section>
 
                 <section class="coleta-secao" aria-label="Listagens">
@@ -71,6 +77,17 @@
                         >
                             Coletas
                         </button>
+                        <button
+                            type="button"
+                            role="tab"
+                            class="aba-listagem"
+                            :class="{ ativa: abaTabelaAtiva === 'lotes' }"
+                            :aria-selected="abaTabelaAtiva === 'lotes'"
+                            @click="abaTabelaAtiva = 'lotes'"
+                        >
+                            Teste de germinação
+                            <span v-if="lotesSemGerminacao > 0" class="aba-badge">{{ lotesSemGerminacao }}</span>
+                        </button>
                     </div>
 
                     <TabelaColeta
@@ -81,6 +98,11 @@
                     <TabelaHistoricoColetas
                         v-show="abaTabelaAtiva === 'coletas'"
                         @editar-coleta="abrirEditarColeta"
+                        @registrar-teste="abrirTeste"
+                    />
+                    <TabelaLotesColeta
+                        v-show="abaTabelaAtiva === 'lotes'"
+                        @registrar-teste="abrirTeste"
                     />
                 </section>
             </div>
@@ -100,6 +122,7 @@
             :matriz="matrizParaColeta"
             @fechar="fecharModalColeta"
             @salvo="aoSalvarColeta"
+            @registrar-teste="aoRegistrarTesteAposColeta"
         />
 
         <FormEditarColeta
@@ -126,12 +149,14 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import PageLayout from '@/components/layout/PageLayout.vue'
 import MapaColeta from '@/components/coleta/MapaColeta.vue'
 import GraficosColeta from '@/components/coleta/GraficosColeta.vue'
 import TabelaColeta from '@/components/coleta/TabelaColeta.vue'
 import TabelaHistoricoColetas from '@/components/coleta/TabelaHistoricoColetas.vue'
+import TabelaLotesColeta from '@/components/coleta/TabelaLotesColeta.vue'
 import FormCadastroMatriz from '@/components/coleta/FormCadastroMatriz.vue'
 import FormCadastroColeta from '@/components/coleta/FormCadastroColeta.vue'
 import FormEditarColeta from '@/components/coleta/FormEditarColeta.vue'
@@ -142,7 +167,10 @@ import RelatorioColetaPdf from '@/components/coleta/RelatorioColetaPdf.vue'
 import ColetaFiltros from '@/components/coleta/ColetaFiltros.vue'
 import { useColetaStore } from '@/store/coleta'
 
+import { lotePrecisaTesteGerminacao } from '@/utils/coletaKpi'
+
 const store = useColetaStore()
+const route = useRoute()
 const modalMatrizAberto = ref(false)
 const modalColetaAberto = ref(false)
 const modalEditarColetaAberto = ref(false)
@@ -155,9 +183,26 @@ const coletaEmEdicao = ref(null)
 const loteParaTeste = ref(null)
 const loteParaSemeadura = ref(null)
 
+const lotesSemGerminacao = computed(() =>
+  store.lotesFiltrados.filter((l) => lotePrecisaTesteGerminacao(l, store.testes)).length
+)
+
+function aplicarAbaDaRota() {
+  const aba = String(route.query.aba || '')
+  if (aba === 'germinacao' || aba === 'teste-germinacao' || aba === 'lotes') {
+    abaTabelaAtiva.value = 'lotes'
+  } else if (aba === 'coletas') {
+    abaTabelaAtiva.value = 'coletas'
+  } else if (aba === 'matrizes') {
+    abaTabelaAtiva.value = 'matrizes'
+  }
+}
+
 onMounted(() => {
-    store.carregar()
+  store.carregar()
 })
+
+watch(() => route.query.aba, aplicarAbaDaRota, { immediate: true })
 
 function abrirCadastro() {
     matrizEmEdicao.value = null
@@ -184,6 +229,14 @@ function abrirEditarColeta(coleta) {
 function abrirTeste(lote) {
     loteParaTeste.value = lote
     modalTesteAberto.value = true
+    abaTabelaAtiva.value = 'lotes'
+}
+
+function focarMatrizNoMapa(matriz) {
+    if (matriz) store.selecionar(matriz)
+    document
+        .querySelector('[aria-label="Mapa de matrizes"]')
+        ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
 function abrirSemeadura(lote) {
@@ -225,8 +278,15 @@ function aoSalvarColeta() {
     fecharEditarColeta()
 }
 
+function aoRegistrarTesteAposColeta(lote) {
+    fecharModalColeta()
+    abaTabelaAtiva.value = 'lotes'
+    abrirTeste(lote)
+}
+
 function aoSalvarTeste() {
     fecharTeste()
+    store.carregar()
 }
 
 function aoSalvarSemeadura() {
@@ -344,6 +404,26 @@ function aoSalvarSemeadura() {
 .aba-listagem.ativa {
     background: var(--color-primary);
     color: var(--color-text-inverse);
+}
+
+.aba-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.125rem;
+    height: 1.125rem;
+    margin-left: 0.35rem;
+    padding: 0 0.3rem;
+    border-radius: 999px;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    background: var(--color-attention);
+    color: var(--color-text-primary);
+}
+
+.aba-listagem.ativa .aba-badge {
+    background: rgba(255, 255, 255, 0.9);
+    color: var(--color-primary-700);
 }
 
 @media (max-width: 768px) {

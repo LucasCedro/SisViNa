@@ -12,7 +12,8 @@ const voltarParaViveiro = () => router.push('/viveiro')
 
 <style scoped>
 :deep(.layout-editor) {
-  height: 100vh;
-  max-height: 100dvh;
+  height: 100%;
+  min-height: 100%;
+  overflow: hidden;
 }
 </style>

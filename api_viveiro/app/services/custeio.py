@@ -8,7 +8,17 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.financeiro_premissa import FinanceiroPremissa
+
+CHAVE_PREMISSA_COLETA_CAMPO = "coleta_campo"
+CHAVE_RECIPIENTE_SEMEADURA = "recipiente_semeadura"
+CHAVE_SUBSTRATO = "substrato_tubete"
+CHAVE_HIDROGEL = "hidrogel_tubete"
+
 from app.models.insumos import Insumo
+from app.services.unidades_insumo import (
+    custo_insumo_peso,
+    custo_substrato_por_recipiente,
+)
 from app.models.lotes_sementes import LoteSementes
 from app.models.plantas import Planta
 
@@ -46,6 +56,34 @@ def aplicar_baixa_valor_lote(lote: LoteSementes, qtd_usada: int, custo: float) -
             lote.custo_unitario = 0
 
 
+async def obter_valor_hora_coleta_campo(db: AsyncSession) -> float:
+    result = await db.execute(
+        select(FinanceiroPremissa).where(
+            FinanceiroPremissa.chave == CHAVE_PREMISSA_COLETA_CAMPO,
+            FinanceiroPremissa.ativo.is_(True),
+            FinanceiroPremissa.natureza == "CUSTO",
+        )
+    )
+    prem = result.scalars().first()
+    if not prem:
+        return 0.0
+    return float(prem.valor or 0)
+
+
+def calcular_custo_coleta_campo(
+    horas: Optional[float], valor_hora: float, qtd_sementes_lote: int
+) -> Tuple[float, float]:
+    """Retorna (custo_total, custo_unitario_semente). Rateio pelo lote comercial."""
+    h = float(horas or 0)
+    vh = float(valor_hora or 0)
+    qtd = int(qtd_sementes_lote or 0)
+    if h <= 0 or vh <= 0 or qtd <= 0:
+        return 0.0, 0.0
+    total = round(h * vh, 2)
+    unit = round(total / qtd, 4)
+    return total, unit
+
+
 def definir_valor_lote_entrada(lote: LoteSementes, valor_total: Optional[float]) -> None:
     if valor_total is None or valor_total <= 0:
         return
@@ -66,6 +104,19 @@ async def _contar_mudas_vivas(db: AsyncSession) -> int:
     )
 
 
+async def _obter_recipiente_semeadura(db: AsyncSession) -> str:
+    result = await db.execute(
+        select(FinanceiroPremissa.unidade).where(
+            FinanceiroPremissa.chave == CHAVE_RECIPIENTE_SEMEADURA,
+            FinanceiroPremissa.ativo.is_(True),
+        )
+    )
+    unidade = result.scalar_one_or_none()
+    if unidade == "saquinho":
+        return "saquinho"
+    return "tubete"
+
+
 async def _premissas_custo_ativas(db: AsyncSession) -> List[FinanceiroPremissa]:
     result = await db.execute(
         select(FinanceiroPremissa)
@@ -80,20 +131,42 @@ def _custo_premissa_item(
     insumo: Optional[Insumo],
     qtd_mudas: int,
     mudas_vivas: int = 1,
+    recipiente: str = "tubete",
 ) -> Tuple[float, str]:
     tipo = (prem.tipo_calculo or "").lower()
     qtd_mudas = max(qtd_mudas, 1)
     mudas_vivas = max(mudas_vivas, 1)
 
+    if tipo == "config":
+        return 0.0, ""
+
     if tipo == "insumo_medio":
-        qtd_ref = float(prem.quantidade or 1)
-        pu = 0.0
-        if insumo:
-            pu = preco_medio_insumo(insumo)
-        elif float(prem.valor or 0) > 0:
-            pu = float(prem.valor)
+        chave = (prem.chave or "").lower()
+        qtd_ref = float(prem.quantidade or 0)
+        if qtd_ref <= 0:
+            return 0.0, f"{prem.nome}: informe a quantidade por recipiente"
+
+        if not insumo:
+            return 0.0, f"{prem.nome}: selecione o insumo no estoque"
+
+        pu = preco_medio_insumo(insumo)
         if pu <= 0:
-            return 0.0, f"{prem.nome}: informe insumo no estoque ou tarifa R$/un."
+            return 0.0, f"{prem.nome}: registre entrada do insumo em Estoques"
+
+        if chave == CHAVE_SUBSTRATO:
+            por_rec, det = custo_substrato_por_recipiente(qtd_ref, recipiente, insumo, pu)
+            if por_rec <= 0:
+                return 0.0, f"{prem.nome}: {det}"
+            total = round(por_rec * qtd_mudas, 2)
+            return total, f"{prem.nome}: {det} × {qtd_mudas} mudas"
+
+        if chave == CHAVE_HIDROGEL:
+            por_rec, det = custo_insumo_peso(qtd_ref, insumo, pu)
+            if por_rec <= 0:
+                return 0.0, f"{prem.nome}: {det or 'informe dosagem em gramas'}"
+            total = round(por_rec * qtd_mudas, 2)
+            return total, f"{prem.nome}: {det} × {qtd_mudas} mudas"
+
         total = round(qtd_ref * pu * qtd_mudas, 2)
         return total, f"{prem.nome}: {qtd_ref} × R$ {pu:.4f} × {qtd_mudas} mudas"
 
@@ -166,17 +239,20 @@ async def calcular_custo_lote_semeadura(
     custo_indireto = 0.0
 
     mudas_vivas = await _contar_mudas_vivas(db)
+    recipiente = await _obter_recipiente_semeadura(db)
     premissas = await _premissas_custo_ativas(db)
     for prem in premissas:
         insumo = None
         if prem.id_insumo:
             insumo = await db.get(Insumo, prem.id_insumo)
-        valor_item, detalhe = _custo_premissa_item(prem, insumo, qtd_mudas, mudas_vivas)
+        valor_item, detalhe = _custo_premissa_item(
+            prem, insumo, qtd_mudas, mudas_vivas, recipiente
+        )
         if valor_item <= 0:
             continue
         itens.append({"origem": "premissa", "chave": prem.chave, "descricao": detalhe, "valor": valor_item})
         chave = (prem.chave or "").lower()
-        if prem.tipo_calculo in ("insumo_medio", "unitario_x_quantidade") or "substrato" in chave or "hidrogel" in chave or "agua" in chave:
+        if prem.tipo_calculo in ("insumo_medio", "unitario_x_quantidade") or "substrato" in chave or "hidrogel" in chave:
             custo_insumos += valor_item
         else:
             custo_indireto += valor_item

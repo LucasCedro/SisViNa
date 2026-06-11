@@ -32,8 +32,12 @@ const currentPageTitle = computed(() => {
   <div v-else class="app-container">
     <Sidebar />
     <main class="main-content">
-      <Header :title="currentPageTitle" :hide-title="route.meta.hidePageTitle === true" />
-      <div class="page-content">
+      <Header
+        v-if="route.meta.hideHeader !== true"
+        :title="currentPageTitle"
+        :hide-title="route.meta.hidePageTitle === true"
+      />
+      <div class="page-content" :class="{ 'page-content--fill': route.meta.contentFill === true }">
         <router-view />
       </div>
     </main>
@@ -62,6 +66,19 @@ const currentPageTitle = computed(() => {
   overflow: auto;
   padding: 0;
   margin: 0;
+  min-height: 0;
+}
+
+.page-content--fill {
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.page-content--fill > * {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
 }
 
 * {

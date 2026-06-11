@@ -1,4 +1,5 @@
 import { TIPOS_COMPONENTE } from '@/constants/viveiroComponentes'
+import { METROS_PADRAO_PRODUTIVO, PX_POR_METRO, metrosParaPx } from '@/constants/viveiroDimensoes'
 
 const CORES_ESPACO = ['#ffe135', '#ffc42e', '#ffab28', '#ff9321', '#ff7c1c']
 
@@ -32,17 +33,21 @@ export function gerarEspacosGrade({ linhas, colunas, largura, altura, especieId 
   return espacos
 }
 
-const PX_POR_METRO = 24
-
 function dimensoesPx(payload, fallbackL, fallbackA) {
   const m = metrosPayload(payload)
   if (m) {
     return {
-      largura: Math.round(m.largura * PX_POR_METRO),
-      altura: Math.round(m.altura * PX_POR_METRO),
+      largura: metrosParaPx(m.largura),
+      altura: metrosParaPx(m.altura),
     }
   }
   return { largura: payload.largura || fallbackL, altura: payload.altura || fallbackA }
+}
+
+function metrosPadraoProdutivo(payload) {
+  const m = metrosPayload(payload)
+  if (m) return m
+  return { ...METROS_PADRAO_PRODUTIVO }
 }
 
 export function criarComponenteNoMapa(payload, index = 0) {
@@ -52,7 +57,12 @@ export function criarComponenteNoMapa(payload, index = 0) {
   if (payload.tipo === TIPOS_COMPONENTE.CANTEIRO) {
     const linhas = payload.linhas || 4
     const colunas = payload.colunas || 4
-    const { largura, altura } = dimensoesPx(payload, 180, 130)
+    const metros = metrosPadraoProdutivo(payload)
+    const { largura, altura } = dimensoesPx(
+      { ...payload, metrosLargura: metros.largura, metrosAltura: metros.altura },
+      metrosParaPx(METROS_PADRAO_PRODUTIVO.largura),
+      metrosParaPx(METROS_PADRAO_PRODUTIVO.altura)
+    )
     return {
       id,
       tipo: 'canteiro',
@@ -61,7 +71,7 @@ export function criarComponenteNoMapa(payload, index = 0) {
       y: 20 + offset,
       largura,
       altura,
-      metros: metrosPayload(payload),
+      metros,
       cor: '#6ca234',
       config: {
         linhas,
@@ -74,7 +84,12 @@ export function criarComponenteNoMapa(payload, index = 0) {
   }
 
   if (payload.tipo === TIPOS_COMPONENTE.SEMENTEIRA) {
-    const { largura, altura } = dimensoesPx(payload, 130, 70)
+    const metros = metrosPadraoProdutivo(payload)
+    const { largura, altura } = dimensoesPx(
+      { ...payload, metrosLargura: metros.largura, metrosAltura: metros.altura },
+      metrosParaPx(6),
+      metrosParaPx(24)
+    )
     return {
       id,
       tipo: 'sementeira',
@@ -83,14 +98,19 @@ export function criarComponenteNoMapa(payload, index = 0) {
       y: 20 + offset,
       largura,
       altura,
-      metros: metrosPayload(payload),
+      metros,
       cor: '#ff9600',
       config: { capacidade: payload.capacidade || 20 }
     }
   }
 
   if (payload.tipo === TIPOS_COMPONENTE.RUSTIFICACAO) {
-    const { largura, altura } = dimensoesPx(payload, 130, 70)
+    const metros = metrosPayload(payload) || { largura: 10, altura: 8 }
+    const { largura, altura } = dimensoesPx(
+      { ...payload, metrosLargura: metros.largura, metrosAltura: metros.altura },
+      metrosParaPx(10),
+      metrosParaPx(8)
+    )
     return {
       id,
       tipo: 'rustificacao',
@@ -99,7 +119,7 @@ export function criarComponenteNoMapa(payload, index = 0) {
       y: 160 + offset,
       largura,
       altura,
-      metros: metrosPayload(payload),
+      metros,
       cor: '#ffe135',
       config: { capacidade: payload.capacidade || 20 }
     }
@@ -140,4 +160,33 @@ function metrosPayload(payload) {
   const altura = Number(payload.metrosAltura)
   if (largura > 0 && altura > 0) return { largura, altura }
   return null
+}
+
+const OFFSET_DUPLICAR = 40
+const SUFIXO_COPIA = /(?:\s*\(cópia\)|\s*\(\d+\))$/i
+
+/** Nome único para cópia (respeita maxlength 50 do cadastro). */
+export function nomeDuplicado(nomeBase, nomesExistentes = []) {
+  const set = new Set(nomesExistentes.map((n) => (n || '').trim().toLowerCase()))
+  const raiz = (nomeBase || 'Área').replace(SUFIXO_COPIA, '').trim() || 'Área'
+  const tentativas = [`${raiz} (cópia)`]
+  for (let i = 2; i <= 99; i++) tentativas.push(`${raiz} (${i})`)
+  for (const candidato of tentativas) {
+    const nome = candidato.slice(0, 50)
+    if (!set.has(nome.toLowerCase())) return nome
+  }
+  return `${raiz} ${Date.now() % 10000}`.slice(0, 50)
+}
+
+/** Clona área do croqui: novo id, sem vínculo API, deslocada no mapa. */
+export function duplicarCampoNoMapa(campo) {
+  if (!campo) return null
+  const copia = JSON.parse(JSON.stringify(campo))
+  copia.id = Date.now() + Math.floor(Math.random() * 10000)
+  delete copia.apiId
+  delete copia.espacos
+  delete copia.canteiros
+  copia.x = (Number(campo.x) || 0) + OFFSET_DUPLICAR
+  copia.y = (Number(campo.y) || 0) + OFFSET_DUPLICAR
+  return copia
 }

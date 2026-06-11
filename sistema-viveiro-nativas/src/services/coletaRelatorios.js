@@ -1,4 +1,5 @@
 import api from './api'
+import { downloadCsvFromRows, flattenParaCsv } from '@/utils/exportCsv'
 
 const API_V1 = '/api/v1'
 
@@ -19,6 +20,36 @@ function downloadBlob(response, fallbackName) {
   window.URL.revokeObjectURL(url)
 }
 
+/** Exporta o que está visível após os filtros da página. */
+export function exportMatrizesCsvFromStore(store) {
+  const rows = store.matrizesFiltradas.map(flattenParaCsv)
+  downloadCsvFromRows(rows, 'matrizes.csv')
+}
+
+export function exportColetasCsvFromStore(store) {
+  const rows = store.coletasFiltradas.map(flattenParaCsv)
+  downloadCsvFromRows(rows, 'coletas.csv')
+}
+
+export function exportLotesCsvFromStore(store) {
+  const rows = store.lotesFiltrados.map(flattenParaCsv)
+  downloadCsvFromRows(rows, 'lotes.csv')
+}
+
+export function exportRastreabilidadeMatrizFromStore(store, idArvoreMatriz) {
+  const matriz = store.arvoresMatriz.find((m) => m.id === idArvoreMatriz)
+  const rows = []
+  if (matriz) rows.push({ secao: 'MATRIZ', ...flattenParaCsv(matriz) })
+  store.coletas
+    .filter((c) => c.id_arvore_matriz === idArvoreMatriz)
+    .forEach((c) => rows.push({ secao: 'COLETA', ...flattenParaCsv(c) }))
+  store.lotes
+    .filter((l) => l.id_arvore_matriz === idArvoreMatriz)
+    .forEach((l) => rows.push({ secao: 'LOTE', ...flattenParaCsv(l) }))
+  downloadCsvFromRows(rows, `rastreabilidade-matriz-${idArvoreMatriz}.csv`)
+}
+
+/** API (uso programático / integrações). */
 export async function exportMatrizesCsv() {
   const response = await api.get(`${API_V1}/coleta-relatorios/export/matrizes.csv`, {
     responseType: 'blob'

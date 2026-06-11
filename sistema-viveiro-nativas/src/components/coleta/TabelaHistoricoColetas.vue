@@ -35,10 +35,24 @@
             <td>{{ coleta.matriz_nome || '—' }}</td>
             <td>{{ coleta.especie_nome || '—' }}</td>
             <td>{{ coleta.quantidade_sementes ?? 0 }}</td>
-            <td>{{ coleta.lotes?.length ?? 0 }}</td>
+            <td>
+              <template v-if="coleta.lotes?.length">
+                <span v-for="l in coleta.lotes" :key="l.id" class="lote-chip">{{ l.codigo_lote }}</span>
+              </template>
+              <span v-else>—</span>
+            </td>
             <td>{{ coleta.funcionario_nome || '—' }}</td>
             <td class="obs-cell">{{ coleta.observacoes || '—' }}</td>
             <td class="acoes">
+              <button
+                v-if="primeiroLoteSemTeste(coleta)"
+                type="button"
+                class="btn-teste"
+                title="Registrar teste de germinação"
+                @click="emit('registrar-teste', primeiroLoteSemTeste(coleta))"
+              >
+                Teste germ.
+              </button>
               <button type="button" class="btn-editar" title="Editar coleta" @click="emit('editar-coleta', coleta)">
                 Editar
               </button>
@@ -63,9 +77,19 @@
 
 <script setup>
 import { useColetaStore } from '@/store/coleta'
+import { lotePrecisaTesteGerminacao } from '@/utils/coletaKpi'
 
-const emit = defineEmits(['editar-coleta'])
+const emit = defineEmits(['editar-coleta', 'registrar-teste'])
 const store = useColetaStore()
+
+function primeiroLoteSemTeste(coleta) {
+  const lotes = coleta.lotes || []
+  for (const l of lotes) {
+    const full = store.lotes.find((x) => x.id === l.id) || l
+    if (lotePrecisaTesteGerminacao(full, store.testes)) return full
+  }
+  return null
+}
 
 function formatarData(data) {
   if (!data) return '—'
@@ -169,6 +193,27 @@ async function excluir(coleta) {
   cursor: pointer;
   background: var(--color-success-bg);
   color: var(--color-success);
+}
+
+.btn-teste {
+  border: none;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+}
+
+.lote-chip {
+  display: inline-block;
+  margin: 0.1rem 0.2rem 0.1rem 0;
+  padding: 0.1rem 0.35rem;
+  font-size: 0.6875rem;
+  font-family: var(--font-mono, monospace);
+  background: var(--color-primary-subtle);
+  border-radius: var(--radius-sm);
 }
 
 .btn-excluir {

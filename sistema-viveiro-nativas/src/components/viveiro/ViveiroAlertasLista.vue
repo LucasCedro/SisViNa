@@ -24,22 +24,25 @@ const alertas = computed(() => store.alertasAtivos || [])
 
 <style scoped>
 .alertas-panel {
-  margin-top: var(--spacing-lg);
-  padding-top: var(--spacing-lg);
+  margin-top: var(--v-s4);
+  padding-top: var(--v-s3);
   border-top: 1px solid var(--color-border-subtle);
 }
 
 .alertas-titulo {
-  margin: 0 0 var(--spacing-sm);
-  font-size: 0.9375rem;
-  font-weight: 600;
-  color: var(--color-text-primary);
+  margin: 0 0 var(--v-s2);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
 }
 
 .alertas-vazio {
   margin: 0;
   font-size: 0.875rem;
   color: var(--color-text-muted);
+  line-height: var(--v-line);
 }
 
 .alertas-lista {
@@ -48,17 +51,18 @@ const alertas = computed(() => store.alertasAtivos || [])
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-sm);
+  gap: var(--v-s2);
 }
 
 .alerta-item {
   display: flex;
-  gap: var(--spacing-sm);
+  gap: var(--v-s2);
   align-items: flex-start;
-  padding: var(--spacing-sm) var(--spacing-md);
+  padding: var(--v-s2) var(--v-s3);
   background: #fef3f2;
-  border-radius: var(--radius-md);
-  font-size: 0.8125rem;
+  border-radius: var(--radius-lg);
+  font-size: 0.875rem;
+  line-height: var(--v-line);
 }
 
 .alerta-dot {

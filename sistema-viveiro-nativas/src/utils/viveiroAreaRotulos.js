@@ -1,3 +1,5 @@
+import { orientacaoFaixa } from '@/constants/viveiroDimensoes'
+
 /** Estimativa de largura de texto em px (SVG / UI). */
 export function estimarLarguraTexto(texto, fontSize, fator = 0.55) {
   if (!texto) return 0
@@ -39,7 +41,7 @@ export function tamanhosFonteArea(largura, altura) {
  * Rótulos do mapa HTML (PlantaBaixa): tamanhos proporcionais ao retângulo,
  * sem compensação de scale (evita fontes gigantes e caixas estourando).
  */
-export function rotulosMapaElemento({ largura, altura, nome, temBadge = false }) {
+export function rotulosMapaElemento({ largura, altura, nome, temBadge = false, metros = null }) {
   const w = largura || 100
   const h = altura || 80
   const pad = clamp(Math.round(Math.min(w, h) * 0.05), 3, 7)
@@ -47,9 +49,12 @@ export function rotulosMapaElemento({ largura, altura, nome, temBadge = false })
   const ih = Math.max(12, h - pad * 2)
   const short = Math.min(w, h)
   const nomeStr = String(nome || '')
+  const faixa = orientacaoFaixa(w, h)
 
   let layout = 'padrao'
-  if (short < 34 || iw < 26) layout = 'minimal'
+  if (faixa === 'vertical' && ih >= 48) layout = 'faixa-v'
+  else if (faixa === 'horizontal' && iw >= 48) layout = 'faixa-h'
+  else if (short < 34 || iw < 26) layout = 'minimal'
   else if (w < 88 || (temBadge && w < 120) || h < 48) layout = 'stacked'
 
   const fsBadge = clamp(Math.round(short * 0.095 + 7), 8, 11)
@@ -71,17 +76,30 @@ export function rotulosMapaElemento({ largura, altura, nome, temBadge = false })
     13
   )
 
-  const nomeExib = truncarTexto(nomeStr, iw, fsNome, 0.52)
-  const showTipo = layout !== 'minimal' && ih >= fsTipo + fsNome + 6
+  let fsNomeFinal = fsNome
+  if (layout === 'faixa-v') {
+    fsNomeFinal = clamp(Math.round(short * 0.22 + 6), 9, 14)
+  } else if (layout === 'faixa-h') {
+    fsNomeFinal = clamp(Math.round(short * 0.2 + 7), 9, 13)
+  }
+
+  const nomeExib =
+    layout === 'faixa-v'
+      ? truncarTexto(nomeStr, Math.max(ih - 24, 20), fsNomeFinal, 0.48)
+      : truncarTexto(nomeStr, iw, fsNomeFinal, 0.52)
+  const showTipo = layout !== 'minimal' && layout !== 'faixa-v' && ih >= fsTipo + fsNome + 6
+  const metrosExib =
+    metros?.largura > 0 && metros?.altura > 0 ? `${metros.largura}×${metros.altura} m` : null
 
   return {
     layout,
-    fsTipo: showTipo ? fsTipo : 0,
-    fsNome,
+    fsTipo: showTipo || layout === 'faixa-v' || layout === 'faixa-h' ? fsTipo : 0,
+    fsNome: fsNomeFinal,
     fsBadge,
     pad,
     nomeExib,
-    showTipo,
+    showTipo: showTipo || layout === 'faixa-v' || layout === 'faixa-h',
+    metrosExib,
   }
 }
 
@@ -95,7 +113,16 @@ export function fontesMapaElemento(largura, altura) {
  * Rótulos SVG dentro de um retângulo de área do viveiro.
  * Empilha ou encurta conforme largura/altura disponível.
  */
-export function layoutRotulosArea({ x, y, largura: w, altura: h, rotuloTipo, nome, badge = null }) {
+export function layoutRotulosArea({
+  x,
+  y,
+  largura: w,
+  altura: h,
+  rotuloTipo,
+  nome,
+  badge = null,
+  metros = null,
+}) {
   const { tipo: FS_TIPO, nome: FS_NOME, badge: FS_BADGE } = tamanhosFonteArea(w, h)
   const lines = []
   const iw = Math.max(0, w - PAD * 2)
@@ -105,8 +132,97 @@ export function layoutRotulosArea({ x, y, largura: w, altura: h, rotuloTipo, nom
   const tipoTxt = tipoRaw.toUpperCase()
   const nomeTxt = truncarTexto(nome || '', iw, FS_NOME, 0.5)
   const badgeStr = badge ? String(badge) : null
+  const metrosTxt =
+    metros?.largura > 0 && metros?.altura > 0 ? `${metros.largura}×${metros.altura} m` : null
+  const faixa = orientacaoFaixa(w, h)
 
   const push = (line) => lines.push(line)
+
+  if (faixa === 'vertical' && ih >= 40) {
+    const cx = x + w / 2
+    const fsTipoF = clamp(Math.round(Math.min(w, h) * 0.14 + 5), 8, 11)
+    const fsNomeF = clamp(Math.round(Math.min(w, h) * 0.18 + 6), 10, 14)
+    const fsMetros = clamp(fsTipoF - 1, 7, 10)
+    push({
+      text: truncarTexto(tipoTxt, iw, fsTipoF, 0.55),
+      x: cx,
+      y: y + PAD + fsTipoF,
+      class: 'lbl-tipo',
+      anchor: 'middle',
+      fontSize: fsTipoF,
+    })
+    if (metrosTxt && ih > 80) {
+      push({
+        text: metrosTxt,
+        x: cx,
+        y: y + PAD + fsTipoF + fsMetros + 4,
+        class: 'lbl-metros',
+        anchor: 'middle',
+        fontSize: fsMetros,
+      })
+    }
+    push({
+      text: truncarTexto(nome || '', Math.max(ih - 40, 24), fsNomeF, 0.45),
+      x: cx,
+      y: y + h / 2,
+      class: 'lbl-nome',
+      anchor: 'middle',
+      fontSize: fsNomeF,
+      transform: `rotate(-90, ${cx}, ${y + h / 2})`,
+    })
+    if (badgeStr) {
+      push({
+        text: badgeStr,
+        x: cx,
+        y: y + h - PAD,
+        class: 'lbl-badge',
+        anchor: 'middle',
+        fontSize: FS_BADGE,
+      })
+    }
+    return { lines, mode: 'faixa-v' }
+  }
+
+  if (faixa === 'horizontal' && iw >= 56) {
+    const cy = y + h / 2
+    const fsNomeF = clamp(Math.round(Math.min(w, h) * 0.2 + 6), 9, 13)
+    push({
+      text: truncarTexto(tipoTxt, iw * 0.25, FS_TIPO, 0.55),
+      x: x + PAD,
+      y: cy + FS_TIPO * 0.35,
+      class: 'lbl-tipo',
+      fontSize: FS_TIPO,
+    })
+    push({
+      text: truncarTexto(nome || '', iw * 0.5, fsNomeF, 0.48),
+      x: x + w / 2,
+      y: cy + fsNomeF * 0.35,
+      class: 'lbl-nome',
+      anchor: 'middle',
+      fontSize: fsNomeF,
+    })
+    if (badgeStr) {
+      push({
+        text: badgeStr,
+        x: x + w - PAD,
+        y: cy + FS_BADGE * 0.35,
+        class: 'lbl-badge',
+        anchor: 'end',
+        fontSize: FS_BADGE,
+      })
+    }
+    if (metrosTxt) {
+      push({
+        text: metrosTxt,
+        x: x + w / 2,
+        y: y + h - PAD,
+        class: 'lbl-metros',
+        anchor: 'middle',
+        fontSize: clamp(FS_TIPO - 1, 7, 10),
+      })
+    }
+    return { lines, mode: 'faixa-h' }
+  }
 
   const linha = (text, ly, cls, opts = {}) => {
     if (!text) return ly

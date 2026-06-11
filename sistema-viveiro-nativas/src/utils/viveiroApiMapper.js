@@ -46,6 +46,7 @@ function mapCampoDesignerParaElemento(campo, plantasPorCanteiro, ocupacaoPorId =
     nome: campo.nome,
     posicao: { x: campo.x ?? 0, y: campo.y ?? 0 },
     dimensoes: { largura: campo.largura ?? 200, altura: campo.altura ?? 120 },
+    metros: campo.metros || null,
     cor: campo.cor || corElemento(tipo),
     mudas,
     capacidade,

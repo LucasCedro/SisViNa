@@ -19,6 +19,8 @@
 | [ADMIN_COCKPIT.md](./ADMIN_COCKPIT.md) | God Mode — cockpit exclusivo do admin |
 | [FISCAL_CONTADOR.md](./FISCAL_CONTADOR.md) | NF-e, regras fiscais, papéis contador vs operador |
 | [REFERENCIA_VIVEIRO.md](./REFERENCIA_VIVEIRO.md) | Parâmetros Embrapa/manual, biblioteca 90 espécies, avisos produção |
+| [PROMPT_GEMINI_JBRJ_ESPECIES.md](./PROMPT_GEMINI_JBRJ_ESPECIES.md) | Prompt (Gemini): schema atual + ingestão JBRJ/Flora do Brasil |
+| [../api_viveiro/scripts/jbrj_flora_etl/README.md](../api_viveiro/scripts/jbrj_flora_etl/README.md) | ETL CLI → `especies_master` (referência JBRJ) |
 
 ## Frontend
 

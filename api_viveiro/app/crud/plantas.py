@@ -743,8 +743,23 @@ async def promover_mudas(
         _marcar_inicio_estagio(planta, data_germ)
         transferidas.append(planta.id)
 
+    avisos: List[str] = []
+    baixa_substrato = None
+    if transferidas:
+        from app.services.baixa_insumos import baixa_substrato_transferencia_canteiro
+
+        baixa_substrato, avisos_baixa = await baixa_substrato_transferencia_canteiro(
+            db, len(transferidas)
+        )
+        avisos.extend(avisos_baixa)
+
     await db.commit()
-    return {"transferidas": len(transferidas), "ids_plantas": transferidas}
+    return {
+        "transferidas": len(transferidas),
+        "ids_plantas": transferidas,
+        "avisos": avisos,
+        "baixa_substrato": baixa_substrato,
+    }
 
 
 async def cadastro_lote_plantas(

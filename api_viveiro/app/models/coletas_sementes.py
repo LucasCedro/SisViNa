@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, Date, DateTime, ForeignKey, func
+from sqlalchemy import Column, Integer, Numeric, Text, Date, DateTime, ForeignKey, func
 from sqlalchemy.orm import relationship
 
 from app.database import Base
@@ -12,6 +12,9 @@ class ColetaSementes(Base):
     id_funcionario = Column(Integer, ForeignKey("funcionarios.id"), nullable=False)
     data_coleta = Column(Date, nullable=False)
     quantidade_sementes = Column(Integer, nullable=False)
+    sementes_reservadas_teste = Column(Integer, nullable=False, default=0, server_default="0")
+    horas_campo = Column(Numeric(8, 2))
+    custo_campo_total = Column(Numeric(12, 2))
     observacoes = Column(Text)
     data_registro = Column(DateTime, server_default=func.now())
 

@@ -20,15 +20,25 @@ router = APIRouter()
 def _csv_response(rows: list, filename: str) -> StreamingResponse:
     if not rows:
         rows = [{}]
+    fieldnames: list[str] = []
+    seen: set[str] = set()
+    for row in rows:
+        for key in row.keys():
+            if key not in seen:
+                seen.add(key)
+                fieldnames.append(key)
+    if "secao" in seen:
+        fieldnames = ["secao"] + [k for k in fieldnames if k != "secao"]
     buffer = io.StringIO()
-    writer = csv.DictWriter(buffer, fieldnames=list(rows[0].keys()), extrasaction="ignore")
+    writer = csv.DictWriter(buffer, fieldnames=fieldnames, extrasaction="ignore")
     writer.writeheader()
     for row in rows:
         flat = {k: ("" if v is None else v) for k, v in row.items()}
         writer.writerow(flat)
-    buffer.seek(0)
+    # BOM para Excel abrir acentos corretamente
+    content = "\ufeff" + buffer.getvalue()
     return StreamingResponse(
-        iter([buffer.getvalue()]),
+        iter([content]),
         media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )

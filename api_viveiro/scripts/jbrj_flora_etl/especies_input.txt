@@ -1,0 +1,94 @@
+# 90 espécies do SisViNa (tabela especies) — gerado do banco em 2026-06-07
+# Uso: python import_species_master.py
+
+Acrocomia aculeata (Jacq.) Lodd. ex Mart.
+Albizia niopoides (Spruce ex Benth.) Burkart
+Alibertia edulis (Rich.) A.Rich.
+Anacardium humile A. St. -Hil.
+Anadenanthera colubrina (Vell.) Brenan
+Anadenanthera peregrina (L.) Speg.
+Annona coriacea Mart.
+Annona crassiflora Mart.
+Apeiba tibourbou Aubl.
+Apuleia leiocarpa (Vogel) J.F.Macbr.
+Aspidosperma macrocarpon Mart.
+Aspidosperma pyrifolium Mart.
+Aspidosperma spruceanum Benth. ex Müll. Arg.
+Aspidosperma subincanum Mart.
+Aspidosperma tomentosum Mart.
+Astronium fraxinifolium Schott
+Bowdichia virgilioides Kunth
+Brosimum gaudichaudii Trécul
+Buchenavia tomentosa Eichler
+Byrsonima verbascifolia (L.) DC.
+Cabralea canjerana (Vell.) Mart.
+Calophyllum brasiliense Cambess.
+Caryocar brasiliense Cambess.
+Casearia sylvestris Swartz.
+Cecropia pachystachya Trécul.
+Cedrela fissilis Vell.
+Copaifera langsdorffii Desf.
+Cordia trichotoma (Vell.) Arráb. ex Steud.
+Croton urucurana Baill.
+Cybistax antisyphilitica (Mart) Mart.
+Dalbergia miscolobium Benth.
+Dimorphandra mollis Benth.
+Dipteryx alata Vogel
+Emmotum nitens (Benth.) Miers
+Enterolobium contortisiliquum (Vell.) Morong
+Eriotheca pubescens (Mart. & Zucc.) Schott & Endl.
+Eugenia dysenterica (Mart.) DC.
+Euterpe edulis Mart.
+Genipa americana L.
+Guarea guidonia (L.) Sleumer
+Guazuma ulmifolia Lam.
+Hancornia speciosa Gomes
+Handroanthus chrysotrichus (Mart. Ex DC.) Mattos
+Handroanthus heptaphyllus (Vell.) Mattos
+Handroanthus impetiginosus (Mart. ex. DC.) Mattos
+Handroanthus ochraceus (Cham.) Mattos
+Handroanthus serratifolius (Vahl.) S. Grose
+Hymenaea courbaril L.
+Hymenaea stigonocarpa Mart. ex Hayne
+Inga cylindrica (Vell.) Mart.
+Inga laurina (Sw.) Willd.
+Inga vera Willd.
+Jacaranda brasiliana (Lam.) Pers.
+Jacaranda cuspidifolia Mart.
+Kielmeyera coriacea Mart. & Zucc.
+Lafoensia pacari A. St. -Hil.
+Luehea paniculata Mart. & Zucc.
+Magnolia ovata (A.St.-Hil.) Spreng.
+Magonia pubescens A. St. -Hil.
+Mauritia flexuosa L.f.
+Myracrodruon urundeuva Allemão
+Myroxylon peruiferum L. f.
+Parkia pendula (Willd.) Benth. ex. Walp.
+Physocalymma scaberrimum Pohl
+Piptadenia gonoacantha (Mart.) J.F. Macbr.
+Platypodium elegans Vogel
+Pouteria ramiflora (Mart.) Radlk.
+Pouteria torta (Mart.) Radlk.
+Pseudobombax longiflorum (Mart. & Zucc.) A. Robyns
+Pterodon emarginatus Vogel.
+Pterodon pubescens (Benth.) Benth.
+Qualea grandiflora Mart.
+Qualea parviflora Mart.
+Rhamnidium elaeocarpum Reissek
+Roupala montana Aubl.
+Salacia crassifolia (Mart. ex Schult.) G. Don
+Schinopsis brasiliensis Engl.
+Senna macranthera (DC. ex Collad.) H. S. Irwin & Barneby
+Senna multijuga (Rich.) H. S. Irwin & Barneby
+Simarouba amara Aubl.
+Solanum falciforme Farruggia
+Stryphnodendron adstringens (Mart.) Coville
+Swartzia langsdorffii Raddi
+Syagrus oleracea (Mart.) Becc.
+Syagrus romanzoffiana (Cham.) Glassman
+Tabebuia aurea (Silva Manso) Benth. & Hook.f. ex S.Moore
+Tapirira guianensis Aubl.
+Terminalia argentea Mart.
+Tibouchina candolleana (Mart. ex DC.) Cogn.
+Xylopia aromatica (Lam.) Mart.
+

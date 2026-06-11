@@ -11,9 +11,20 @@ class PromoverMudasRequest(BaseModel):
     observacoes: Optional[str] = None
 
 
+class BaixaSubstratoResumo(BaseModel):
+    insumo_id: int
+    insumo_nome: str
+    quantidade: float
+    unidade: str
+    por_muda: float
+    detalhe: str
+
+
 class PromoverMudasResponse(BaseModel):
     transferidas: int
     ids_plantas: List[int]
+    avisos: List[str] = Field(default_factory=list)
+    baixa_substrato: Optional[BaixaSubstratoResumo] = None
 
 
 class TransferirRustificacaoRequest(BaseModel):

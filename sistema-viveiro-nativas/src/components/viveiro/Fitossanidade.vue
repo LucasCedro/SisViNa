@@ -145,8 +145,14 @@
     </div>
     
     <!-- Modal de formulário -->
-    <div class="modal-overlay" v-if="formularioAberto" @click.self="fecharFormulario">
-      <div class="modal-content">
+    <div
+      v-if="formularioAberto"
+      class="modal-overlay"
+      @pointerdown.self="overlayFormulario.onOverlayPointerDown"
+      @pointerup.self="overlayFormulario.onOverlayPointerUp"
+      @pointercancel.self="overlayFormulario.cancelarFechamentoOverlay"
+    >
+      <div class="modal-content" @pointerdown="overlayFormulario.onModalPointerDown">
         <div class="modal-header">
           <h2 class="modal-title">{{ modoEdicao ? 'Editar Ocorrência' : 'Nova Ocorrência' }}</h2>
           <button class="btn-fechar" @click="fecharFormulario">×</button>
@@ -239,8 +245,14 @@
     </div>
     
     <!-- Modal de detalhes -->
-    <div class="modal-overlay" v-if="detalhesAbertos" @click.self="fecharDetalhes">
-      <div class="modal-content">
+    <div
+      v-if="detalhesAbertos"
+      class="modal-overlay"
+      @pointerdown.self="overlayDetalhes.onOverlayPointerDown"
+      @pointerup.self="overlayDetalhes.onOverlayPointerUp"
+      @pointercancel.self="overlayDetalhes.cancelarFechamentoOverlay"
+    >
+      <div class="modal-content" @pointerdown="overlayDetalhes.onModalPointerDown">
         <div class="modal-header">
           <h2 class="modal-title">Detalhes da Ocorrência</h2>
           <button class="btn-fechar" @click="fecharDetalhes">×</button>
@@ -288,6 +300,7 @@ import Chart from 'chart.js/auto'
 import { listCanteiros } from '@/services/canteiros'
 import { listPragasPlantas, listTiposPragas, createPragaPlanta } from '@/services/pragas'
 import { listPlantasComRelacoes } from '@/services/plantas'
+import { useModalOverlayClose } from '@/composables/useModalOverlayClose'
 import { useAuthStore } from '@/store/auth'
 import {
   CHART_PRIMARY,
@@ -423,9 +436,16 @@ const abrirFormulario = () => {
   formularioAberto.value = true;
 };
 
-const fecharFormulario = () => {
+const fecharFormularioInterno = () => {
   formularioAberto.value = false;
   resetarFormulario();
+};
+
+const overlayFormulario = useModalOverlayClose(fecharFormularioInterno);
+
+const fecharFormulario = () => {
+  overlayFormulario.resetOverlayPress();
+  fecharFormularioInterno();
 };
 
 const resetarFormulario = () => {
@@ -503,9 +523,16 @@ const verDetalhes = (ocorrencia) => {
   detalhesAbertos.value = true;
 };
 
-const fecharDetalhes = () => {
+const fecharDetalhesInterno = () => {
   detalhesAbertos.value = false;
   ocorrenciaSelecionada.value = null;
+};
+
+const overlayDetalhes = useModalOverlayClose(fecharDetalhesInterno);
+
+const fecharDetalhes = () => {
+  overlayDetalhes.resetOverlayPress();
+  fecharDetalhesInterno();
 };
 
 const aplicarFiltros = () => {

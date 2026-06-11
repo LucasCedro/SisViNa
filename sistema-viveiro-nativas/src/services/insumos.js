@@ -11,3 +11,8 @@ export async function createInsumo(payload) {
   const { data } = await api.post(`${API_V1}/insumos/`, payload)
   return data
 }
+
+export async function updateInsumo(insumoId, payload) {
+  const { data } = await api.put(`${API_V1}/insumos/${insumoId}`, payload)
+  return data
+}

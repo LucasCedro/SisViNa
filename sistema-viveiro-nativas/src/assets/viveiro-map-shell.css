@@ -1,0 +1,91 @@
+/* Shell compartilhado: /viveiro e planta-editor */
+
+:root {
+  --v-s1: 0.5rem;
+  --v-s2: 0.75rem;
+  --v-s3: 1rem;
+  --v-s4: 1.5rem;
+  --v-line: 1.5;
+  --v-page-x: 1.5rem;
+  --v-panel-x: 1.25rem;
+  --v-panel-y: 1.25rem;
+}
+
+.viveiro-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  padding: 0.75rem 1.25rem;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border-subtle);
+  flex-shrink: 0;
+}
+
+.viveiro-toolbar__group {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.125rem;
+  padding: 0.125rem;
+  background: var(--color-surface-muted);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+}
+
+.viveiro-toolbar__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.25rem;
+  height: 2.25rem;
+  padding: 0 0.5rem;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.viveiro-toolbar__btn:hover {
+  background: var(--color-surface);
+  color: var(--color-primary);
+}
+
+.viveiro-toolbar__btn--text {
+  min-width: auto;
+  padding: 0 0.625rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.viveiro-toolbar__label {
+  min-width: 2.75rem;
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.viveiro-map-canvas-bg {
+  background:
+    radial-gradient(ellipse 80% 50% at 20% 0%, rgba(164, 179, 154, 0.25) 0%, transparent 55%),
+    radial-gradient(ellipse 60% 40% at 90% 100%, rgba(89, 98, 71, 0.12) 0%, transparent 50%),
+    linear-gradient(180deg, #e9ede4 0%, #dfe6d8 100%);
+}
+
+.viveiro-map-surface {
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+}
+
+@media (max-width: 640px) {
+  .viveiro-toolbar {
+    padding: 0.625rem 1rem;
+  }
+}

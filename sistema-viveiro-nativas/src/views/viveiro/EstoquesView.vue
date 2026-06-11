@@ -168,9 +168,12 @@
         </template>
 
         <p class="estoque-info-box">
-          <strong>Onde dar entrada:</strong> aba <strong>Insumos</strong> → botão
-          <strong>Entrada</strong> na linha do item (ou cadastre um insumo primeiro).
-          Informe quantidade comprada e valor total pago — o sistema atualiza o preço médio.
+          <strong>Entradas:</strong> registre compras com quantidade e <strong>valor total da NF</strong>
+          — o preço médio alimenta o CMV no Financeiro.
+          <strong>Sementeira:</strong> saídas de substrato são <strong>manuais</strong> (botão Saída).
+          <strong>Canteiro:</strong> na transferência sementeira→canteiro o sistema baixa substrato
+          automaticamente conforme a premissa em
+          <router-link to="/financeiro">Financeiro</router-link>.
         </p>
 
         <div v-if="!resumo.insumos?.length" class="estoque-empty">
@@ -251,6 +254,9 @@
                 </td>
                 <td class="col-acoes">
                   <div class="estoque-acoes-grupo">
+                    <button type="button" class="btn btn-outline btn-sm" title="Editar cadastro" @click="abrirEditarInsumo(i)">
+                      Editar
+                    </button>
                     <button type="button" class="btn btn-primary btn-sm" @click="abrirMov(i, 'entrada')">
                       Entrada
                     </button>
@@ -271,55 +277,109 @@
       </PageSection>
     </template>
 
-    <!-- Modal cadastro insumo -->
-    <div v-if="modalCadastroInsumo" class="estoque-modal-overlay" @click.self="modalCadastroInsumo = false">
-      <div class="estoque-modal" role="dialog">
+    <!-- Modal cadastro / edição insumo -->
+    <div
+      v-if="modalInsumoForm"
+      class="estoque-modal-overlay"
+      @pointerdown.self="overlayInsumo.onOverlayPointerDown"
+      @pointerup.self="overlayInsumo.onOverlayPointerUp"
+      @pointercancel.self="overlayInsumo.cancelarFechamentoOverlay"
+    >
+      <div class="estoque-modal estoque-modal--wide" role="dialog" @pointerdown="overlayInsumo.onModalPointerDown">
         <header class="estoque-modal__header">
-          <h3>Cadastrar insumo</h3>
-          <p>Ex.: Substrato, NPK 10-10-10, tubete</p>
+          <h3>{{ modoInsumoForm === 'editar' ? 'Editar insumo' : 'Cadastrar insumo' }}</h3>
+          <p>{{ metaInsumoForm.dicaUnidade }}</p>
         </header>
-        <form class="estoque-modal__body estoque-form-grid" @submit.prevent="salvarCadastroInsumo">
-          <label class="form-label">
+        <form class="estoque-modal__body estoque-form-grid" @submit.prevent="salvarInsumoForm">
+          <label class="form-label form-label--full">
             Nome
-            <input v-model="formInsumo.nome" class="form-input" required type="text" />
+            <input v-model="formInsumo.nome" class="form-input" required type="text" maxlength="100" />
           </label>
           <label class="form-label">
             Tipo
-            <select v-model="formInsumo.tipo" class="form-input">
-              <option value="Substrato">Substrato</option>
-              <option value="Hidrogel">Hidrogel</option>
-              <option value="Fertilizante">Fertilizante</option>
-              <option value="Embalagem">Embalagem</option>
-              <option value="Defensivo">Defensivo</option>
-              <option value="Outro">Outro</option>
+            <select v-model="formInsumo.tipo" class="form-input" :disabled="modoInsumoForm === 'editar'">
+              <option v-for="t in TIPOS_INSUMO" :key="t.value" :value="t.value">{{ t.label }}</option>
             </select>
           </label>
           <label class="form-label">
-            Unidade de medida
-            <input v-model="formInsumo.unidade_medida" class="form-input" placeholder="kg, L, un, saco…" />
+            Unidade de estoque
+            <select v-model="formInsumo.unidade_medida" class="form-input" required>
+              <option v-for="u in metaInsumoForm.unidades" :key="u.value" :value="u.value">{{ u.label }}</option>
+            </select>
+            <span class="field-hint">{{ metaInsumoForm.dicaUnidade }}</span>
+          </label>
+          <label class="form-label form-label--full">
+            Descrição (opcional)
+            <input
+              v-model="formInsumo.descricao"
+              class="form-input"
+              type="text"
+              placeholder="Ex.: casca de pinus + vermiculita 70/30"
+            />
           </label>
           <label class="form-label">
-            Entrada inicial — quantidade
-            <input v-model.number="formInsumo.quantidade_inicial" class="form-input" type="number" min="0" step="0.01" />
+            Fornecedor (opcional)
+            <input v-model="formInsumo.fornecedor" class="form-input" type="text" maxlength="100" />
           </label>
           <label class="form-label">
-            Valor total pago na compra (R$)
-            <input v-model.number="formInsumo.valor_compra" class="form-input" type="number" min="0" step="0.01" />
+            Estoque mínimo
+            <input v-model.number="formInsumo.estoque_minimo" class="form-input" type="number" min="0" step="0.01" />
+            <span class="field-hint">Opcional</span>
           </label>
-          <p v-if="erroModal" class="alert alert-error">{{ erroModal }}</p>
+          <label class="form-label">
+            Estoque máximo
+            <input v-model.number="formInsumo.estoque_maximo" class="form-input" type="number" min="0" step="0.01" />
+            <span class="field-hint">Opcional</span>
+          </label>
+          <template v-if="modoInsumoForm === 'cadastro'">
+            <label class="form-label">
+              Entrada inicial — quantidade
+              <input
+                v-model.number="formInsumo.quantidade_inicial"
+                class="form-input"
+                type="number"
+                min="0"
+                step="0.01"
+              />
+              <span class="field-hint">Opcional — pode registrar depois em Entrada</span>
+            </label>
+            <label class="form-label">
+              Valor total da NF (R$)
+              <input
+                v-model.number="formInsumo.valor_compra"
+                class="form-input"
+                type="number"
+                min="0"
+                step="0.01"
+                :required="formInsumo.quantidade_inicial > 0"
+              />
+              <span class="field-hint">{{ metaInsumoForm.dicaEntrada }}</span>
+            </label>
+            <p v-if="previewCadastroPu" class="form-label form-label--full insumo-preview-pu">
+              Preço médio estimado: <strong>{{ fmtPrecoUnitario(previewCadastroPu) }}</strong>
+              / {{ formInsumo.unidade_medida }}
+            </p>
+          </template>
+          <p v-if="erroModal" class="alert alert-error form-label--full">{{ erroModal }}</p>
         </form>
         <footer class="estoque-modal__footer">
-          <button type="button" class="btn btn-secondary" @click="modalCadastroInsumo = false">Cancelar</button>
-          <button type="submit" class="btn btn-primary" :disabled="salvando" @click="salvarCadastroInsumo">
-            {{ salvando ? 'Salvando…' : 'Cadastrar' }}
+          <button type="button" class="btn btn-secondary" @click="fecharInsumoForm">Cancelar</button>
+          <button type="submit" class="btn btn-primary" :disabled="salvando" @click="salvarInsumoForm">
+            {{ salvando ? 'Salvando…' : modoInsumoForm === 'editar' ? 'Salvar alterações' : 'Cadastrar' }}
           </button>
         </footer>
       </div>
     </div>
 
     <!-- Modal sementes -->
-    <div v-if="modalEntrada" class="estoque-modal-overlay" @click.self="modalEntrada = false">
-      <div class="estoque-modal" role="dialog" aria-labelledby="modal-sementes-titulo">
+    <div
+      v-if="modalEntrada"
+      class="estoque-modal-overlay"
+      @pointerdown.self="overlayEntrada.onOverlayPointerDown"
+      @pointerup.self="overlayEntrada.onOverlayPointerUp"
+      @pointercancel.self="overlayEntrada.cancelarFechamentoOverlay"
+    >
+      <div class="estoque-modal" role="dialog" aria-labelledby="modal-sementes-titulo" @pointerdown="overlayEntrada.onModalPointerDown">
         <header class="estoque-modal__header">
           <h3 id="modal-sementes-titulo">Entrada de sementes</h3>
           <p>Compra ou estoque guardado</p>
@@ -369,8 +429,14 @@
     </div>
 
     <!-- Modal insumo -->
-    <div v-if="modalMov" class="estoque-modal-overlay" @click.self="fecharMov">
-      <div class="estoque-modal" role="dialog">
+    <div
+      v-if="modalMov"
+      class="estoque-modal-overlay"
+      @pointerdown.self="overlayMov.onOverlayPointerDown"
+      @pointerup.self="overlayMov.onOverlayPointerUp"
+      @pointercancel.self="overlayMov.cancelarFechamentoOverlay"
+    >
+      <div class="estoque-modal" role="dialog" @pointerdown="overlayMov.onModalPointerDown">
         <header class="estoque-modal__header">
           <h3>{{ formMov.tipo === 'entrada' ? 'Entrada de insumo' : 'Saída de insumo' }}</h3>
           <p>{{ insumoSelecionado?.nome }} · saldo atual {{ insumoSelecionado?.quantidade_estoque }} {{ insumoSelecionado?.unidade_medida || 'un.' }}</p>
@@ -388,26 +454,47 @@
             />
           </label>
           <label v-if="formMov.tipo === 'entrada'" class="form-label">
-            Valor total pago (R$)
+            Valor total da NF (R$)
             <input
               v-model.number="formMov.valor_total"
               class="form-input"
               type="number"
-              min="0"
+              min="0.01"
               step="0.01"
               placeholder="Ex.: 1000,00"
+              :required="entradaExigeValor"
             />
-            <span class="field-hint">Atualiza o preço médio (CMV) do estoque</span>
+            <span class="field-hint">
+              {{ entradaExigeValor ? 'Obrigatório na primeira entrada (preço médio = CMV)' : 'Atualiza o preço médio do estoque' }}
+            </span>
+          </label>
+          <p
+            v-if="formMov.tipo === 'entrada' && previewMovPu"
+            class="form-label form-label--full insumo-preview-pu"
+          >
+            Preço unitário desta entrada: <strong>{{ fmtPrecoUnitario(previewMovPu) }}</strong>
+            / {{ insumoSelecionado?.unidade_medida }}
+          </p>
+          <label v-if="formMov.tipo === 'saida'" class="form-label">
+            Motivo
+            <select v-model="formMov.motivo" class="form-input">
+              <option v-for="m in MOTIVOS_SAIDA" :key="m.value" :value="m.value">{{ m.label }}</option>
+            </select>
           </label>
           <label class="form-label">
             Data da movimentação
             <input v-model="formMov.data_movimento" class="form-input" type="date" required />
           </label>
-          <label class="form-label">
-            Observação (opcional)
-            <input v-model="formMov.observacao" class="form-input" type="text" />
+          <label class="form-label form-label--full">
+            Observação
+            <input
+              v-model="formMov.observacao_extra"
+              class="form-input"
+              type="text"
+              :placeholder="formMov.tipo === 'saida' ? 'Detalhe opcional' : 'NF, lote, fornecedor…'"
+            />
           </label>
-          <p v-if="erroModal" class="alert alert-error">{{ erroModal }}</p>
+          <p v-if="erroModal" class="alert alert-error form-label--full">{{ erroModal }}</p>
         </form>
         <footer class="estoque-modal__footer">
           <button type="button" class="btn btn-secondary" @click="fecharMov">Cancelar</button>
@@ -421,7 +508,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import PageLayout from '@/components/layout/PageLayout.vue'
 import PageSection from '@/components/layout/PageSection.vue'
 import EstoqueComercialPanel from '@/components/estoques/EstoqueComercialPanel.vue'
@@ -429,9 +516,18 @@ import EstoqueTimelinePanel from '@/components/estoques/EstoqueTimelinePanel.vue
 import EstoqueAnaliticoPanel from '@/components/estoques/EstoqueAnaliticoPanel.vue'
 import EstoqueFluxoBar from '@/components/estoques/EstoqueFluxoBar.vue'
 import { getResumoEstoques, entradaSementesArmazem, registrarMovimentacaoInsumo } from '@/services/estoques'
-import { createInsumo } from '@/services/insumos'
+import { createInsumo, updateInsumo } from '@/services/insumos'
 import { listEspecies } from '@/services/especies'
+import {
+  TIPOS_INSUMO,
+  MOTIVOS_SAIDA,
+  metaTipoInsumo,
+  unidadeDefaultTipo,
+  previewPrecoUnitario,
+  fmtPrecoUnitario,
+} from '@/constants/insumosUi'
 import '@/components/estoques/estoques-shared.css'
+import { useModalOverlayClose } from '@/composables/useModalOverlayClose'
 
 const resumo = ref(null)
 const especies = ref([])
@@ -440,18 +536,39 @@ const carregando = ref(true)
 const erroPagina = ref('')
 const modalEntrada = ref(false)
 const modalMov = ref(false)
-const modalCadastroInsumo = ref(false)
+const modalInsumoForm = ref(false)
+const modoInsumoForm = ref('cadastro')
+const insumoEditandoId = ref(null)
 const salvando = ref(false)
 const erroModal = ref('')
 const insumoSelecionado = ref(null)
 
-const formInsumo = ref({
-  nome: '',
-  tipo: 'Substrato',
-  unidade_medida: 'kg',
-  quantidade_inicial: null,
-  valor_compra: null,
+const overlayInsumo = useModalOverlayClose(() => {
+  fecharInsumoForm()
 })
+const overlayEntrada = useModalOverlayClose(() => {
+  modalEntrada.value = false
+})
+const overlayMov = useModalOverlayClose(() => {
+  modalMov.value = false
+  insumoSelecionado.value = null
+})
+
+function formInsumoVazio() {
+  return {
+    nome: '',
+    tipo: 'Substrato',
+    unidade_medida: 'kg',
+    descricao: '',
+    fornecedor: '',
+    estoque_minimo: 0,
+    estoque_maximo: null,
+    quantidade_inicial: null,
+    valor_compra: null,
+  }
+}
+
+const formInsumo = ref(formInsumoVazio())
 
 const formEntrada = ref({
   id_especie: null,
@@ -467,8 +584,38 @@ const formMov = ref({
   quantidade: 1,
   valor_total: null,
   data_movimento: new Date().toISOString().slice(0, 10),
-  observacao: '',
+  motivo: 'uso_sementeira',
+  observacao_extra: '',
 })
+
+const metaInsumoForm = computed(() => metaTipoInsumo(formInsumo.value.tipo))
+
+const previewCadastroPu = computed(() =>
+  previewPrecoUnitario(formInsumo.value.quantidade_inicial, formInsumo.value.valor_compra)
+)
+
+const previewMovPu = computed(() =>
+  previewPrecoUnitario(formMov.value.quantidade, formMov.value.valor_total)
+)
+
+const entradaExigeValor = computed(() => {
+  const i = insumoSelecionado.value
+  if (!i || formMov.value.tipo !== 'entrada') return false
+  const semEstoque = !i.quantidade_estoque || Number(i.quantidade_estoque) <= 0
+  const semPreco = i.preco_unitario == null || Number(i.preco_unitario) <= 0
+  return semEstoque && semPreco
+})
+
+watch(
+  () => formInsumo.value.tipo,
+  (tipo, prev) => {
+    if (modoInsumoForm.value !== 'cadastro' || tipo === prev) return
+    const unidades = metaTipoInsumo(tipo).unidades.map((u) => u.value)
+    if (!unidades.includes(formInsumo.value.unidade_medida)) {
+      formInsumo.value.unidade_medida = unidadeDefaultTipo(tipo)
+    }
+  }
+)
 
 const guias = computed(() => {
   const r = resumo.value
@@ -523,41 +670,82 @@ onMounted(async () => {
 })
 
 function abrirCadastroInsumo() {
+  modoInsumoForm.value = 'cadastro'
+  insumoEditandoId.value = null
+  formInsumo.value = formInsumoVazio()
+  erroModal.value = ''
+  modalInsumoForm.value = true
+}
+
+function abrirEditarInsumo(insumo) {
+  modoInsumoForm.value = 'editar'
+  insumoEditandoId.value = insumo.id
   formInsumo.value = {
-    nome: '',
-    tipo: 'Substrato',
-    unidade_medida: 'kg',
+    nome: insumo.nome,
+    tipo: insumo.tipo,
+    unidade_medida: insumo.unidade_medida || unidadeDefaultTipo(insumo.tipo),
+    descricao: insumo.descricao || '',
+    fornecedor: insumo.fornecedor || '',
+    estoque_minimo: insumo.estoque_minimo ?? 0,
+    estoque_maximo: insumo.estoque_maximo ?? null,
     quantidade_inicial: null,
     valor_compra: null,
   }
   erroModal.value = ''
-  modalCadastroInsumo.value = true
+  modalInsumoForm.value = true
 }
 
-async function salvarCadastroInsumo() {
+function fecharInsumoForm() {
+  overlayInsumo.resetOverlayPress()
+  modalInsumoForm.value = false
+  insumoEditandoId.value = null
+}
+
+async function salvarInsumoForm() {
   erroModal.value = ''
+  if (modoInsumoForm.value === 'cadastro' && formInsumo.value.quantidade_inicial > 0) {
+    if (!formInsumo.value.valor_compra || formInsumo.value.valor_compra <= 0) {
+      erroModal.value = 'Informe o valor total da NF na entrada inicial.'
+      return
+    }
+  }
   salvando.value = true
   try {
-    const ins = await createInsumo({
-      nome: formInsumo.value.nome,
-      tipo: formInsumo.value.tipo,
-      unidade_medida: formInsumo.value.unidade_medida,
-      quantidade_estoque: 0,
-    })
-    if (formInsumo.value.quantidade_inicial > 0) {
-      await registrarMovimentacaoInsumo(ins.id, {
-        tipo: 'entrada',
-        quantidade: formInsumo.value.quantidade_inicial,
-        valor_total: formInsumo.value.valor_compra || undefined,
-        data_movimento: new Date().toISOString().slice(0, 10),
-        observacao: 'Entrada inicial',
+    if (modoInsumoForm.value === 'editar') {
+      await updateInsumo(insumoEditandoId.value, {
+        nome: formInsumo.value.nome.trim(),
+        descricao: formInsumo.value.descricao?.trim() || null,
+        unidade_medida: formInsumo.value.unidade_medida,
+        fornecedor: formInsumo.value.fornecedor?.trim() || null,
+        estoque_minimo: formInsumo.value.estoque_minimo ?? 0,
+        estoque_maximo: formInsumo.value.estoque_maximo || null,
       })
+    } else {
+      const ins = await createInsumo({
+        nome: formInsumo.value.nome.trim(),
+        tipo: formInsumo.value.tipo,
+        descricao: formInsumo.value.descricao?.trim() || null,
+        unidade_medida: formInsumo.value.unidade_medida,
+        fornecedor: formInsumo.value.fornecedor?.trim() || null,
+        estoque_minimo: formInsumo.value.estoque_minimo ?? 0,
+        estoque_maximo: formInsumo.value.estoque_maximo || null,
+        quantidade_estoque: 0,
+      })
+      if (formInsumo.value.quantidade_inicial > 0) {
+        await registrarMovimentacaoInsumo(ins.id, {
+          tipo: 'entrada',
+          quantidade: formInsumo.value.quantidade_inicial,
+          valor_total: formInsumo.value.valor_compra,
+          data_movimento: new Date().toISOString().slice(0, 10),
+          observacao: 'Entrada inicial',
+        })
+      }
     }
-    modalCadastroInsumo.value = false
+    fecharInsumoForm()
     guiaAtiva.value = 'insumos'
     await carregar()
   } catch (e) {
-    erroModal.value = e.response?.data?.detail || 'Erro ao cadastrar insumo.'
+    erroModal.value = e.response?.data?.detail || 'Erro ao salvar insumo.'
   } finally {
     salvando.value = false
   }
@@ -585,26 +773,46 @@ function abrirMov(insumo, tipo) {
     quantidade: 1,
     valor_total: null,
     data_movimento: new Date().toISOString().slice(0, 10),
-    observacao: '',
+    motivo: tipo === 'saida' ? 'uso_sementeira' : 'uso_sementeira',
+    observacao_extra: '',
   }
   erroModal.value = ''
   modalMov.value = true
 }
 
+function montarObservacaoMov() {
+  const partes = []
+  if (formMov.value.tipo === 'saida') {
+    const m = MOTIVOS_SAIDA.find((x) => x.value === formMov.value.motivo)
+    if (m) partes.push(m.label)
+  }
+  if (formMov.value.observacao_extra?.trim()) {
+    partes.push(formMov.value.observacao_extra.trim())
+  }
+  return partes.length ? partes.join(' — ') : undefined
+}
+
 function fecharMov() {
+  overlayMov.resetOverlayPress()
   modalMov.value = false
   insumoSelecionado.value = null
 }
 
 async function salvarMov() {
   erroModal.value = ''
+  if (formMov.value.tipo === 'entrada' && entradaExigeValor.value) {
+    if (!formMov.value.valor_total || formMov.value.valor_total <= 0) {
+      erroModal.value = 'Informe o valor total da NF — necessário para o preço médio (CMV).'
+      return
+    }
+  }
   salvando.value = true
   try {
     const payload = {
       tipo: formMov.value.tipo,
       quantidade: formMov.value.quantidade,
       data_movimento: formMov.value.data_movimento,
-      observacao: formMov.value.observacao || undefined,
+      observacao: montarObservacaoMov(),
     }
     if (formMov.value.tipo === 'entrada' && formMov.value.valor_total != null) {
       payload.valor_total = formMov.value.valor_total
@@ -705,6 +913,27 @@ code {
 
 .estoque-detalhes-extra[open] summary {
   margin-bottom: var(--spacing-md);
+  color: var(--color-primary-700);
+}
+
+.estoque-modal--wide {
+  max-width: 36rem;
+}
+
+.form-label--full {
+  grid-column: 1 / -1;
+}
+
+.insumo-preview-pu {
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  background: var(--color-surface-muted);
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+}
+
+.insumo-preview-pu strong {
   color: var(--color-primary-700);
 }
 </style>

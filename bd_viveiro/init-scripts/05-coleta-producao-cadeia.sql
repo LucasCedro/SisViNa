@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS coletas_sementes (
     id_funcionario INTEGER NOT NULL REFERENCES funcionarios(id),
     data_coleta DATE NOT NULL,
     quantidade_sementes INTEGER NOT NULL CHECK (quantidade_sementes > 0),
+    sementes_reservadas_teste INTEGER NOT NULL DEFAULT 0 CHECK (sementes_reservadas_teste >= 0),
     observacoes TEXT,
     data_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
