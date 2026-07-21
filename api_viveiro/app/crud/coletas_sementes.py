@@ -9,6 +9,7 @@ from app.crud.lotes_sementes import _para_resposta as lote_para_resposta, _ultim
 from app.models.arvores_matriz import ArvoreMatriz
 from app.models.coletas_sementes import ColetaSementes
 from app.models.lotes_sementes import LoteSementes
+from app.models.viveiros import Viveiro
 from app.schemas.coletas_sementes import ColetaSementesCreate, ColetaSementesUpdate
 from app.services.custeio import (
     aplicar_custo_campo_no_lote,
@@ -87,9 +88,24 @@ async def _atualizar_agregados_matriz(db: AsyncSession, id_arvore_matriz: int) -
         await db.commit()
 
 
-async def sanear_custos_coleta_campo_pendentes(db: AsyncSession) -> int:
+async def _id_empresa_da_coleta(db: AsyncSession, coleta: ColetaSementes) -> Optional[int]:
+    arvore = coleta.arvore_matriz
+    if arvore is None:
+        arvore = await db.get(ArvoreMatriz, coleta.id_arvore_matriz)
+    if arvore is None:
+        return None
+    viveiro = await db.get(Viveiro, arvore.id_viveiro)
+    return int(viveiro.id_empresa) if viveiro else None
+
+
+async def sanear_custos_coleta_campo_pendentes(
+    db: AsyncSession,
+    *,
+    id_viveiro: Optional[int] = None,
+    id_empresa: Optional[int] = None,
+) -> int:
     """Recalcula lotes quando a coleta já tem horas mas o valor não foi propagado ao lote."""
-    result = await db.execute(
+    stmt = (
         select(ColetaSementes)
         .join(LoteSementes, LoteSementes.id_coleta_sementes == ColetaSementes.id)
         .options(joinedload(ColetaSementes.lotes))
@@ -100,8 +116,16 @@ async def sanear_custos_coleta_campo_pendentes(db: AsyncSession) -> int:
             ColetaSementes.horas_campo > 0,
             func.coalesce(LoteSementes.valor_total, 0) <= 0,
         )
-        .distinct()
     )
+    if id_viveiro is not None:
+        stmt = stmt.where(LoteSementes.id_viveiro == id_viveiro)
+    elif id_empresa is not None:
+        stmt = stmt.where(
+            LoteSementes.id_viveiro.in_(
+                select(Viveiro.id).where(Viveiro.id_empresa == id_empresa)
+            )
+        )
+    result = await db.execute(stmt.distinct())
     coletas = result.scalars().unique().all()
     if not coletas:
         return 0
@@ -142,6 +166,7 @@ async def get_coletas(
     id_especie: Optional[int] = None,
     data_inicio: Optional[date] = None,
     data_fim: Optional[date] = None,
+    id_viveiro: Optional[int] = None,
 ) -> List[dict]:
     query = (
         select(ColetaSementes)
@@ -155,6 +180,8 @@ async def get_coletas(
     )
     if id_arvore_matriz:
         query = query.where(ColetaSementes.id_arvore_matriz == id_arvore_matriz)
+    if id_viveiro is not None:
+        query = query.where(ArvoreMatriz.id_viveiro == id_viveiro)
     if id_especie:
         query = query.where(ArvoreMatriz.id_especie == id_especie)
     if data_inicio:
@@ -172,9 +199,11 @@ async def get_coletas(
 
 
 async def _aplicar_custo_campo_coleta(
-    db: AsyncSession, coleta: ColetaSementes, lote=None
+    db: AsyncSession, coleta: ColetaSementes, lote=None, id_empresa: Optional[int] = None
 ) -> None:
-    valor_hora = await obter_valor_hora_coleta_campo(db)
+    if id_empresa is None:
+        id_empresa = await _id_empresa_da_coleta(db, coleta)
+    valor_hora = await obter_valor_hora_coleta_campo(db, id_empresa=id_empresa)
     qtd_lote = quantidade_lote_armazem(coleta)
     total, _ = calcular_custo_coleta_campo(coleta.horas_campo, valor_hora, qtd_lote)
     coleta.custo_campo_total = total if total > 0 else None
@@ -182,8 +211,12 @@ async def _aplicar_custo_campo_coleta(
         aplicar_custo_campo_no_lote(lote, total, qtd_lote)
 
 
-async def _recalcular_custo_lotes_coleta(db: AsyncSession, coleta: ColetaSementes) -> None:
-    valor_hora = await obter_valor_hora_coleta_campo(db)
+async def _recalcular_custo_lotes_coleta(
+    db: AsyncSession, coleta: ColetaSementes, id_empresa: Optional[int] = None
+) -> None:
+    if id_empresa is None:
+        id_empresa = await _id_empresa_da_coleta(db, coleta)
+    valor_hora = await obter_valor_hora_coleta_campo(db, id_empresa=id_empresa)
     qtd_lote = quantidade_lote_armazem(coleta)
     total, _ = calcular_custo_coleta_campo(coleta.horas_campo, valor_hora, qtd_lote)
     coleta.custo_campo_total = total if total > 0 else None
@@ -195,15 +228,17 @@ async def _recalcular_custo_lotes_coleta(db: AsyncSession, coleta: ColetaSemente
         aplicar_custo_campo_no_lote(lote, total, qtd_lote)
 
 
-async def get_custo_campo_referencia(db: AsyncSession) -> dict:
+async def get_custo_campo_referencia(
+    db: AsyncSession, id_empresa: Optional[int] = None
+) -> dict:
     from app.models.financeiro_premissa import FinanceiroPremissa
-    from sqlalchemy import select
 
     from app.services.custeio import CHAVE_PREMISSA_COLETA_CAMPO
 
-    result = await db.execute(
-        select(FinanceiroPremissa).where(FinanceiroPremissa.chave == CHAVE_PREMISSA_COLETA_CAMPO)
-    )
+    clauses = [FinanceiroPremissa.chave == CHAVE_PREMISSA_COLETA_CAMPO]
+    if id_empresa is not None:
+        clauses.append(FinanceiroPremissa.id_empresa == id_empresa)
+    result = await db.execute(select(FinanceiroPremissa).where(*clauses))
     prem = result.scalars().first()
     valor = float(prem.valor or 0) if prem and prem.ativo else 0.0
     return {

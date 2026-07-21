@@ -9,7 +9,12 @@
                 class="header-brand-logo"
             />
             <div class="header-actions">
-                <AdminViveiroSelector v-if="auth.isAuthenticated" />
+                <div v-if="auth.isAuthenticated && auth.user?.empresa_ativa" class="header-empresa-chip">
+              <span class="header-empresa-chip__nome">{{ auth.user.empresa_ativa.nome_fantasia }}</span>
+              <span v-if="auth.user.viveiro_ativo" class="header-empresa-chip__viveiro">{{ auth.user.viveiro_ativo.nome }}</span>
+            </div>
+            <AdminEmpresaSelector v-if="auth.isAuthenticated" />
+            <AdminViveiroSelector v-if="auth.isAuthenticated" />
                 <div v-if="auth.isAuthenticated && auth.user" class="user-chip">
                     <span class="user-chip__avatar" aria-hidden="true">{{ iniciais }}</span>
                     <span class="user-chip__nome">{{ auth.user.nome }}</span>
@@ -38,6 +43,7 @@ import { computed, defineProps } from 'vue'
 import { useAuthStore } from '../../store/auth'
 import UserAccountMenu from './UserAccountMenu.vue'
 import AdminViveiroSelector from './AdminViveiroSelector.vue'
+import AdminEmpresaSelector from './AdminEmpresaSelector.vue'
 
 const auth = useAuthStore()
 
@@ -78,6 +84,23 @@ const iniciais = computed(() => {
     align-items: center;
     height: 100%;
     padding: 0 var(--spacing-xl);
+}
+
+.header-empresa-chip {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    margin-right: 0.75rem;
+    line-height: 1.2;
+}
+.header-empresa-chip__nome {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--color-text-primary);
+}
+.header-empresa-chip__viveiro {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
 }
 
 .page-title {

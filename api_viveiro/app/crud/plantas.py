@@ -31,18 +31,29 @@ from app.services.validacao_producao import (
     avisos_liberar_venda,
     avisos_transferir_rustificacao,
 )
+from app.security.viveiro_context import ViveiroContext, assert_record_belongs_to_viveiro
 
 
 def _marcar_inicio_estagio(planta: Planta, quando: Optional[date] = None) -> None:
     planta.data_inicio_estagio_atual = quando or date.today()
 
 
-async def get_planta(db: AsyncSession, planta_id: int) -> Optional[Planta]:
+async def get_planta(
+    db: AsyncSession, planta_id: int, ctx: Optional[ViveiroContext] = None
+) -> Optional[Planta]:
     result = await db.execute(select(Planta).where(Planta.id == planta_id))
-    return result.scalars().first()
+    row = result.scalars().first()
+    if row and ctx is not None:
+        assert_record_belongs_to_viveiro(row.id_viveiro, ctx, "planta")
+    return row
 
-async def get_planta_by_codigo(db: AsyncSession, codigo_rastreio: str) -> Optional[Planta]:
-    result = await db.execute(select(Planta).where(Planta.codigo_rastreio == codigo_rastreio))
+async def get_planta_by_codigo(
+    db: AsyncSession, codigo_rastreio: str, id_viveiro: Optional[int] = None
+) -> Optional[Planta]:
+    query = select(Planta).where(Planta.codigo_rastreio == codigo_rastreio)
+    if id_viveiro is not None:
+        query = query.where(Planta.id_viveiro == id_viveiro)
+    result = await db.execute(query)
     return result.scalars().first()
 
 async def get_plantas(
@@ -53,10 +64,12 @@ async def get_plantas(
     id_canteiro: Optional[int] = None,
     status: Optional[str] = None,
     estagio_producao: Optional[str] = None,
+    id_viveiro: Optional[int] = None,
 ) -> List[Planta]:
     query = select(Planta)
-    
-    # Adicionar filtros se fornecidos
+
+    if id_viveiro is not None:
+        query = query.where(Planta.id_viveiro == id_viveiro)
     if id_especie is not None:
         query = query.where(Planta.id_especie == id_especie)
     
@@ -79,7 +92,8 @@ async def get_plantas_with_relations(
     limit: int = 100,
     id_especie: Optional[int] = None,
     id_canteiro: Optional[int] = None,
-    status: Optional[str] = None
+    status: Optional[str] = None,
+    id_viveiro: Optional[int] = None,
 ) -> List[Dict[str, Any]]:
     query = select(
         Planta, 
@@ -91,7 +105,8 @@ async def get_plantas_with_relations(
         Canteiro, Planta.id_canteiro == Canteiro.id
     )
     
-    # Adicionar filtros se fornecidos
+    if id_viveiro is not None:
+        query = query.where(Planta.id_viveiro == id_viveiro)
     if id_especie is not None:
         query = query.where(Planta.id_especie == id_especie)
     
@@ -117,25 +132,36 @@ async def get_plantas_with_relations(
     
     return plantas_with_relations
 
-async def create_planta(db: AsyncSession, planta: PlantaCreate) -> Planta:
+async def create_planta(
+    db: AsyncSession, planta: PlantaCreate, id_viveiro: Optional[int] = None
+) -> Planta:
     # Gerar código de rastreio se não fornecido
     if not planta.codigo_rastreio:
         planta_dict = planta.dict()
         planta_dict["codigo_rastreio"] = f"PL-{uuid.uuid4().hex[:8].upper()}"
     else:
         planta_dict = planta.dict()
-    
+    if id_viveiro is not None:
+        planta_dict["id_viveiro"] = id_viveiro
+
     db_planta = Planta(**planta_dict)
     db.add(db_planta)
     await db.commit()
     await db.refresh(db_planta)
     return db_planta
 
-async def create_plantas_bulk(db: AsyncSession, planta_base: PlantaCreate, quantidade: int) -> List[Planta]:
+async def create_plantas_bulk(
+    db: AsyncSession,
+    planta_base: PlantaCreate,
+    quantidade: int,
+    id_viveiro: Optional[int] = None,
+) -> List[Planta]:
     """Cria múltiplas plantas de uma mesma espécie de uma vez"""
     plantas = []
     
     planta_dict = planta_base.dict()
+    if id_viveiro is not None:
+        planta_dict["id_viveiro"] = id_viveiro
     for _ in range(quantidade):
         novo_planta_dict = planta_dict.copy()
         novo_planta_dict["codigo_rastreio"] = f"PL-{uuid.uuid4().hex[:8].upper()}"
@@ -173,10 +199,12 @@ DISPONIVEIS_VENDA = ("MUDA", "JOVEM", "ADULTA")
 ESTOQUE_EXPEDIVEL_ESTAGIO = APTA_VENDA
 
 
-async def get_estoque_resumo(db: AsyncSession) -> List[Dict[str, Any]]:
+async def get_estoque_resumo(
+    db: AsyncSession, id_viveiro: Optional[int] = None
+) -> List[Dict[str, Any]]:
     from app.crud.plantas_estoque import filtro_prontas_venda
 
-    query = filtro_prontas_venda(
+    base = (
         select(
             Especie.id.label("id_especie"),
             Especie.nome_popular,
@@ -191,7 +219,12 @@ async def get_estoque_resumo(db: AsyncSession) -> List[Dict[str, Any]]:
         .select_from(Especie)
         .join(Planta, Planta.id_especie == Especie.id)
         .join(Canteiro, Planta.id_canteiro == Canteiro.id)
-    ).group_by(Especie.id, Especie.nome_popular, Especie.nome_cientifico).order_by(
+    )
+    if id_viveiro is not None:
+        base = base.where(Planta.id_viveiro == id_viveiro)
+    query = filtro_prontas_venda(base).group_by(
+        Especie.id, Especie.nome_popular, Especie.nome_cientifico
+    ).order_by(
         func.count(Planta.id).desc()
     )
     rows = (await db.execute(query)).all()
@@ -802,7 +835,7 @@ async def promover_mudas(
 
 
 async def cadastro_lote_plantas(
-    db: AsyncSession, payload: CadastroLotePlantasRequest
+    db: AsyncSession, payload: CadastroLotePlantasRequest, id_viveiro: Optional[int] = None
 ) -> Dict[str, Any]:
     tipo_canteiro = "sementeira" if payload.status == "SEMENTE" else "canteiro"
     await _validar_canteiro_tipo(db, payload.id_canteiro, tipo_canteiro, "Canteiro")
@@ -831,6 +864,7 @@ async def cadastro_lote_plantas(
             id_especie=payload.id_especie,
             id_canteiro=payload.id_canteiro,
             id_lote_sementes=payload.id_lote_sementes,
+            id_viveiro=id_viveiro,
             codigo_rastreio=codigo,
             data_plantio=data_plantio,
             data_germinacao=payload.data_germinacao,

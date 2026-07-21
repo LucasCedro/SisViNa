@@ -5,6 +5,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.bootstrap import (
+    ensure_default_empresa,
     ensure_default_admin,
     ensure_demo_especies,
     ensure_demo_comprador,
@@ -42,6 +43,7 @@ from app.routes import (
     admin_cockpit,
     viveiros,
     florestal,
+    empresa,
 )
 from app.auth.router import router as auth_router
 
@@ -67,6 +69,7 @@ if settings.BACKEND_CORS_ORIGINS:
 @app.on_event("startup")
 async def startup():
     # Schema criado pelos scripts SQL em bd_viveiro/init-scripts
+    await ensure_default_empresa()
     await ensure_default_admin()
     await ensure_default_viveiros()
     await ensure_rbac_demo_users()
@@ -276,4 +279,10 @@ app.include_router(
     florestal.router,
     prefix=f"{settings.API_V1_STR}/florestal",
     tags=["florestal"],
+)
+
+app.include_router(
+    empresa.router,
+    prefix=f"{settings.API_V1_STR}/empresa",
+    tags=["empresa"],
 )

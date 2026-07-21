@@ -65,6 +65,7 @@ export const useAuthStore = defineStore('auth', {
       this.permissions = []
       localStorage.removeItem('token')
       localStorage.removeItem('brotare_admin_viveiro_id')
+      localStorage.removeItem('brotare_admin_empresa_id')
     },
   },
 })

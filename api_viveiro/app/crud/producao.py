@@ -21,19 +21,22 @@ from app.models.plantas import Planta
 from app.models.vendas import ItemVenda, Venda
 
 
-async def _sum_mudas_vendidas_desde(db: AsyncSession, desde: date) -> int:
+async def _sum_mudas_vendidas_desde(
+    db: AsyncSession, desde: date, id_viveiro: Optional[int] = None
+) -> int:
     """Soma quantidade de itens de venda não canceladas a partir de `desde` (data da venda)."""
-    total = (
-        await db.execute(
-            select(func.coalesce(func.sum(ItemVenda.quantidade), 0))
-            .select_from(ItemVenda)
-            .join(Venda, ItemVenda.id_venda == Venda.id)
-            .where(
-                Venda.status != "CANCELADO",
-                func.date(Venda.data_venda) >= desde,
-            )
+    q = (
+        select(func.coalesce(func.sum(ItemVenda.quantidade), 0))
+        .select_from(ItemVenda)
+        .join(Venda, ItemVenda.id_venda == Venda.id)
+        .where(
+            Venda.status != "CANCELADO",
+            func.date(Venda.data_venda) >= desde,
         )
-    ).scalar()
+    )
+    if id_viveiro is not None:
+        q = q.where(Venda.id_viveiro == id_viveiro)
+    total = (await db.execute(q)).scalar()
     return int(total or 0)
 
 
@@ -43,6 +46,7 @@ async def _contagem_por_especie(
     statuses: Tuple[str, ...],
     tipo_canteiro: str,
     estagio_producao: Optional[str] = None,
+    id_viveiro: Optional[int] = None,
 ) -> List[Dict[str, Any]]:
     q = (
         select(
@@ -54,6 +58,8 @@ async def _contagem_por_especie(
         .join(Canteiro, Planta.id_canteiro == Canteiro.id)
         .where(Planta.status.in_(statuses), Canteiro.tipo_local == tipo_canteiro)
     )
+    if id_viveiro is not None:
+        q = q.where(Planta.id_viveiro == id_viveiro)
     if estagio_producao:
         q = q.where(Planta.estagio_producao == estagio_producao)
     q = q.group_by(Especie.id, Especie.nome_popular, Especie.nome_cientifico).order_by(
@@ -73,6 +79,7 @@ async def _contar_plantas(
     tipo_canteiro: Optional[str] = None,
     tipos_canteiro: Optional[Tuple[str, ...]] = None,
     estagio_producao: Optional[str] = None,
+    id_viveiro: Optional[int] = None,
 ) -> int:
     q = select(func.count(Planta.id)).select_from(Planta)
     if tipo_canteiro or tipos_canteiro:
@@ -82,6 +89,8 @@ async def _contar_plantas(
         else:
             q = q.where(Canteiro.tipo_local == tipo_canteiro)
     q = q.where(Planta.status.in_(statuses))
+    if id_viveiro is not None:
+        q = q.where(Planta.id_viveiro == id_viveiro)
     if estagio_producao:
         q = q.where(Planta.estagio_producao == estagio_producao)
     return int((await db.execute(q)).scalar() or 0)
@@ -93,6 +102,7 @@ async def _contagem_por_especie_tipos(
     statuses: Tuple[str, ...],
     tipos_canteiro: Tuple[str, ...],
     estagio_producao: Optional[str] = None,
+    id_viveiro: Optional[int] = None,
 ) -> List[Dict[str, Any]]:
     q = (
         select(
@@ -107,6 +117,8 @@ async def _contagem_por_especie_tipos(
             Canteiro.tipo_local.in_(tipos_canteiro),
         )
     )
+    if id_viveiro is not None:
+        q = q.where(Planta.id_viveiro == id_viveiro)
     if estagio_producao:
         q = q.where(Planta.estagio_producao == estagio_producao)
     q = q.group_by(Especie.id, Especie.nome_popular, Especie.nome_cientifico).order_by(
@@ -119,77 +131,86 @@ async def _contagem_por_especie_tipos(
     ]
 
 
-async def get_producao_resumo(db: AsyncSession) -> Dict[str, Any]:
+async def get_producao_resumo(
+    db: AsyncSession, id_viveiro: Optional[int] = None
+) -> Dict[str, Any]:
+    lote_where = [
+        LoteSementes.status == "ativo",
+        LoteSementes.quantidade_disponivel > 0,
+    ]
+    if id_viveiro is not None:
+        lote_where.append(LoteSementes.id_viveiro == id_viveiro)
+
     sementes_armazem = (
         await db.execute(
             select(func.coalesce(func.sum(LoteSementes.quantidade_disponivel), 0)).where(
-                LoteSementes.status == "ativo",
-                LoteSementes.quantidade_disponivel > 0,
+                *lote_where
             )
         )
     ).scalar() or 0
 
     lotes_com_estoque = (
         await db.execute(
-            select(func.count(LoteSementes.id)).where(
-                LoteSementes.status == "ativo",
-                LoteSementes.quantidade_disponivel > 0,
-            )
+            select(func.count(LoteSementes.id)).where(*lote_where)
         )
     ).scalar() or 0
 
     especies_armazem = (
         await db.execute(
-            select(func.count(func.distinct(LoteSementes.id_especie))).where(
-                LoteSementes.status == "ativo",
-                LoteSementes.quantidade_disponivel > 0,
-            )
+            select(func.count(func.distinct(LoteSementes.id_especie))).where(*lote_where)
         )
     ).scalar() or 0
 
     na_sementeira = await _contar_plantas(
-        db, statuses=("SEMENTE",), tipo_canteiro="sementeira"
+        db, statuses=("SEMENTE",), tipo_canteiro="sementeira", id_viveiro=id_viveiro
     )
     em_desenvolvimento_sementeira = await _contar_plantas(
         db,
         statuses=("SEMENTE",),
         tipo_canteiro="sementeira",
         estagio_producao=EM_DESENVOLVIMENTO,
+        id_viveiro=id_viveiro,
     )
     aptas_transferencia = await _contar_plantas(
         db,
         statuses=("SEMENTE",),
         tipo_canteiro="sementeira",
         estagio_producao=APTA_TRANSFERENCIA,
+        id_viveiro=id_viveiro,
     )
 
     nos_canteiros = await _contar_plantas(
         db,
         statuses=("MUDA", "JOVEM", "ADULTA"),
         tipo_canteiro="canteiro",
+        id_viveiro=id_viveiro,
     )
     em_crescimento_canteiro = await _contar_plantas(
         db,
         statuses=("MUDA", "JOVEM", "ADULTA"),
         tipo_canteiro="canteiro",
         estagio_producao=EM_CRESCIMENTO,
+        id_viveiro=id_viveiro,
     )
     aptas_rustificacao_canteiro = await _contar_plantas(
         db,
         statuses=("MUDA", "JOVEM", "ADULTA"),
         tipo_canteiro="canteiro",
         estagio_producao=APTA_RUSTIFICACAO,
+        id_viveiro=id_viveiro,
     )
     na_rustificacao = await _contar_plantas(
         db,
         statuses=("MUDA", "JOVEM", "ADULTA"),
         tipo_canteiro="rustificacao",
+        id_viveiro=id_viveiro,
     )
     em_rustificacao = await _contar_plantas(
         db,
         statuses=("MUDA", "JOVEM", "ADULTA"),
         tipo_canteiro="rustificacao",
         estagio_producao=EM_RUSTIFICACAO,
+        id_viveiro=id_viveiro,
     )
     # Regra operacional: só há aptos p/ venda na área de rustificação.
     prontas_venda_canteiro = 0
@@ -198,6 +219,7 @@ async def get_producao_resumo(db: AsyncSession) -> Dict[str, Any]:
         statuses=("MUDA", "JOVEM", "ADULTA"),
         tipo_canteiro="rustificacao",
         estagio_producao=APTA_VENDA,
+        id_viveiro=id_viveiro,
     )
     prontas_venda = prontas_venda_canteiro + prontas_venda_rustificacao
 
@@ -206,8 +228,8 @@ async def get_producao_resumo(db: AsyncSession) -> Dict[str, Any]:
     hoje = date.today()
     inicio_mes = date(hoje.year, hoje.month, 1)
     inicio_ano = date(hoje.year, 1, 1)
-    vendidas_mtd = await _sum_mudas_vendidas_desde(db, inicio_mes)
-    vendidas_ytd = await _sum_mudas_vendidas_desde(db, inicio_ano)
+    vendidas_mtd = await _sum_mudas_vendidas_desde(db, inicio_mes, id_viveiro=id_viveiro)
+    vendidas_ytd = await _sum_mudas_vendidas_desde(db, inicio_ano, id_viveiro=id_viveiro)
 
     # Armazém: usa data da coleta quando o lote veio de coleta (evita divergência com data_formacao_lote antiga).
     ref_data_armazem = func.coalesce(
@@ -233,6 +255,7 @@ async def get_producao_resumo(db: AsyncSession) -> Dict[str, Any]:
             .where(
                 LoteSementes.status == "ativo",
                 LoteSementes.quantidade_disponivel > 0,
+                *([] if id_viveiro is None else [LoteSementes.id_viveiro == id_viveiro]),
             )
         )
     ).scalar()
@@ -243,17 +266,19 @@ async def get_producao_resumo(db: AsyncSession) -> Dict[str, Any]:
         Planta.data_inicio_estagio_atual,
         Planta.data_plantio,
     )
-    dias_medios_sementeira_raw = (
-        await db.execute(
-            select(func.avg(func.current_date() - ref_dias_planta)).join(
-                Canteiro, Planta.id_canteiro == Canteiro.id
-            ).where(
-                Canteiro.tipo_local == "sementeira",
-                Planta.status == "SEMENTE",
-                ref_dias_planta.isnot(None),
-            )
+    dias_medios_sementeira_q = (
+        select(func.avg(func.current_date() - ref_dias_planta))
+        .select_from(Planta)
+        .join(Canteiro, Planta.id_canteiro == Canteiro.id)
+        .where(
+            Canteiro.tipo_local == "sementeira",
+            Planta.status == "SEMENTE",
+            ref_dias_planta.isnot(None),
         )
-    ).scalar()
+    )
+    if id_viveiro is not None:
+        dias_medios_sementeira_q = dias_medios_sementeira_q.where(Planta.id_viveiro == id_viveiro)
+    dias_medios_sementeira_raw = (await db.execute(dias_medios_sementeira_q)).scalar()
     dias_medios_sementeira = (
         float(dias_medios_sementeira_raw) if dias_medios_sementeira_raw is not None else None
     )
@@ -263,17 +288,19 @@ async def get_producao_resumo(db: AsyncSession) -> Dict[str, Any]:
         Planta.data_germinacao,
         Planta.data_plantio,
     )
-    dias_medios_canteiro_raw = (
-        await db.execute(
-            select(func.avg(func.current_date() - ref_dias_canteiro)).join(
-                Canteiro, Planta.id_canteiro == Canteiro.id
-            ).where(
-                Canteiro.tipo_local == "canteiro",
-                Planta.status.in_(("MUDA", "JOVEM", "ADULTA")),
-                ref_dias_canteiro.isnot(None),
-            )
+    dias_medios_canteiro_q = (
+        select(func.avg(func.current_date() - ref_dias_canteiro))
+        .select_from(Planta)
+        .join(Canteiro, Planta.id_canteiro == Canteiro.id)
+        .where(
+            Canteiro.tipo_local == "canteiro",
+            Planta.status.in_(("MUDA", "JOVEM", "ADULTA")),
+            ref_dias_canteiro.isnot(None),
         )
-    ).scalar()
+    )
+    if id_viveiro is not None:
+        dias_medios_canteiro_q = dias_medios_canteiro_q.where(Planta.id_viveiro == id_viveiro)
+    dias_medios_canteiro_raw = (await db.execute(dias_medios_canteiro_q)).scalar()
     dias_medios_canteiro = (
         float(dias_medios_canteiro_raw) if dias_medios_canteiro_raw is not None else None
     )
@@ -283,62 +310,70 @@ async def get_producao_resumo(db: AsyncSession) -> Dict[str, Any]:
         Planta.data_germinacao,
         Planta.data_plantio,
     )
-    dias_medios_rustificacao_raw = (
-        await db.execute(
-            select(func.avg(func.current_date() - ref_dias_rust)).join(
-                Canteiro, Planta.id_canteiro == Canteiro.id
-            ).where(
-                Canteiro.tipo_local == "rustificacao",
-                Planta.status.in_(("MUDA", "JOVEM", "ADULTA")),
-                ref_dias_rust.isnot(None),
-            )
+    dias_medios_rustificacao_q = (
+        select(func.avg(func.current_date() - ref_dias_rust))
+        .select_from(Planta)
+        .join(Canteiro, Planta.id_canteiro == Canteiro.id)
+        .where(
+            Canteiro.tipo_local == "rustificacao",
+            Planta.status.in_(("MUDA", "JOVEM", "ADULTA")),
+            ref_dias_rust.isnot(None),
         )
-    ).scalar()
+    )
+    if id_viveiro is not None:
+        dias_medios_rustificacao_q = dias_medios_rustificacao_q.where(Planta.id_viveiro == id_viveiro)
+    dias_medios_rustificacao_raw = (await db.execute(dias_medios_rustificacao_q)).scalar()
     dias_medios_rustificacao = (
         float(dias_medios_rustificacao_raw) if dias_medios_rustificacao_raw is not None else None
     )
 
     por_especie_sementeira = await _contagem_por_especie(
-        db, statuses=("SEMENTE",), tipo_canteiro="sementeira"
+        db, statuses=("SEMENTE",), tipo_canteiro="sementeira", id_viveiro=id_viveiro
     )
     por_especie_desenvolvimento = await _contagem_por_especie(
         db,
         statuses=("SEMENTE",),
         tipo_canteiro="sementeira",
         estagio_producao=EM_DESENVOLVIMENTO,
+        id_viveiro=id_viveiro,
     )
     por_especie_aptas_transferencia = await _contagem_por_especie(
         db,
         statuses=("SEMENTE",),
         tipo_canteiro="sementeira",
         estagio_producao=APTA_TRANSFERENCIA,
+        id_viveiro=id_viveiro,
     )
     por_especie_canteiro = await _contagem_por_especie(
-        db, statuses=("MUDA", "JOVEM", "ADULTA"), tipo_canteiro="canteiro"
+        db, statuses=("MUDA", "JOVEM", "ADULTA"), tipo_canteiro="canteiro", id_viveiro=id_viveiro
     )
     por_especie_em_crescimento = await _contagem_por_especie(
         db,
         statuses=("MUDA", "JOVEM", "ADULTA"),
         tipo_canteiro="canteiro",
         estagio_producao=EM_CRESCIMENTO,
+        id_viveiro=id_viveiro,
     )
     por_especie_aptas_rustificacao = await _contagem_por_especie(
         db,
         statuses=("MUDA", "JOVEM", "ADULTA"),
         tipo_canteiro="canteiro",
         estagio_producao=APTA_RUSTIFICACAO,
+        id_viveiro=id_viveiro,
     )
     por_especie_rustificacao = await _contagem_por_especie(
         db,
         statuses=("MUDA", "JOVEM", "ADULTA"),
         tipo_canteiro="rustificacao",
         estagio_producao=EM_RUSTIFICACAO,
+        id_viveiro=id_viveiro,
     )
     por_especie_prontas_venda = await _contagem_por_especie_tipos(
         db,
         statuses=("MUDA", "JOVEM", "ADULTA"),
         tipos_canteiro=("rustificacao",),
         estagio_producao=APTA_VENDA,
+        id_viveiro=id_viveiro,
     )
 
     vendas_q = (
@@ -347,6 +382,8 @@ async def get_producao_resumo(db: AsyncSession) -> Dict[str, Any]:
         .order_by(Venda.data_venda.desc())
         .limit(8)
     )
+    if id_viveiro is not None:
+        vendas_q = vendas_q.where(Venda.id_viveiro == id_viveiro)
     vendas_rows = (await db.execute(vendas_q)).unique().scalars().all()
     vendas_recentes = []
     for v in vendas_rows:

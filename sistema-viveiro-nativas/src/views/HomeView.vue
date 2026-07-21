@@ -4,7 +4,7 @@
       <div class="home-hero__pattern" aria-hidden="true" />
       <div class="home-hero__content">
         <p class="home-hero__greeting">{{ saudacao }}, {{ primeiroNome }}</p>
-        <h1 class="home-hero__title">{{ nomeViveiro }}</h1>
+        <h1 class="home-hero__title">{{ tituloHome }}</h1>
         <p class="home-hero__summary">
           <template v-if="carregando">Carregando panorama do viveiro…</template>
           <template v-else-if="pendenciasVisiveis.length">
@@ -137,7 +137,12 @@ const rotaNegada = ref('')
 const auth = useAuthStore()
 const { can } = usePermissions()
 
-const nomeViveiro = import.meta.env.VITE_VIVEIRO_NOME || 'Viveiro Nativas'
+const nomeEmpresa = computed(() => auth.user?.empresa_ativa?.nome_fantasia || '')
+const nomeViveiro = computed(() => auth.user?.viveiro_ativo?.nome || import.meta.env.VITE_VIVEIRO_NOME || 'Viveiro')
+const tituloHome = computed(() => {
+  if (nomeEmpresa.value && nomeViveiro.value) return `${nomeEmpresa.value} · ${nomeViveiro.value}`
+  return nomeViveiro.value || nomeEmpresa.value || 'Brotare Viveiros'
+})
 
 const carregando = ref(true)
 const erroApi = ref(false)

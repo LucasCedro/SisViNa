@@ -10,6 +10,7 @@ depends_on = None
 
 DEFAULT_VIVEIRO_ID = 1
 DEMO_FLORESTAL_ID = 2
+FLORESTAL_SLUG = "viveiro-florestal"
 
 
 def upgrade() -> None:
@@ -29,7 +30,7 @@ def upgrade() -> None:
         INSERT INTO viveiros (id, nome, slug, modo_operacao, ativo)
         VALUES
             ({DEFAULT_VIVEIRO_ID}, 'Viveiro Principal', 'principal', 'nativo', true),
-            ({DEMO_FLORESTAL_ID}, 'Demo Florestal', 'demo-florestal', 'florestal', true)
+            ({DEMO_FLORESTAL_ID}, 'Viveiro Florestal', '{FLORESTAL_SLUG}', 'florestal', true)
         """
     )
     op.execute("SELECT setval(pg_get_serial_sequence('viveiros', 'id'), (SELECT MAX(id) FROM viveiros))")

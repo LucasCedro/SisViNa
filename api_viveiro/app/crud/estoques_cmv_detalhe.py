@@ -32,7 +32,7 @@ ESCOPO_LABELS = {
 }
 
 
-def _filtro_plantas_especie(query, id_especie: int, escopo: str):
+def _filtro_plantas_especie(query, id_especie: int, escopo: str, id_viveiro: Optional[int] = None):
     query = (
         query.select_from(Planta)
         .join(Especie, Planta.id_especie == Especie.id)
@@ -44,6 +44,8 @@ def _filtro_plantas_especie(query, id_especie: int, escopo: str):
             Planta.status.notin_(VENDIDAS_OU_MORTAS),
         )
     )
+    if id_viveiro is not None:
+        query = query.where(Planta.id_viveiro == id_viveiro)
     if escopo == "comercial":
         query = filtro_prontas_venda(query)
     return query
@@ -53,6 +55,7 @@ async def montar_cmv_detalhe_especie(
     db: AsyncSession,
     id_especie: int,
     escopo: str = "comercial",
+    id_viveiro: Optional[int] = None,
 ) -> Optional[Dict[str, Any]]:
     especie = await db.get(Especie, id_especie)
     if not especie:
@@ -87,6 +90,7 @@ async def montar_cmv_detalhe_especie(
         ),
         id_especie,
         escopo,
+        id_viveiro,
     )
     rows = (await db.execute(q)).all()
     if not rows:

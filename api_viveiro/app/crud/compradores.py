@@ -39,6 +39,7 @@ def _pct(receita: float, lucro: float) -> Optional[float]:
 async def get_compradores_analitico(
     db: AsyncSession,
     meses: int = 12,
+    id_empresa: Optional[int] = None,
 ) -> Dict[str, Any]:
     now = datetime.now()
     if meses and meses > 0:
@@ -89,17 +90,18 @@ async def get_compradores_analitico(
         .outerjoin(Venda, Comprador.id == Venda.id_comprador)
         .outerjoin(ItemVenda, Venda.id == ItemVenda.id_venda)
         .where(Comprador.ativo == True)
-        .group_by(
-            Comprador.id,
-            Comprador.nome,
-            Comprador.tipo,
-            Comprador.cidade,
-            Comprador.estado,
-            Comprador.telefone,
-            Comprador.email,
-        )
-        .order_by(Comprador.nome)
     )
+    if id_empresa is not None:
+        q = q.where(Comprador.id_empresa == id_empresa)
+    q = q.group_by(
+        Comprador.id,
+        Comprador.nome,
+        Comprador.tipo,
+        Comprador.cidade,
+        Comprador.estado,
+        Comprador.telefone,
+        Comprador.email,
+    ).order_by(Comprador.nome)
 
     result = await db.execute(q)
     rows = result.all()
@@ -319,18 +321,33 @@ def aplicar_visibilidade_analitico(dados: Dict[str, Any], perfis) -> Dict[str, A
     return out
 
 
-async def get_comprador(db: AsyncSession, comprador_id: int) -> Optional[Comprador]:
-    result = await db.execute(select(Comprador).where(Comprador.id == comprador_id))
+async def get_comprador(
+    db: AsyncSession, comprador_id: int, id_empresa: Optional[int] = None
+) -> Optional[Comprador]:
+    query = select(Comprador).where(Comprador.id == comprador_id)
+    if id_empresa is not None:
+        query = query.where(Comprador.id_empresa == id_empresa)
+    result = await db.execute(query)
     return result.scalars().first()
 
-async def get_comprador_by_usuario(db: AsyncSession, usuario: str) -> Optional[Comprador]:
+async def get_comprador_by_usuario(
+    db: AsyncSession, usuario: str, id_empresa: Optional[int] = None
+) -> Optional[Comprador]:
     if not usuario:
         return None
-    result = await db.execute(select(Comprador).where(Comprador.usuario == usuario))
+    query = select(Comprador).where(Comprador.usuario == usuario)
+    if id_empresa is not None:
+        query = query.where(Comprador.id_empresa == id_empresa)
+    result = await db.execute(query)
     return result.scalars().first()
 
-async def get_comprador_by_cpf_cnpj(db: AsyncSession, cpf_cnpj: str) -> Optional[Comprador]:
-    result = await db.execute(select(Comprador).where(Comprador.cpf_cnpj == cpf_cnpj))
+async def get_comprador_by_cpf_cnpj(
+    db: AsyncSession, cpf_cnpj: str, id_empresa: Optional[int] = None
+) -> Optional[Comprador]:
+    query = select(Comprador).where(Comprador.cpf_cnpj == cpf_cnpj)
+    if id_empresa is not None:
+        query = query.where(Comprador.id_empresa == id_empresa)
+    result = await db.execute(query)
     return result.scalars().first()
 
 async def get_compradores(
@@ -338,10 +355,13 @@ async def get_compradores(
     skip: int = 0, 
     limit: int = 100, 
     ativo: Optional[bool] = None,
-    tipo: Optional[str] = None
+    tipo: Optional[str] = None,
+    id_empresa: Optional[int] = None,
 ) -> List[Comprador]:
     query = select(Comprador)
-    
+
+    if id_empresa is not None:
+        query = query.where(Comprador.id_empresa == id_empresa)
     if ativo is not None:
         query = query.where(Comprador.ativo == ativo)
     
@@ -357,7 +377,8 @@ async def get_compradores_with_vendas(
     skip: int = 0, 
     limit: int = 100, 
     ativo: Optional[bool] = None,
-    tipo: Optional[str] = None
+    tipo: Optional[str] = None,
+    id_empresa: Optional[int] = None,
 ) -> List[Dict[str, Any]]:
     query = select(
         Comprador,
@@ -367,6 +388,8 @@ async def get_compradores_with_vendas(
         Venda, Comprador.id == Venda.id_comprador
     )
     
+    if id_empresa is not None:
+        query = query.where(Comprador.id_empresa == id_empresa)
     if ativo is not None:
         query = query.where(Comprador.ativo == ativo)
     
@@ -395,8 +418,12 @@ async def get_compradores_with_vendas(
     
     return compradores_with_vendas
 
-async def create_comprador(db: AsyncSession, comprador: CompradorCreate) -> Comprador:
+async def create_comprador(
+    db: AsyncSession, comprador: CompradorCreate, id_empresa: Optional[int] = None
+) -> Comprador:
     comprador_dict = comprador.dict()
+    if id_empresa is not None:
+        comprador_dict["id_empresa"] = id_empresa
     
     # Hash da senha se ela for fornecida
     if comprador_dict.get("senha"):

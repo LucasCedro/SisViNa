@@ -1,14 +1,18 @@
 # app/models/atividades.py
-from sqlalchemy import Column, Integer, String, Text, DateTime, Numeric, ForeignKey, Boolean, func
+from sqlalchemy import Column, Integer, String, Text, DateTime, Numeric, ForeignKey, Boolean, UniqueConstraint, func
 from sqlalchemy.orm import relationship
 
 from app.database import Base
 
 class TipoAtividade(Base):
     __tablename__ = "tipos_atividades"
+    __table_args__ = (
+        UniqueConstraint("id_empresa", "nome", name="uq_tipos_atividades_empresa_nome"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
-    nome = Column(String(50), unique=True, nullable=False)
+    id_empresa = Column(Integer, ForeignKey("empresas.id"), nullable=False, index=True)
+    nome = Column(String(50), nullable=False)
     descricao = Column(Text)
     gera_custo = Column(Boolean, default=False)
 

@@ -121,23 +121,26 @@ def _calcular_dwell_planta(
     return dwell, dias_armazem
 
 
-async def _armazem_por_especie(db: AsyncSession) -> Dict[int, Dict[str, Any]]:
+async def _armazem_por_especie(
+    db: AsyncSession, id_viveiro: Optional[int] = None
+) -> Dict[int, Dict[str, Any]]:
     """Sementes ainda no armazém (lotes ativos) — tempo médio ponderado por qtd."""
     ref_data = func.coalesce(ColetaSementes.data_coleta, LoteSementes.data_formacao_lote)
-    rows = (
-        await db.execute(
-            select(
-                LoteSementes.id_especie,
-                LoteSementes.quantidade_disponivel,
-                (func.current_date() - ref_data).label("dias"),
-            )
-            .outerjoin(ColetaSementes, LoteSementes.id_coleta_sementes == ColetaSementes.id)
-            .where(
-                LoteSementes.status == "ativo",
-                LoteSementes.quantidade_disponivel > 0,
-            )
+    stmt = (
+        select(
+            LoteSementes.id_especie,
+            LoteSementes.quantidade_disponivel,
+            (func.current_date() - ref_data).label("dias"),
         )
-    ).all()
+        .outerjoin(ColetaSementes, LoteSementes.id_coleta_sementes == ColetaSementes.id)
+        .where(
+            LoteSementes.status == "ativo",
+            LoteSementes.quantidade_disponivel > 0,
+        )
+    )
+    if id_viveiro is not None:
+        stmt = stmt.where(LoteSementes.id_viveiro == id_viveiro)
+    rows = (await db.execute(stmt)).all()
 
     agg: Dict[int, Dict[str, Any]] = defaultdict(
         lambda: {"dias": [], "qtd_sementes": 0, "lotes": 0}
@@ -168,6 +171,7 @@ async def montar_timeline_especies(
     db: AsyncSession,
     *,
     id_especie: Optional[int] = None,
+    id_viveiro: Optional[int] = None,
 ) -> Dict[str, Any]:
     hoje = date.today()
 
@@ -185,11 +189,13 @@ async def montar_timeline_especies(
         )
         .where(Planta.status.notin_(VENDIDAS_OU_MORTAS))
     )
+    if id_viveiro is not None:
+        q = q.where(Planta.id_viveiro == id_viveiro)
     if id_especie is not None:
         q = q.where(Planta.id_especie == id_especie)
 
     plantas = (await db.execute(q)).scalars().unique().all()
-    armazem_lotes = await _armazem_por_especie(db)
+    armazem_lotes = await _armazem_por_especie(db, id_viveiro=id_viveiro)
 
     por_esp: Dict[int, Dict[str, Any]] = {}
 

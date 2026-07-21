@@ -7,6 +7,7 @@ from app.models.pragas import TipoPraga, MetodoCombate, PragaPlanta, CombateReal
 from app.models.plantas import Planta
 from app.models.especies import Especie
 from app.models.funcionarios import Funcionario
+from tests.tenant_fixtures import DEFAULT_EMPRESA_ID, DEFAULT_VIVEIRO_ID
 
 # Dados de teste
 tipo_praga_test_data = {
@@ -123,7 +124,7 @@ async def test_registrar_praga_planta(client: AsyncClient, db: AsyncSession, aut
     await db.refresh(db_tipo_praga)
     await db.refresh(db_especie)
     
-    db_planta = Planta(id_especie=db_especie.id, codigo_rastreio="PL-PRAGA", status="MUDA")
+    db_planta = Planta(id_viveiro=DEFAULT_VIVEIRO_ID, id_especie=db_especie.id, codigo_rastreio="PL-PRAGA", status="MUDA")
     db.add(db_planta)
     await db.commit()
     await db.refresh(db_planta)
@@ -174,7 +175,7 @@ async def test_registrar_combate(client: AsyncClient, db: AsyncSession, auth_hea
     db.add(db_funcionario)
     await db.commit()
     
-    db_planta = Planta(id_especie=db_especie.id, codigo_rastreio="PL-COMBATE", status="JOVEM")
+    db_planta = Planta(id_viveiro=DEFAULT_VIVEIRO_ID, id_especie=db_especie.id, codigo_rastreio="PL-COMBATE", status="JOVEM")
     db.add(db_planta)
     await db.commit()
     
@@ -227,7 +228,7 @@ async def test_get_pragas_plantas(client: AsyncClient, db: AsyncSession, auth_he
     db.add(db_especie)
     await db.commit()
     
-    db_planta = Planta(id_especie=db_especie.id, codigo_rastreio="PL-LISTAR", status="ADULTA")
+    db_planta = Planta(id_viveiro=DEFAULT_VIVEIRO_ID, id_especie=db_especie.id, codigo_rastreio="PL-LISTAR", status="ADULTA")
     db.add(db_planta)
     await db.commit()
     
@@ -271,7 +272,7 @@ async def test_update_nivel_infestacao(client: AsyncClient, db: AsyncSession, au
     db.add(db_especie)
     await db.commit()
     
-    db_planta = Planta(id_especie=db_especie.id, codigo_rastreio="PL-UPDATE", status="ADULTA")
+    db_planta = Planta(id_viveiro=DEFAULT_VIVEIRO_ID, id_especie=db_especie.id, codigo_rastreio="PL-UPDATE", status="ADULTA")
     db.add(db_planta)
     await db.commit()
     

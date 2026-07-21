@@ -3,8 +3,8 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.jwt import get_current_user
 from app.security.rbac import require_permission
+from app.security.scope_context import ScopeContext, get_scope_context
 from app.crud import lancamentos_financeiros as crud
 from app.database import get_db
 from app.schemas.funcionarios import FuncionarioOut
@@ -23,18 +23,24 @@ async def listar(
     limit: int = 500,
     tipo: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
+    scope: ScopeContext = Depends(get_scope_context),
     current_user: FuncionarioOut = Depends(require_permission("financeiro.view")),
 ):
-    return await crud.list_lancamentos(db, skip=skip, limit=limit, tipo=tipo)
+    return await crud.list_lancamentos(
+        db, skip=skip, limit=limit, tipo=tipo, id_empresa=scope.tenant.id
+    )
 
 
 @router.post("/", response_model=LancamentoFinanceiro)
 async def criar(
     body: LancamentoFinanceiroCreate,
     db: AsyncSession = Depends(get_db),
+    scope: ScopeContext = Depends(get_scope_context),
     current_user: FuncionarioOut = Depends(require_permission("financeiro.create")),
 ):
-    return await crud.create_lancamento(db, body, current_user.id)
+    return await crud.create_lancamento(
+        db, body, current_user.id, id_empresa=scope.tenant.id
+    )
 
 
 @router.put("/{lancamento_id}", response_model=LancamentoFinanceiro)
@@ -42,8 +48,12 @@ async def atualizar(
     lancamento_id: int,
     body: LancamentoFinanceiroUpdate,
     db: AsyncSession = Depends(get_db),
+    scope: ScopeContext = Depends(get_scope_context),
     current_user: FuncionarioOut = Depends(require_permission("financeiro.edit")),
 ):
+    obj = await crud.get_lancamento(db, lancamento_id, id_empresa=scope.tenant.id)
+    if not obj:
+        raise HTTPException(404, "Lançamento não encontrado")
     obj = await crud.update_lancamento(db, lancamento_id, body)
     if not obj:
         raise HTTPException(404, "Lançamento não encontrado")
@@ -54,8 +64,12 @@ async def atualizar(
 async def excluir(
     lancamento_id: int,
     db: AsyncSession = Depends(get_db),
+    scope: ScopeContext = Depends(get_scope_context),
     current_user: FuncionarioOut = Depends(require_permission("financeiro.delete")),
 ):
+    obj = await crud.get_lancamento(db, lancamento_id, id_empresa=scope.tenant.id)
+    if not obj:
+        raise HTTPException(404, "Lançamento não encontrado")
     obj = await crud.delete_lancamento(db, lancamento_id)
     if not obj:
         raise HTTPException(404, "Lançamento não encontrado")

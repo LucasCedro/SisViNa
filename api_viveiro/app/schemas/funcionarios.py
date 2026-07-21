@@ -3,7 +3,9 @@ from datetime import date, datetime
 from typing import Optional, List
 from pydantic import BaseModel, Field, EmailStr, validator
 
-VALID_PERFIS = frozenset({"admin", "gestor", "campo", "financeiro", "rh", "consulta"})
+VALID_PERFIS = frozenset(
+    {"platform_admin", "empresa_admin", "admin", "gestor", "campo", "financeiro", "rh", "consulta"}
+)
 
 
 class FuncionarioBase(BaseModel):
@@ -32,6 +34,7 @@ class FuncionarioBase(BaseModel):
 
 class FuncionarioCreate(FuncionarioBase):
     senha: str
+    id_empresa: Optional[int] = None
 
     @validator('cpf')
     def validate_cpf(cls, v):

@@ -28,7 +28,12 @@ const auth = useAuthStore()
 const viveiro = useViveiroContextStore()
 const trocando = ref(false)
 
-const isAdmin = computed(() => auth.user?.perfis?.includes('admin'))
+const isAdmin = computed(() =>
+  auth.user?.is_platform_admin ||
+  auth.user?.perfis?.includes('platform_admin') ||
+  auth.user?.perfis?.includes('admin') ||
+  auth.user?.perfis?.includes('empresa_admin')
+)
 const podeSelecionar = computed(() => Boolean(viveiro.podeSelecionar))
 const visivel = computed(() => isAdmin.value && viveiro.ativo)
 const opcoes = computed(() => (viveiro.lista.length ? viveiro.lista : viveiro.ativo ? [viveiro.ativo] : []))

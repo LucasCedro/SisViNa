@@ -8,6 +8,7 @@ class TipoPraga(Base):
     __tablename__ = "tipos_pragas"
 
     id = Column(Integer, primary_key=True, index=True)
+    id_empresa = Column(Integer, ForeignKey("empresas.id"), nullable=False, index=True)
     nome = Column(String(50), nullable=False)
     descricao = Column(Text)
     metodo_identificacao = Column(Text)
@@ -20,6 +21,7 @@ class MetodoCombate(Base):
     __tablename__ = "metodos_combate"
 
     id = Column(Integer, primary_key=True, index=True)
+    id_empresa = Column(Integer, ForeignKey("empresas.id"), nullable=False, index=True)
     nome = Column(String(100), nullable=False)
     descricao = Column(Text)
     produto = Column(String(100))

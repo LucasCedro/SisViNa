@@ -179,7 +179,7 @@ const LOGO_VERDE = '/assets/branding/logo_comp_verde.jpg'
 const LOGO_BRANCO = '/assets/branding/logo_comp_branco.jpg'
 const LOGO_SYMBOL = '/assets/branding/logo_simp.jpg'
 
-const nomeViveiro = import.meta.env.VITE_VIVEIRO_NOME || 'Viveiro Nativas'
+const nomeViveiro = computed(() => import.meta.env.VITE_VIVEIRO_NOME || 'Brotare Viveiros')
 const ano = new Date().getFullYear()
 
 const siteUrl = computed(

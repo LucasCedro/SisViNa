@@ -18,6 +18,7 @@ from app.crud import especies_imagens as crud_imagens
 from app.models.especie_biblioteca import EspecieBiblioteca
 from app.auth.jwt import get_current_user
 from app.security.rbac import require_permission
+from app.security.scope_context import ScopeContext, get_scope_context
 from app.schemas.funcionarios import FuncionarioOut
 
 router = APIRouter()
@@ -40,12 +41,15 @@ async def read_especies_with_plantas_count(
     skip: int = 0,
     limit: int = 100,
     db: AsyncSession = Depends(get_db),
+    scope: ScopeContext = Depends(get_scope_context),
     current_user: FuncionarioOut = Depends(require_permission("viveiro.view"))
 ):
     """
     Recupera todas as espécies com contagem de plantas.
     """
-    especies = await crud_especies.get_especies_with_plantas_count(db, skip=skip, limit=limit)
+    especies = await crud_especies.get_especies_with_plantas_count(
+        db, skip=skip, limit=limit, id_viveiro=scope.viveiro.id
+    )
     return especies
 
 

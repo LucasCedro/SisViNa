@@ -1,6 +1,6 @@
 # app/crud/especies.py
 from typing import List, Optional, Dict, Any
-from sqlalchemy import func, select
+from sqlalchemy import func, select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from datetime import datetime
@@ -86,16 +86,18 @@ async def get_especies_biblioteca(
     return itens
 
 async def get_especies_with_plantas_count(
-    db: AsyncSession, skip: int = 0, limit: int = 100
+    db: AsyncSession, skip: int = 0, limit: int = 100, id_viveiro: Optional[int] = None
 ) -> List[Dict[str, Any]]:
-    query = select(
-        Especie,
-        func.count(Planta.id).label("total_plantas")
-    ).outerjoin(
-        Planta, Especie.id == Planta.id_especie
-    ).group_by(
-        Especie.id
-    ).offset(skip).limit(limit)
+    join_cond = Especie.id == Planta.id_especie
+    if id_viveiro is not None:
+        join_cond = and_(join_cond, Planta.id_viveiro == id_viveiro)
+    query = (
+        select(Especie, func.count(Planta.id).label("total_plantas"))
+        .outerjoin(Planta, join_cond)
+        .group_by(Especie.id)
+        .offset(skip)
+        .limit(limit)
+    )
     
     result = await db.execute(query)
     

@@ -18,31 +18,46 @@ from app.schemas.atividades import (
 from app.crud.insumos import baixar_insumo_por_media_movel
 
 # Funções CRUD para TipoAtividade
-async def get_tipo_atividade(db: AsyncSession, tipo_id: int) -> Optional[TipoAtividade]:
-    result = await db.execute(select(TipoAtividade).where(TipoAtividade.id == tipo_id))
+async def get_tipo_atividade(
+    db: AsyncSession, tipo_id: int, id_empresa: Optional[int] = None
+) -> Optional[TipoAtividade]:
+    query = select(TipoAtividade).where(TipoAtividade.id == tipo_id)
+    if id_empresa is not None:
+        query = query.where(TipoAtividade.id_empresa == id_empresa)
+    result = await db.execute(query)
     return result.scalars().first()
 
-async def get_tipo_atividade_by_nome(db: AsyncSession, nome: str) -> Optional[TipoAtividade]:
-    result = await db.execute(select(TipoAtividade).where(TipoAtividade.nome == nome))
+async def get_tipo_atividade_by_nome(
+    db: AsyncSession, nome: str, id_empresa: Optional[int] = None
+) -> Optional[TipoAtividade]:
+    query = select(TipoAtividade).where(TipoAtividade.nome == nome)
+    if id_empresa is not None:
+        query = query.where(TipoAtividade.id_empresa == id_empresa)
+    result = await db.execute(query)
     return result.scalars().first()
 
 async def get_tipos_atividades(
-    db: AsyncSession, skip: int = 0, limit: int = 100
+    db: AsyncSession, skip: int = 0, limit: int = 100, id_empresa: Optional[int] = None
 ) -> List[TipoAtividade]:
-    result = await db.execute(select(TipoAtividade).offset(skip).limit(limit))
+    query = select(TipoAtividade)
+    if id_empresa is not None:
+        query = query.where(TipoAtividade.id_empresa == id_empresa)
+    result = await db.execute(query.offset(skip).limit(limit))
     return result.scalars().all()
 
-async def create_tipo_atividade(db: AsyncSession, tipo_atividade: TipoAtividadeCreate) -> TipoAtividade:
-    db_tipo = TipoAtividade(**tipo_atividade.dict())
+async def create_tipo_atividade(
+    db: AsyncSession, tipo_atividade: TipoAtividadeCreate, id_empresa: Optional[int] = None
+) -> TipoAtividade:
+    db_tipo = TipoAtividade(**tipo_atividade.dict(), id_empresa=id_empresa)
     db.add(db_tipo)
     await db.commit()
     await db.refresh(db_tipo)
     return db_tipo
 
 async def update_tipo_atividade(
-    db: AsyncSession, tipo_id: int, tipo_update: TipoAtividadeUpdate
+    db: AsyncSession, tipo_id: int, tipo_update: TipoAtividadeUpdate, id_empresa: Optional[int] = None
 ) -> Optional[TipoAtividade]:
-    db_tipo = await get_tipo_atividade(db, tipo_id)
+    db_tipo = await get_tipo_atividade(db, tipo_id, id_empresa)
     if not db_tipo:
         return None
     
@@ -54,8 +69,10 @@ async def update_tipo_atividade(
     await db.refresh(db_tipo)
     return db_tipo
 
-async def delete_tipo_atividade(db: AsyncSession, tipo_id: int) -> Optional[TipoAtividade]:
-    db_tipo = await get_tipo_atividade(db, tipo_id)
+async def delete_tipo_atividade(
+    db: AsyncSession, tipo_id: int, id_empresa: Optional[int] = None
+) -> Optional[TipoAtividade]:
+    db_tipo = await get_tipo_atividade(db, tipo_id, id_empresa)
     if not db_tipo:
         return None
     
@@ -72,13 +89,22 @@ async def delete_tipo_atividade(db: AsyncSession, tipo_id: int) -> Optional[Tipo
     return db_tipo
 
 # Funções CRUD para Atividade
-async def get_atividade(db: AsyncSession, atividade_id: int) -> Optional[Atividade]:
+async def get_atividade(
+    db: AsyncSession, atividade_id: int, id_viveiro: Optional[int] = None
+) -> Optional[Atividade]:
+    if id_viveiro is None:
+        result = await db.execute(select(Atividade).where(Atividade.id == atividade_id))
+        return result.scalars().first()
     result = await db.execute(
-        select(Atividade).where(Atividade.id == atividade_id)
+        select(Atividade)
+        .join(Planta, Atividade.id_planta == Planta.id)
+        .where(Atividade.id == atividade_id, Planta.id_viveiro == id_viveiro)
     )
     return result.scalars().first()
 
-async def get_atividade_detalhe(db: AsyncSession, atividade_id: int) -> Optional[Dict[str, Any]]:
+async def get_atividade_detalhe(
+    db: AsyncSession, atividade_id: int, id_viveiro: Optional[int] = None
+) -> Optional[Dict[str, Any]]:
     query = select(
         Atividade, 
         TipoAtividade, 
@@ -96,6 +122,8 @@ async def get_atividade_detalhe(db: AsyncSession, atividade_id: int) -> Optional
     ).where(
         Atividade.id == atividade_id
     )
+    if id_viveiro is not None:
+        query = query.where(Planta.id_viveiro == id_viveiro)
     
     result = await db.execute(query)
     row = result.first()
@@ -171,7 +199,8 @@ async def get_atividades(
     id_planta: Optional[int] = None,
     id_funcionario: Optional[int] = None,
     data_inicio: Optional[datetime] = None,
-    data_fim: Optional[datetime] = None
+    data_fim: Optional[datetime] = None,
+    id_viveiro: Optional[int] = None,
 ) -> List[Dict[str, Any]]:
     query = select(
         Atividade, 
@@ -211,6 +240,8 @@ async def get_atividades(
         query = query.where(Atividade.data_atividade >= data_inicio)
     elif data_fim:
         query = query.where(Atividade.data_atividade <= data_fim)
+    if id_viveiro is not None:
+        query = query.where(Planta.id_viveiro == id_viveiro)
     
     query = query.group_by(
         Atividade.id, 
@@ -247,7 +278,14 @@ async def get_atividades(
     
     return atividades
 
-async def create_atividade(db: AsyncSession, atividade: AtividadeCreate) -> Dict[str, Any]:
+async def create_atividade(
+    db: AsyncSession, atividade: AtividadeCreate, id_viveiro: Optional[int] = None,
+    id_empresa: Optional[int] = None,
+) -> Dict[str, Any]:
+    if id_viveiro is not None:
+        planta = await db.get(Planta, atividade.id_planta)
+        if planta is None or planta.id_viveiro != id_viveiro:
+            raise ValueError("Planta não pertence à unidade viveiro ativa")
     atividade_dict = atividade.dict(exclude={"insumos"})
     db_atividade = Atividade(**atividade_dict)
     db.add(db_atividade)
@@ -258,8 +296,13 @@ async def create_atividade(db: AsyncSession, atividade: AtividadeCreate) -> Dict
         for insumo_data in atividade.insumos:
             # Verificar se o insumo existe e buscar seu preço
             insumo_query = select(Insumo).where(Insumo.id == insumo_data.id_insumo)
+            if id_empresa is not None:
+                insumo_query = insumo_query.where(Insumo.id_empresa == id_empresa)
             insumo_result = await db.execute(insumo_query)
             insumo = insumo_result.scalars().first()
+
+            if not insumo:
+                raise ValueError(f"Insumo {insumo_data.id_insumo} não encontrado na empresa")
             
             if insumo:
                 # Calcular custo total se não fornecido
@@ -268,7 +311,8 @@ async def create_atividade(db: AsyncSession, atividade: AtividadeCreate) -> Dict
                 
                 try:
                     custo_baixa = await baixar_insumo_por_media_movel(
-                        db, insumo_data.id_insumo, float(insumo_data.quantidade_usada)
+                        db, insumo_data.id_insumo, float(insumo_data.quantidade_usada),
+                        id_empresa=id_empresa,
                     )
                     if insumo_data.custo_total is None or insumo_data.custo_total == 0:
                         insumo_data.custo_total = custo_baixa
@@ -301,12 +345,12 @@ async def create_atividade(db: AsyncSession, atividade: AtividadeCreate) -> Dict
     await db.refresh(db_atividade)
     
     # Retornar atividade detalhada
-    return await get_atividade_detalhe(db, db_atividade.id)
+    return await get_atividade_detalhe(db, db_atividade.id, id_viveiro=id_viveiro)
 
 async def update_atividade(
-    db: AsyncSession, atividade_id: int, atividade_update: AtividadeUpdate
+    db: AsyncSession, atividade_id: int, atividade_update: AtividadeUpdate, id_viveiro: Optional[int] = None
 ) -> Optional[Atividade]:
-    db_atividade = await get_atividade(db, atividade_id)
+    db_atividade = await get_atividade(db, atividade_id, id_viveiro=id_viveiro)
     if not db_atividade:
         return None
     
@@ -334,8 +378,10 @@ async def update_atividade(
     await db.refresh(db_atividade)
     return db_atividade
 
-async def delete_atividade(db: AsyncSession, atividade_id: int) -> Optional[Dict[str, Any]]:
-    db_atividade = await get_atividade(db, atividade_id)
+async def delete_atividade(
+    db: AsyncSession, atividade_id: int, id_viveiro: Optional[int] = None
+) -> Optional[Dict[str, Any]]:
+    db_atividade = await get_atividade(db, atividade_id, id_viveiro=id_viveiro)
     if not db_atividade:
         return None
     

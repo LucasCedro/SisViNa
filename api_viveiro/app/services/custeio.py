@@ -8,6 +8,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.financeiro_premissa import FinanceiroPremissa
+from app.security.financeiro_scope import get_fin_scope
 
 CHAVE_PREMISSA_COLETA_CAMPO = "coleta_campo"
 CHAVE_RECIPIENTE_SEMEADURA = "recipiente_semeadura"
@@ -22,6 +23,28 @@ from app.services.unidades_insumo import (
 from app.models.lotes_sementes import LoteSementes
 from app.models.plantas import Planta
 from app.models.semeaduras import Semeadura
+from app.models.viveiros import Viveiro
+
+
+def _resolve_id_empresa(id_empresa: Optional[int] = None) -> Optional[int]:
+    if id_empresa is not None:
+        return id_empresa
+    scope = get_fin_scope()
+    return scope.id_empresa if scope is not None else None
+
+
+def _premissa_empresa_clause(id_empresa: Optional[int] = None):
+    eid = _resolve_id_empresa(id_empresa)
+    if eid is not None:
+        return FinanceiroPremissa.id_empresa == eid
+    return None
+
+
+def _viveiros_empresa_clause(id_empresa: Optional[int] = None):
+    eid = _resolve_id_empresa(id_empresa)
+    if eid is not None:
+        return Planta.id_viveiro.in_(select(Viveiro.id).where(Viveiro.id_empresa == eid))
+    return None
 
 
 def preco_medio_insumo(insumo: Insumo) -> float:
@@ -57,14 +80,18 @@ def aplicar_baixa_valor_lote(lote: LoteSementes, qtd_usada: int, custo: float) -
             lote.custo_unitario = 0
 
 
-async def obter_valor_hora_coleta_campo(db: AsyncSession) -> float:
-    result = await db.execute(
-        select(FinanceiroPremissa).where(
-            FinanceiroPremissa.chave == CHAVE_PREMISSA_COLETA_CAMPO,
-            FinanceiroPremissa.ativo.is_(True),
-            FinanceiroPremissa.natureza == "CUSTO",
-        )
-    )
+async def obter_valor_hora_coleta_campo(
+    db: AsyncSession, id_empresa: Optional[int] = None
+) -> float:
+    clauses = [
+        FinanceiroPremissa.chave == CHAVE_PREMISSA_COLETA_CAMPO,
+        FinanceiroPremissa.ativo.is_(True),
+        FinanceiroPremissa.natureza == "CUSTO",
+    ]
+    ec = _premissa_empresa_clause(id_empresa)
+    if ec is not None:
+        clauses.append(ec)
+    result = await db.execute(select(FinanceiroPremissa).where(*clauses))
     prem = result.scalars().first()
     if not prem:
         return 0.0
@@ -116,34 +143,44 @@ def definir_valor_lote_entrada(lote: LoteSementes, valor_total: Optional[float])
     )
 
 
-async def _contar_mudas_vivas(db: AsyncSession) -> int:
+async def _contar_mudas_vivas(db: AsyncSession, id_empresa: Optional[int] = None) -> int:
+    clauses = [Planta.status.notin_(("VENDIDA", "MORTA"))]
+    vc = _viveiros_empresa_clause(id_empresa)
+    if vc is not None:
+        clauses.append(vc)
     return int(
         (
-            await db.execute(
-                select(func.count(Planta.id)).where(Planta.status.notin_(("VENDIDA", "MORTA")))
-            )
+            await db.execute(select(func.count(Planta.id)).where(*clauses))
         ).scalar()
         or 0
     )
 
 
-async def _obter_recipiente_semeadura(db: AsyncSession) -> str:
-    result = await db.execute(
-        select(FinanceiroPremissa.unidade).where(
-            FinanceiroPremissa.chave == CHAVE_RECIPIENTE_SEMEADURA,
-            FinanceiroPremissa.ativo.is_(True),
-        )
-    )
+async def _obter_recipiente_semeadura(db: AsyncSession, id_empresa: Optional[int] = None) -> str:
+    clauses = [
+        FinanceiroPremissa.chave == CHAVE_RECIPIENTE_SEMEADURA,
+        FinanceiroPremissa.ativo.is_(True),
+    ]
+    ec = _premissa_empresa_clause(id_empresa)
+    if ec is not None:
+        clauses.append(ec)
+    result = await db.execute(select(FinanceiroPremissa.unidade).where(*clauses))
     unidade = result.scalar_one_or_none()
     if unidade == "saquinho":
         return "saquinho"
     return "tubete"
 
 
-async def _premissas_custo_ativas(db: AsyncSession) -> List[FinanceiroPremissa]:
+async def _premissas_custo_ativas(
+    db: AsyncSession, id_empresa: Optional[int] = None
+) -> List[FinanceiroPremissa]:
+    clauses = [FinanceiroPremissa.ativo.is_(True), FinanceiroPremissa.natureza == "CUSTO"]
+    ec = _premissa_empresa_clause(id_empresa)
+    if ec is not None:
+        clauses.append(ec)
     result = await db.execute(
         select(FinanceiroPremissa)
-        .where(FinanceiroPremissa.ativo.is_(True), FinanceiroPremissa.natureza == "CUSTO")
+        .where(*clauses)
         .order_by(FinanceiroPremissa.ordem, FinanceiroPremissa.id)
     )
     return list(result.scalars().all())
@@ -175,15 +212,16 @@ async def calcular_cif_unitario_parque(
     db: AsyncSession,
     *,
     parque_total: Optional[int] = None,
+    id_empresa: Optional[int] = None,
 ) -> Dict[str, Any]:
     """CIF mensal (água, energia, MO…) rateado igualmente pelo parque inteiro."""
     if parque_total is None:
-        parque_total = await _contar_mudas_vivas(db)
+        parque_total = await _contar_mudas_vivas(db, id_empresa=id_empresa)
     parque = max(int(parque_total or 0), 1)
 
     unitario_total = 0.0
     itens: List[dict] = []
-    for prem in await _premissas_custo_ativas(db):
+    for prem in await _premissas_custo_ativas(db, id_empresa=id_empresa):
         if not _premissa_eh_cif_rateio(prem):
             continue
         mensal = _mensal_premissa(prem)
@@ -343,13 +381,19 @@ async def calcular_custo_lote_semeadura(
     custo_insumos = 0.0
     custo_indireto = 0.0
 
+    id_empresa = None
+    if lote.id_viveiro:
+        viveiro = await db.get(Viveiro, lote.id_viveiro)
+        if viveiro:
+            id_empresa = int(viveiro.id_empresa)
+
     if mudas_vivas_existentes is None:
-        mudas_vivas = await _contar_mudas_vivas(db)
+        mudas_vivas = await _contar_mudas_vivas(db, id_empresa=id_empresa)
     else:
         mudas_vivas = int(mudas_vivas_existentes or 0)
     mudas_base_rateio = _base_rateio_mudas(mudas_vivas, qtd_mudas)
-    recipiente = await _obter_recipiente_semeadura(db)
-    premissas = await _premissas_custo_ativas(db)
+    recipiente = await _obter_recipiente_semeadura(db, id_empresa=id_empresa)
+    premissas = await _premissas_custo_ativas(db, id_empresa=id_empresa)
     for prem in premissas:
         insumo = None
         if prem.id_insumo:
@@ -384,16 +428,23 @@ async def redistribuir_cif_parque(
     db: AsyncSession,
     *,
     commit: bool = True,
+    id_empresa: Optional[int] = None,
 ) -> Dict[str, Any]:
     """
     Recalcula o CIF mensal em TODAS as mudas vivas com o mesmo denominador (parque inteiro).
     Cada muda recebe: custo direto da semeadura + CIF/parque + atividades posteriores.
     """
-    cif_info = await calcular_cif_unitario_parque(db)
+    cif_info = await calcular_cif_unitario_parque(db, id_empresa=id_empresa)
     parque = cif_info["parque_total"]
     cif_unit = float(cif_info["cif_unitario"])
 
-    semeaduras = list((await db.execute(select(Semeadura))).scalars().all())
+    sem_q = select(Semeadura)
+    eid = _resolve_id_empresa(id_empresa)
+    if eid is not None:
+        sem_q = sem_q.where(
+            Semeadura.id_viveiro.in_(select(Viveiro.id).where(Viveiro.id_empresa == eid))
+        )
+    semeaduras = list((await db.execute(sem_q)).scalars().all())
     direct_por_semeadura: Dict[int, float] = {}
     semeaduras_atualizadas = 0
 
@@ -422,9 +473,11 @@ async def redistribuir_cif_parque(
             sem.quantidade_mudas_obtidas = qtd
         semeaduras_atualizadas += 1
 
-    plantas = (
-        await db.execute(select(Planta).where(Planta.status.notin_(("VENDIDA", "MORTA"))))
-    ).scalars().all()
+    planta_q = select(Planta).where(Planta.status.notin_(("VENDIDA", "MORTA")))
+    vc = _viveiros_empresa_clause(id_empresa)
+    if vc is not None:
+        planta_q = planta_q.where(vc)
+    plantas = (await db.execute(planta_q)).scalars().all()
     plantas_atualizadas = 0
     for planta in plantas:
         direct = direct_por_semeadura.get(int(planta.id_semeadura or 0), 0.0)
@@ -455,11 +508,14 @@ async def recalcular_custos_semeaduras(db: AsyncSession) -> Dict[str, Any]:
 async def estimar_despesas_periodo(
     db: AsyncSession,
     faturamento: float,
+    id_empresa: Optional[int] = None,
 ) -> Dict[str, Any]:
+    clauses = [FinanceiroPremissa.ativo.is_(True), FinanceiroPremissa.natureza == "DESPESA"]
+    ec = _premissa_empresa_clause(id_empresa)
+    if ec is not None:
+        clauses.append(ec)
     result = await db.execute(
-        select(FinanceiroPremissa)
-        .where(FinanceiroPremissa.ativo.is_(True), FinanceiroPremissa.natureza == "DESPESA")
-        .order_by(FinanceiroPremissa.ordem)
+        select(FinanceiroPremissa).where(*clauses).order_by(FinanceiroPremissa.ordem)
     )
     premissas = list(result.scalars().all())
     comissao = 0.0

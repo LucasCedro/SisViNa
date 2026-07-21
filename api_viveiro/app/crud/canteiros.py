@@ -8,13 +8,24 @@ from datetime import datetime
 from app.models.canteiros import Canteiro
 from app.models.plantas import Planta
 from app.schemas.canteiros import CanteiroCreate, CanteiroUpdate
+from app.security.viveiro_context import ViveiroContext, assert_record_belongs_to_viveiro
 
-async def get_canteiro(db: AsyncSession, canteiro_id: int) -> Optional[Canteiro]:
+async def get_canteiro(
+    db: AsyncSession, canteiro_id: int, ctx: Optional[ViveiroContext] = None
+) -> Optional[Canteiro]:
     result = await db.execute(select(Canteiro).where(Canteiro.id == canteiro_id))
-    return result.scalars().first()
+    row = result.scalars().first()
+    if row and ctx is not None:
+        assert_record_belongs_to_viveiro(row.id_viveiro, ctx, "canteiro")
+    return row
 
-async def get_canteiro_by_nome(db: AsyncSession, nome: str) -> Optional[Canteiro]:
-    result = await db.execute(select(Canteiro).where(Canteiro.nome == nome))
+async def get_canteiro_by_nome(
+    db: AsyncSession, nome: str, id_viveiro: Optional[int] = None
+) -> Optional[Canteiro]:
+    query = select(Canteiro).where(Canteiro.nome == nome)
+    if id_viveiro is not None:
+        query = query.where(Canteiro.id_viveiro == id_viveiro)
+    result = await db.execute(query)
     return result.scalars().first()
 
 async def get_canteiros(
@@ -23,9 +34,12 @@ async def get_canteiros(
     limit: int = 100,
     ativo: Optional[bool] = None,
     tipo_local: Optional[str] = None,
+    id_viveiro: Optional[int] = None,
 ) -> List[Canteiro]:
     query = select(Canteiro)
-    
+
+    if id_viveiro is not None:
+        query = query.where(Canteiro.id_viveiro == id_viveiro)
     if ativo is not None:
         query = query.where(Canteiro.ativo == ativo)
     if tipo_local is not None:
@@ -36,7 +50,11 @@ async def get_canteiros(
     return result.scalars().all()
 
 async def get_canteiros_with_ocupacao(
-    db: AsyncSession, skip: int = 0, limit: int = 100, ativo: Optional[bool] = None
+    db: AsyncSession,
+    skip: int = 0,
+    limit: int = 100,
+    ativo: Optional[bool] = None,
+    id_viveiro: Optional[int] = None,
 ) -> List[Dict[str, Any]]:
     query = select(
         Canteiro,
@@ -59,9 +77,11 @@ async def get_canteiros_with_ocupacao(
         Planta, Canteiro.id == Planta.id_canteiro
     )
     
+    if id_viveiro is not None:
+        query = query.where(Canteiro.id_viveiro == id_viveiro)
     if ativo is not None:
         query = query.where(Canteiro.ativo == ativo)
-    
+
     query = query.group_by(
         Canteiro.id
     ).offset(skip).limit(limit)
@@ -94,8 +114,13 @@ async def get_canteiros_with_ocupacao(
     
     return canteiros_with_ocupacao
 
-async def create_canteiro(db: AsyncSession, canteiro: CanteiroCreate) -> Canteiro:
-    db_canteiro = Canteiro(**canteiro.dict())
+async def create_canteiro(
+    db: AsyncSession, canteiro: CanteiroCreate, id_viveiro: Optional[int] = None
+) -> Canteiro:
+    data = canteiro.dict()
+    if id_viveiro is not None:
+        data["id_viveiro"] = id_viveiro
+    db_canteiro = Canteiro(**data)
     db.add(db_canteiro)
     await db.commit()
     await db.refresh(db_canteiro)

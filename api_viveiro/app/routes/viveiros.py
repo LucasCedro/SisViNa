@@ -1,14 +1,18 @@
 """Rotas de contexto de unidade viveiro."""
 
-from fastapi import APIRouter, Depends
+from typing import Optional
+
+from fastapi import APIRouter, Depends, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.jwt import get_current_user
 from app.auth.session import build_auth_me_async
 from app.database import get_db
 from app.domain.pipelines.registry import get_pipeline
 from app.schemas.auth import AuthMeOut
 from app.schemas.viveiros import ViveiroContextOut, ViveiroOut
 from app.security.rbac import require_permission
+from app.security.scope_context import resolve_scope_context
 from app.security.viveiro_context import (
     get_viveiro_context,
     is_system_admin,
@@ -17,9 +21,7 @@ from app.security.viveiro_context import (
     ViveiroContext,
 )
 from app.schemas.funcionarios import FuncionarioOut
-from app.auth.jwt import get_current_user
-from fastapi import Header
-from typing import Optional
+from app.security.tenant_context import get_tenant_context, TenantContext
 
 from app.crud import viveiros as crud_viveiros
 from app.constants.viveiro_modo import MODO_LABELS
@@ -42,10 +44,11 @@ def _viveiro_out_from_ctx(ctx: ViveiroContext) -> ViveiroOut:
 async def read_viveiro_contexto(
     db: AsyncSession = Depends(get_db),
     current_user: FuncionarioOut = Depends(require_permission("home.view")),
+    tenant: TenantContext = Depends(get_tenant_context),
     ctx: ViveiroContext = Depends(get_viveiro_context),
 ):
     """Contexto da unidade ativa + módulos habilitados pelo pipeline."""
-    viveiros = await list_viveiros_for_user(db, current_user)
+    viveiros = await list_viveiros_for_user(db, current_user, tenant=tenant)
     pipeline = get_pipeline(ctx)
     return ViveiroContextOut(
         viveiro_ativo=_viveiro_out_from_ctx(ctx),
@@ -71,20 +74,24 @@ async def read_me_with_context(
     db: AsyncSession = Depends(get_db),
     current_user: FuncionarioOut = Depends(get_current_user),
     x_viveiro_id: Optional[int] = Header(None, alias="X-Viveiro-Id"),
+    x_empresa_id: Optional[int] = Header(None, alias="X-Empresa-Id"),
 ):
     """Auth/me enriquecido com contexto viveiro (usado no login/hydrate)."""
-    ctx = await resolve_viveiro_context(db, current_user, x_viveiro_id)
-    return await build_auth_me_async(db, current_user, ctx)
+    scope = await resolve_scope_context(db, current_user, x_empresa_id, x_viveiro_id)
+    return await build_auth_me_async(db, current_user, scope.tenant, scope.viveiro)
 
 
 @router.get("/", response_model=list[ViveiroOut])
 async def list_viveiros_route(
     db: AsyncSession = Depends(get_db),
     current_user: FuncionarioOut = Depends(require_permission("home.view")),
+    tenant: TenantContext = Depends(get_tenant_context),
 ):
-    rows = await crud_viveiros.list_viveiros(db)
+    rows = await crud_viveiros.list_viveiros(db, id_empresa=tenant.id)
     if not is_system_admin(current_user):
-        allowed_ids = {v.id for v in await list_viveiros_for_user(db, current_user)}
+        allowed_ids = {
+            v.id for v in await list_viveiros_for_user(db, current_user, tenant=tenant)
+        }
         rows = [r for r in rows if r.id in allowed_ids]
     return [
         ViveiroOut(

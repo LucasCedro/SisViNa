@@ -10,8 +10,8 @@ from app.schemas.vendas import (
     ItemVenda, ItemVendaUpdate, ItemVendaDetalhe
 )
 from app.crud import vendas as crud_vendas
-from app.auth.jwt import get_current_user
 from app.security.rbac import require_permission
+from app.security.scope_context import ScopeContext, get_scope_context
 from app.schemas.funcionarios import FuncionarioOut
 
 router = APIRouter()
@@ -26,6 +26,7 @@ async def read_vendas(
     data_inicio: Optional[datetime] = None,
     data_fim: Optional[datetime] = None,
     db: AsyncSession = Depends(get_db),
+    scope: ScopeContext = Depends(get_scope_context),
     current_user: FuncionarioOut = Depends(require_permission("vendas.view")),
 ):
     """
@@ -39,7 +40,8 @@ async def read_vendas(
         id_funcionario=id_funcionario,
         status=status,
         data_inicio=data_inicio,
-        data_fim=data_fim
+        data_fim=data_fim,
+        id_viveiro=scope.viveiro.id,
     )
     return vendas
 
@@ -47,12 +49,13 @@ async def read_vendas(
 async def read_venda(
     venda_id: int,
     db: AsyncSession = Depends(get_db),
+    scope: ScopeContext = Depends(get_scope_context),
     current_user: FuncionarioOut = Depends(require_permission("vendas.view")),
 ):
     """
     Recupera uma venda específica pelo ID com detalhes.
     """
-    db_venda = await crud_vendas.get_venda_detalhe(db, venda_id)
+    db_venda = await crud_vendas.get_venda_detalhe(db, venda_id, ctx=scope.viveiro)
     if db_venda is None:
         raise HTTPException(status_code=404, detail="Venda não encontrada")
     return db_venda
@@ -61,13 +64,19 @@ async def read_venda(
 async def create_venda(
     venda: VendaCreate,
     db: AsyncSession = Depends(get_db),
+    scope: ScopeContext = Depends(get_scope_context),
     current_user: FuncionarioOut = Depends(require_permission("vendas.create")),
 ):
     """
     Cria uma nova venda com seus itens.
     """
     try:
-        return await crud_vendas.create_venda(db=db, venda=venda, perfis=current_user.perfis)
+        return await crud_vendas.create_venda(
+            db=db,
+            venda=venda,
+            perfis=current_user.perfis,
+            id_viveiro=scope.viveiro.id,
+        )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
@@ -78,9 +87,13 @@ async def create_venda(
 async def aprovar_venda(
     venda_id: int,
     db: AsyncSession = Depends(get_db),
+    scope: ScopeContext = Depends(get_scope_context),
     current_user: FuncionarioOut = Depends(require_permission("vendas.approve")),
 ):
     """Financeiro confirma pagamento — transição PENDENTE → PAGO (SoD)."""
+    existente = await crud_vendas.get_venda(db, venda_id, ctx=scope.viveiro)
+    if existente is None:
+        raise HTTPException(status_code=404, detail="Venda não encontrada")
     db_venda = await crud_vendas.aprovar_venda(db, venda_id)
     if db_venda is None:
         raise HTTPException(status_code=404, detail="Venda não encontrada")
@@ -92,12 +105,16 @@ async def update_venda(
     venda_id: int,
     venda: VendaUpdate,
     db: AsyncSession = Depends(get_db),
+    scope: ScopeContext = Depends(get_scope_context),
     current_user: FuncionarioOut = Depends(require_permission("vendas.edit")),
 ):
     """
     Atualiza venda em PENDENTE (forma pagamento, observações, cancelamento).
     Status PAGO exige POST /aprovar com vendas.approve.
     """
+    existente = await crud_vendas.get_venda(db, venda_id, ctx=scope.viveiro)
+    if existente is None:
+        raise HTTPException(status_code=404, detail="Venda não encontrada")
     db_venda = await crud_vendas.update_venda(
         db, venda_id, venda, perfis=current_user.perfis
     )
@@ -109,11 +126,15 @@ async def update_venda(
 async def delete_venda(
     venda_id: int,
     db: AsyncSession = Depends(get_db),
+    scope: ScopeContext = Depends(get_scope_context),
     current_user: FuncionarioOut = Depends(require_permission("vendas.edit")),
 ):
     """
     Deleta uma venda e seus itens, restaurando o status das plantas.
     """
+    existente = await crud_vendas.get_venda(db, venda_id, ctx=scope.viveiro)
+    if existente is None:
+        raise HTTPException(status_code=404, detail="Venda não encontrada")
     db_venda = await crud_vendas.delete_venda(db, venda_id, perfis=current_user.perfis)
     if db_venda is None:
         raise HTTPException(status_code=404, detail="Venda não encontrada")
@@ -124,11 +145,16 @@ async def delete_venda(
 async def read_item_venda(
     item_id: int,
     db: AsyncSession = Depends(get_db),
+    scope: ScopeContext = Depends(get_scope_context),
     current_user: FuncionarioOut = Depends(require_permission("vendas.view")),
 ):
     """
     Recupera um item de venda específico pelo ID.
     """
+    db_item = await crud_vendas.get_item_venda(db, item_id)
+    if db_item is None:
+        raise HTTPException(status_code=404, detail="Item de venda não encontrado")
+    await crud_vendas.get_venda(db, db_item.id_venda, ctx=scope.viveiro)
     db_item = await crud_vendas.get_item_venda_detalhe(db, item_id)
     if db_item is None:
         raise HTTPException(status_code=404, detail="Item de venda não encontrado")
@@ -139,11 +165,16 @@ async def update_item_venda(
     item_id: int,
     item: ItemVendaUpdate,
     db: AsyncSession = Depends(get_db),
+    scope: ScopeContext = Depends(get_scope_context),
     current_user: FuncionarioOut = Depends(require_permission("vendas.edit")),
 ):
     """
     Atualiza um item de venda existente.
     """
+    existente = await crud_vendas.get_item_venda(db, item_id)
+    if existente is None:
+        raise HTTPException(status_code=404, detail="Item de venda não encontrado")
+    await crud_vendas.get_venda(db, existente.id_venda, ctx=scope.viveiro)
     db_item = await crud_vendas.update_item_venda(
         db, item_id, item, perfis=current_user.perfis
     )
@@ -155,11 +186,16 @@ async def update_item_venda(
 async def delete_item_venda(
     item_id: int,
     db: AsyncSession = Depends(get_db),
+    scope: ScopeContext = Depends(get_scope_context),
     current_user: FuncionarioOut = Depends(require_permission("vendas.edit")),
 ):
     """
     Deleta um item de venda, restaurando o status da planta.
     """
+    existente = await crud_vendas.get_item_venda(db, item_id)
+    if existente is None:
+        raise HTTPException(status_code=404, detail="Item de venda não encontrado")
+    await crud_vendas.get_venda(db, existente.id_venda, ctx=scope.viveiro)
     db_item = await crud_vendas.delete_item_venda(db, item_id, perfis=current_user.perfis)
     if db_item is None:
         raise HTTPException(status_code=404, detail="Item de venda não encontrado")

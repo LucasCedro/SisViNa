@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, Date, DateTime, ForeignKey, Numeric, func
+from sqlalchemy import Column, Integer, String, Text, Date, DateTime, ForeignKey, Numeric, func, UniqueConstraint
 from sqlalchemy.orm import relationship
 
 from app.database import Base
@@ -6,10 +6,13 @@ from app.database import Base
 
 class LoteSementes(Base):
     __tablename__ = "lotes_sementes"
+    __table_args__ = (
+        UniqueConstraint("id_viveiro", "codigo_lote", name="uq_lotes_viveiro_codigo_lote"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     id_viveiro = Column(Integer, ForeignKey("viveiros.id"), nullable=False, index=True)
-    codigo_lote = Column(String(50), unique=True, nullable=False)
+    codigo_lote = Column(String(50), nullable=False)
     id_coleta_sementes = Column(Integer, ForeignKey("coletas_sementes.id", ondelete="CASCADE"), nullable=True)
     origem_lote = Column(String(30), nullable=False, default="coleta")
     id_arvore_matriz = Column(Integer, ForeignKey("arvores_matriz.id", ondelete="CASCADE"), nullable=True)

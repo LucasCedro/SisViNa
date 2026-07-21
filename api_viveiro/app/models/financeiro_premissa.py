@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, Numeric, Boolean, ForeignKey, func
+from sqlalchemy import Column, Integer, String, Text, DateTime, Numeric, Boolean, ForeignKey, UniqueConstraint, func
 from sqlalchemy.orm import relationship
 
 from app.database import Base
@@ -6,9 +6,13 @@ from app.database import Base
 
 class FinanceiroPremissa(Base):
     __tablename__ = "financeiro_premissas"
+    __table_args__ = (
+        UniqueConstraint("id_empresa", "chave", name="uq_fin_premissas_empresa_chave"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
-    chave = Column(String(60), unique=True, nullable=False)
+    id_empresa = Column(Integer, ForeignKey("empresas.id"), nullable=False, index=True)
+    chave = Column(String(60), nullable=False)
     nome = Column(String(120), nullable=False)
     descricao = Column(Text)
     # CUSTO → compõe CMV (lote/muda) | DESPESA → DRE (OPEX/comercial)

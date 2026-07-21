@@ -9,13 +9,22 @@ from app.models.arvores_matriz import ArvoreMatriz
 from app.models.lotes_sementes import LoteSementes
 from app.models.plantas import Planta
 from app.models.semeaduras import Semeadura
+from app.models.viveiros import Viveiro
 from app.schemas.semeaduras import (
     SemeaduraCreate,
     SemeaduraLoteCreate,
     SemeaduraUpdate,
 )
+from app.security.viveiro_context import ViveiroContext, assert_record_belongs_to_viveiro
 
 _PLANTAS_CHUNK = 500
+
+
+async def _id_empresa_viveiro(db: AsyncSession, id_viveiro: Optional[int]) -> Optional[int]:
+    if id_viveiro is None:
+        return None
+    viveiro = await db.get(Viveiro, id_viveiro)
+    return int(viveiro.id_empresa) if viveiro else None
 
 
 def _codigo_rastreio_semeadura(semeadura_id: int, indice: int) -> str:
@@ -61,7 +70,9 @@ def _para_resposta(semeadura: Semeadura, plantas_count: int = 0) -> dict:
     }
 
 
-async def get_semeadura(db: AsyncSession, semeadura_id: int) -> Optional[Semeadura]:
+async def get_semeadura(
+    db: AsyncSession, semeadura_id: int, ctx: Optional[ViveiroContext] = None
+) -> Optional[Semeadura]:
     result = await db.execute(
         select(Semeadura)
         .options(
@@ -72,7 +83,10 @@ async def get_semeadura(db: AsyncSession, semeadura_id: int) -> Optional[Semeadu
         )
         .where(Semeadura.id == semeadura_id)
     )
-    return result.scalars().first()
+    row = result.scalars().first()
+    if row and ctx is not None:
+        assert_record_belongs_to_viveiro(row.id_viveiro, ctx, "semeadura")
+    return row
 
 
 async def _count_plantas(db: AsyncSession, semeadura_id: int) -> int:
@@ -88,6 +102,7 @@ async def get_semeaduras(
     limit: int = 2000,
     id_lote_sementes: Optional[int] = None,
     id_arvore_matriz: Optional[int] = None,
+    id_viveiro: Optional[int] = None,
 ) -> List[dict]:
     query = (
         select(Semeadura)
@@ -100,6 +115,8 @@ async def get_semeaduras(
         )
         .order_by(Semeadura.data_semeadura.desc(), Semeadura.id.desc())
     )
+    if id_viveiro is not None:
+        query = query.where(Semeadura.id_viveiro == id_viveiro)
     if id_lote_sementes:
         query = query.where(Semeadura.id_lote_sementes == id_lote_sementes)
     if id_arvore_matriz:
@@ -151,6 +168,7 @@ async def _criar_plantas_semeadura(
     data_semeadura,
     quantidade: int,
     custo_unitario: float,
+    id_viveiro: Optional[int] = None,
 ) -> int:
     if quantidade <= 0:
         return 0
@@ -168,6 +186,7 @@ async def _criar_plantas_semeadura(
                     id_canteiro=id_canteiro,
                     id_lote_sementes=lote.id,
                     id_semeadura=semeadura_id,
+                    id_viveiro=id_viveiro,
                     codigo_rastreio=_codigo_rastreio_semeadura(semeadura_id, indice),
                     data_plantio=data_semeadura,
                     data_inicio_estagio_atual=data_semeadura,
@@ -191,6 +210,7 @@ async def _executar_semeadura_item(
     lote: LoteSementes,
     dados: dict,
     id_funcionario: int,
+    id_viveiro: Optional[int] = None,
 ) -> tuple[Semeadura, int]:
     from app.services.custeio import (
         aplicar_baixa_valor_lote,
@@ -216,6 +236,7 @@ async def _executar_semeadura_item(
     db_sem = Semeadura(
         id_lote_sementes=dados["id_lote_sementes"],
         id_canteiro=dados.get("id_canteiro"),
+        id_viveiro=id_viveiro,
         data_semeadura=dados["data_semeadura"],
         quantidade_sementes_usadas=qtd_sem,
         quantidade_mudas_obtidas=qtd_plantas_criar or dados.get("quantidade_mudas_obtidas"),
@@ -244,23 +265,32 @@ async def _executar_semeadura_item(
             data_semeadura=dados["data_semeadura"],
             quantidade=qtd_plantas_criar,
             custo_unitario=custeio["custo_unitario_muda"],
+            id_viveiro=id_viveiro,
         )
 
     return db_sem, plantas_criadas
 
 
-async def create_semeadura(db: AsyncSession, payload: SemeaduraCreate, id_funcionario: int) -> dict:
+async def create_semeadura(
+    db: AsyncSession,
+    payload: SemeaduraCreate,
+    id_funcionario: int,
+    id_viveiro: Optional[int] = None,
+) -> dict:
     lote = await db.get(LoteSementes, payload.id_lote_sementes)
     if not lote:
         raise ValueError("Lote não encontrado")
     await _validar_canteiro_sementeira(db, payload.id_canteiro)
 
     dados = payload.dict()
-    db_sem, plantas_criadas = await _executar_semeadura_item(db, lote=lote, dados=dados, id_funcionario=id_funcionario)
+    db_sem, plantas_criadas = await _executar_semeadura_item(
+        db, lote=lote, dados=dados, id_funcionario=id_funcionario, id_viveiro=id_viveiro
+    )
 
     from app.services.custeio import redistribuir_cif_parque
 
-    await redistribuir_cif_parque(db, commit=False)
+    id_empresa = await _id_empresa_viveiro(db, id_viveiro or lote.id_viveiro)
+    await redistribuir_cif_parque(db, commit=False, id_empresa=id_empresa)
 
     await db.commit()
     sem = await get_semeadura(db, db_sem.id)
@@ -269,7 +299,10 @@ async def create_semeadura(db: AsyncSession, payload: SemeaduraCreate, id_funcio
 
 
 async def create_semeaduras_lote(
-    db: AsyncSession, payload: SemeaduraLoteCreate, id_funcionario: int
+    db: AsyncSession,
+    payload: SemeaduraLoteCreate,
+    id_funcionario: int,
+    id_viveiro: Optional[int] = None,
 ) -> dict:
     from app.models.canteiros import Canteiro
     from app.models.especies import Especie
@@ -315,7 +348,7 @@ async def create_semeaduras_lote(
                 "quantidade_plantas_registrar": item.quantidade_sementes_usadas if registrar else None,
             }
             db_sem, plantas_criadas = await _executar_semeadura_item(
-                db, lote=lote, dados=dados, id_funcionario=id_funcionario
+                db, lote=lote, dados=dados, id_funcionario=id_funcionario, id_viveiro=id_viveiro
             )
             total_sem += item.quantidade_sementes_usadas
             total_plantas += plantas_criadas
@@ -331,7 +364,8 @@ async def create_semeaduras_lote(
             )
         from app.services.custeio import redistribuir_cif_parque
 
-        await redistribuir_cif_parque(db, commit=False)
+        id_empresa = await _id_empresa_viveiro(db, id_viveiro or cant.id_viveiro)
+        await redistribuir_cif_parque(db, commit=False, id_empresa=id_empresa)
         await db.commit()
     except Exception:
         await db.rollback()

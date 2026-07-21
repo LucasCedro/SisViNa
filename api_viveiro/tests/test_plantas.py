@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.especies import Especie
 from app.models.plantas import Planta
 from app.models.canteiros import Canteiro
+from tests.tenant_fixtures import DEFAULT_EMPRESA_ID, DEFAULT_VIVEIRO_ID
 
 # Dados de teste
 especie_test_data = {
@@ -44,7 +45,7 @@ async def test_create_planta(client: AsyncClient, db: AsyncSession, auth_headers
     await db.refresh(db_especie)
     
     # Criar um canteiro
-    db_canteiro = Canteiro(**canteiro_test_data)
+    db_canteiro = Canteiro(**canteiro_test_data, id_viveiro=DEFAULT_VIVEIRO_ID, tipo_local='canteiro')
     db.add(db_canteiro)
     await db.commit()
     await db.refresh(db_canteiro)
@@ -83,13 +84,13 @@ async def test_read_planta(client: AsyncClient, db: AsyncSession, auth_headers: 
     await db.refresh(db_especie)
     
     # Criar canteiro
-    db_canteiro = Canteiro(**canteiro_test_data)
+    db_canteiro = Canteiro(**canteiro_test_data, id_viveiro=DEFAULT_VIVEIRO_ID, tipo_local='canteiro')
     db.add(db_canteiro)
     await db.commit()
     await db.refresh(db_canteiro)
     
     # Criar planta
-    db_planta = Planta(**planta_test_data, id_especie=db_especie.id, id_canteiro=db_canteiro.id)
+    db_planta = Planta(**planta_test_data, id_viveiro=DEFAULT_VIVEIRO_ID, estagio_producao='em_crescimento', id_especie=db_especie.id, id_canteiro=db_canteiro.id)
     db.add(db_planta)
     await db.commit()
     await db.refresh(db_planta)
@@ -117,8 +118,8 @@ async def test_read_plantas(client: AsyncClient, db: AsyncSession, auth_headers:
     await db.refresh(db_especie)
     
     # Criar plantas
-    planta1 = Planta(codigo_rastreio="PL-TEST001", id_especie=db_especie.id, status="MUDA")
-    planta2 = Planta(codigo_rastreio="PL-TEST002", id_especie=db_especie.id, status="JOVEM")
+    planta1 = Planta(id_viveiro=DEFAULT_VIVEIRO_ID, estagio_producao='em_crescimento', codigo_rastreio="PL-TEST001", id_especie=db_especie.id, status="MUDA")
+    planta2 = Planta(id_viveiro=DEFAULT_VIVEIRO_ID, estagio_producao='em_crescimento', codigo_rastreio="PL-TEST002", id_especie=db_especie.id, status="JOVEM")
     
     db.add(planta1)
     db.add(planta2)
@@ -147,13 +148,13 @@ async def test_update_planta(client: AsyncClient, db: AsyncSession, auth_headers
     await db.refresh(db_especie)
     
     # Criar canteiro
-    db_canteiro = Canteiro(**canteiro_test_data)
+    db_canteiro = Canteiro(**canteiro_test_data, id_viveiro=DEFAULT_VIVEIRO_ID, tipo_local='canteiro')
     db.add(db_canteiro)
     await db.commit()
     await db.refresh(db_canteiro)
     
     # Criar planta
-    db_planta = Planta(**planta_test_data, id_especie=db_especie.id, id_canteiro=db_canteiro.id)
+    db_planta = Planta(**planta_test_data, id_viveiro=DEFAULT_VIVEIRO_ID, estagio_producao='em_crescimento', id_especie=db_especie.id, id_canteiro=db_canteiro.id)
     db.add(db_planta)
     await db.commit()
     await db.refresh(db_planta)
@@ -190,7 +191,7 @@ async def test_delete_planta(client: AsyncClient, db: AsyncSession, auth_headers
     await db.refresh(db_especie)
     
     # Criar planta
-    db_planta = Planta(codigo_rastreio="PL-DELETAR", id_especie=db_especie.id, status="MUDA")
+    db_planta = Planta(id_viveiro=DEFAULT_VIVEIRO_ID, estagio_producao='em_crescimento', codigo_rastreio="PL-DELETAR", id_especie=db_especie.id, status="MUDA")
     db.add(db_planta)
     await db.commit()
     await db.refresh(db_planta)

@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.utils import gerar_senha_hash
 from app.models.funcionarios import Funcionario
 from app.security.rbac import (
+from tests.tenant_fixtures import DEFAULT_EMPRESA_ID, DEFAULT_VIVEIRO_ID
     ALL_PERMISSIONS,
     ROLE_PERMISSIONS,
     has_permission,
@@ -96,6 +97,7 @@ async def test_privilege_escalation_blocked(
         cargo="Operador",
         perfis=["campo"],
         ativo=True,
+        id_empresa=DEFAULT_EMPRESA_ID,
     )
     db.add(campo)
     await db.commit()
@@ -134,6 +136,7 @@ async def test_admin_can_update_funcionario(
         cargo="Auxiliar",
         perfis=["consulta"],
         ativo=True,
+        id_empresa=DEFAULT_EMPRESA_ID,
     )
     db.add(alvo)
     await db.commit()
@@ -162,6 +165,7 @@ async def test_patch_me_cannot_change_perfis(client: AsyncClient, db: AsyncSessi
         cargo="Consultor",
         perfis=["consulta"],
         ativo=True,
+        id_empresa=DEFAULT_EMPRESA_ID,
     )
     db.add(consulta)
     await db.commit()
@@ -200,6 +204,7 @@ async def test_consulta_forbidden_on_mutations(client: AsyncClient, db: AsyncSes
         cargo="Consultor",
         perfis=["consulta"],
         ativo=True,
+        id_empresa=DEFAULT_EMPRESA_ID,
     )
     db.add(consulta)
     await db.commit()
@@ -241,6 +246,7 @@ async def test_godmode_blocked_without_admin_profile(
         cargo="Gestor",
         perfis=["gestor"],
         ativo=True,
+        id_empresa=DEFAULT_EMPRESA_ID,
     )
     db.add(gestor)
     await db.commit()

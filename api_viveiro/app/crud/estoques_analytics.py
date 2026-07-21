@@ -48,7 +48,9 @@ def _stats_valores(custos: List[float]) -> Dict[str, float]:
     }
 
 
-async def _carregar_plantas_vivas(db: AsyncSession) -> List[Dict[str, Any]]:
+async def _carregar_plantas_vivas(
+    db: AsyncSession, id_viveiro: Optional[int] = None
+) -> List[Dict[str, Any]]:
     entrada_rust = _subquery_entrada_rustificacao()
     data_rust = data_ref_rustificacao(entrada_rust)
     data_viveiro = func.coalesce(
@@ -83,6 +85,8 @@ async def _carregar_plantas_vivas(db: AsyncSession) -> List[Dict[str, Any]]:
         .outerjoin(entrada_rust, entrada_rust.c.id_planta == Planta.id)
         .where(Planta.status.notin_(VENDIDAS_OU_MORTAS))
     )
+    if id_viveiro is not None:
+        q = q.where(Planta.id_viveiro == id_viveiro)
     rows = (await db.execute(q)).all()
     out: List[Dict[str, Any]] = []
     for row in rows:
@@ -130,13 +134,14 @@ async def montar_analitico_mudas(
     db: AsyncSession,
     *,
     metrica_idade: str = "viveiro",
+    id_viveiro: Optional[int] = None,
 ) -> Dict[str, Any]:
     """
     metrica_idade: viveiro | rustificacao
     - viveiro: dias desde plantio/início
     - rustificacao: dias na área de rustificação (só plantas lá; demais ignoradas na visão por idade)
     """
-    plantas = await _carregar_plantas_vivas(db)
+    plantas = await _carregar_plantas_vivas(db, id_viveiro=id_viveiro)
     total_qtd = len(plantas)
     if total_qtd == 0:
         return {
@@ -283,9 +288,11 @@ async def montar_analitico_mudas(
     }
 
 
-async def verificar_integridade_cmv(db: AsyncSession) -> Dict[str, Any]:
+async def verificar_integridade_cmv(
+    db: AsyncSession, id_viveiro: Optional[int] = None
+) -> Dict[str, Any]:
     """Alertas que podem distorcer CMV ou valor de estoque."""
-    plantas = await _carregar_plantas_vivas(db)
+    plantas = await _carregar_plantas_vivas(db, id_viveiro=id_viveiro)
     sem_custo = [p for p in plantas if (p["custo_atual"] or 0) <= 0]
     com_custo = [p for p in plantas if (p["custo_atual"] or 0) > 0]
 
@@ -357,9 +364,10 @@ async def listar_detalhe_analitico(
     id_especie: Optional[int] = None,
     faixa: Optional[str] = None,
     agrupar: str = "muda",
+    id_viveiro: Optional[int] = None,
 ) -> Dict[str, Any]:
     """Detalhe muda a muda ou agrupado por lote de sementes."""
-    plantas = await _carregar_plantas_vivas(db)
+    plantas = await _carregar_plantas_vivas(db, id_viveiro=id_viveiro)
 
     if id_especie is not None:
         plantas = [p for p in plantas if p["id_especie"] == id_especie]

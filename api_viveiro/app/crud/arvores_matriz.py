@@ -11,6 +11,7 @@ from app.models.especies import Especie
 from app.schemas.arvores_matriz import ArvoreMatrizCreate, ArvoreMatrizUpdate
 from app.utils.coordenadas import utm_para_latlon
 from app.utils.especies_display import formatar_nome_popular
+from app.security.viveiro_context import ViveiroContext, assert_record_belongs_to_viveiro
 
 _CAMPOS_MATRIZ = (
     "nome",
@@ -89,31 +90,41 @@ def _para_resposta(arvore: ArvoreMatriz, total_coletas: int = 0, total_lotes: in
     }
 
 
-async def get_arvore_matriz(db: AsyncSession, arvore_id: int) -> Optional[ArvoreMatriz]:
+async def get_arvore_matriz(
+    db: AsyncSession, arvore_id: int, ctx: Optional[ViveiroContext] = None
+) -> Optional[ArvoreMatriz]:
     result = await db.execute(
         select(ArvoreMatriz)
         .options(joinedload(ArvoreMatriz.especie))
         .where(ArvoreMatriz.id == arvore_id)
     )
-    return result.scalars().first()
+    row = result.scalars().first()
+    if row and ctx is not None:
+        assert_record_belongs_to_viveiro(row.id_viveiro, ctx, "arvore_matriz")
+    return row
 
 
-async def get_arvore_matriz_out(db: AsyncSession, arvore_id: int) -> Optional[dict]:
-    arvore = await get_arvore_matriz(db, arvore_id)
+async def get_arvore_matriz_out(
+    db: AsyncSession, arvore_id: int, ctx: Optional[ViveiroContext] = None
+) -> Optional[dict]:
+    arvore = await get_arvore_matriz(db, arvore_id, ctx=ctx)
     if not arvore:
         return None
     tc, tl = await _contagens(db, arvore_id)
     return _para_resposta(arvore, tc, tl)
 
 
-async def get_arvores_matriz(db: AsyncSession, skip: int = 0, limit: int = 500) -> List[dict]:
-    result = await db.execute(
+async def get_arvores_matriz(
+    db: AsyncSession, skip: int = 0, limit: int = 500, id_viveiro: Optional[int] = None
+) -> List[dict]:
+    query = (
         select(ArvoreMatriz)
         .options(joinedload(ArvoreMatriz.especie))
         .order_by(ArvoreMatriz.id.desc())
-        .offset(skip)
-        .limit(limit)
     )
+    if id_viveiro is not None:
+        query = query.where(ArvoreMatriz.id_viveiro == id_viveiro)
+    result = await db.execute(query.offset(skip).limit(limit))
     arvores = result.scalars().all()
     saida = []
     for a in arvores:
@@ -122,12 +133,15 @@ async def get_arvores_matriz(db: AsyncSession, skip: int = 0, limit: int = 500) 
     return saida
 
 
-async def create_arvore_matriz(db: AsyncSession, payload: ArvoreMatrizCreate) -> dict:
+async def create_arvore_matriz(
+    db: AsyncSession, payload: ArvoreMatrizCreate, id_viveiro: Optional[int] = None
+) -> dict:
     dados = payload.dict()
     lat, lon = _resolver_lat_lon(dados)
     kwargs = {k: dados.get(k) for k in _CAMPOS_MATRIZ}
     db_arvore = ArvoreMatriz(
         **kwargs,
+        id_viveiro=id_viveiro,
         latitude=lat,
         longitude=lon,
         tipo_coordenada=dados["tipo_coordenada"],

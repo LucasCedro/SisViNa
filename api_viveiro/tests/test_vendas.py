@@ -9,6 +9,7 @@ from app.models.funcionarios import Funcionario
 from app.models.plantas import Planta
 from app.models.especies import Especie
 from app.auth.utils import gerar_senha_hash
+from tests.tenant_fixtures import DEFAULT_EMPRESA_ID, DEFAULT_VIVEIRO_ID
 
 # Dados de teste
 comprador_test_data = {
@@ -50,12 +51,14 @@ async def test_create_venda(client: AsyncClient, db: AsyncSession, auth_headers:
     
     # 3. Plantas
     planta1 = Planta(
+        id_viveiro=DEFAULT_VIVEIRO_ID,
         id_especie=db_especie.id, 
         codigo_rastreio="PL-VENDA-1", 
         status="ADULTA",
         preco_venda=50.0
     )
     planta2 = Planta(
+        id_viveiro=DEFAULT_VIVEIRO_ID,
         id_especie=db_especie.id, 
         codigo_rastreio="PL-VENDA-2", 
         status="ADULTA",
@@ -143,6 +146,7 @@ async def test_read_venda(client: AsyncClient, db: AsyncSession, auth_headers: d
     
     # 3. Planta
     db_planta = Planta(
+        id_viveiro=DEFAULT_VIVEIRO_ID,
         id_especie=db_especie.id, 
         codigo_rastreio="PL-LEITURA", 
         status="ADULTA",
@@ -266,6 +270,7 @@ async def test_cancel_venda(client: AsyncClient, db: AsyncSession, auth_headers:
     
     # 3. Plantas
     db_planta = Planta(
+        id_viveiro=DEFAULT_VIVEIRO_ID,
         id_especie=db_especie.id, 
         codigo_rastreio="PL-CANCELAR", 
         status="ADULTA",
@@ -388,6 +393,7 @@ async def test_update_item_venda(client: AsyncClient, db: AsyncSession, auth_hea
     await db.commit()
     
     db_planta = Planta(
+        id_viveiro=DEFAULT_VIVEIRO_ID,
         id_especie=db_especie.id, 
         codigo_rastreio="PL-ITEM", 
         status="ADULTA",

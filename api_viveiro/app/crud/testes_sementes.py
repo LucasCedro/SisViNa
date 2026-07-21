@@ -44,15 +44,16 @@ def _para_resposta(teste: TesteSementes, taxa_especie: Optional[float] = None) -
 
 
 async def calcular_taxa_germinacao_especie(
-    db: AsyncSession, id_especie: int
+    db: AsyncSession, id_especie: int, id_viveiro: Optional[int] = None
 ) -> Optional[float]:
     """Média do último teste de germinação por lote ativo da espécie."""
-    result = await db.execute(
-        select(LoteSementes.id).where(
-            LoteSementes.id_especie == id_especie,
-            LoteSementes.status != "descartado",
-        )
+    lote_q = select(LoteSementes.id).where(
+        LoteSementes.id_especie == id_especie,
+        LoteSementes.status != "descartado",
     )
+    if id_viveiro is not None:
+        lote_q = lote_q.where(LoteSementes.id_viveiro == id_viveiro)
+    result = await db.execute(lote_q)
     lot_ids = [row[0] for row in result.all()]
     if not lot_ids:
         return None
@@ -92,9 +93,12 @@ async def _sync_taxa_matriz(db: AsyncSession, id_arvore_matriz: int) -> None:
         arvore.taxa_germinacao = float(valor) if valor is not None else None
 
 
-async def get_teste(db: AsyncSession, teste_id: int) -> Optional[TesteSementes]:
-    result = await db.execute(
+async def get_teste(
+    db: AsyncSession, teste_id: int, id_viveiro: Optional[int] = None
+) -> Optional[TesteSementes]:
+    query = (
         select(TesteSementes)
+        .join(LoteSementes, TesteSementes.id_lote_sementes == LoteSementes.id)
         .options(
             joinedload(TesteSementes.lote).joinedload(LoteSementes.arvore_matriz),
             joinedload(TesteSementes.lote).joinedload(LoteSementes.especie),
@@ -102,6 +106,9 @@ async def get_teste(db: AsyncSession, teste_id: int) -> Optional[TesteSementes]:
         )
         .where(TesteSementes.id == teste_id)
     )
+    if id_viveiro is not None:
+        query = query.where(LoteSementes.id_viveiro == id_viveiro)
+    result = await db.execute(query)
     return result.scalars().first()
 
 
@@ -111,6 +118,7 @@ async def get_testes(
     limit: int = 2000,
     id_lote_sementes: Optional[int] = None,
     id_arvore_matriz: Optional[int] = None,
+    id_viveiro: Optional[int] = None,
 ) -> List[TesteSementes]:
     query = (
         select(TesteSementes)
@@ -122,6 +130,8 @@ async def get_testes(
         )
         .order_by(TesteSementes.data_teste.desc(), TesteSementes.id.desc())
     )
+    if id_viveiro is not None:
+        query = query.where(LoteSementes.id_viveiro == id_viveiro)
     if id_lote_sementes:
         query = query.where(TesteSementes.id_lote_sementes == id_lote_sementes)
     if id_arvore_matriz:
@@ -155,11 +165,15 @@ async def _devolver_sobra_reserva_ao_lote(
     return sobra
 
 
-async def create_teste(db: AsyncSession, payload: TesteSementesCreate, id_funcionario: int) -> dict:
+async def create_teste(
+    db: AsyncSession, payload: TesteSementesCreate, id_funcionario: int, id_viveiro: Optional[int] = None
+) -> dict:
     """Registra qualidade do lote. Sobra da reserva (coleta) volta ao estoque do lote."""
     lote = await db.get(LoteSementes, payload.id_lote_sementes)
     if not lote:
         raise ValueError("Lote não encontrado")
+    if id_viveiro is not None and lote.id_viveiro != id_viveiro:
+        raise ValueError("Lote não pertence à unidade viveiro ativa")
 
     dados = payload.dict()
     db_teste = TesteSementes(
@@ -183,14 +197,14 @@ async def create_teste(db: AsyncSession, payload: TesteSementesCreate, id_funcio
     teste = await get_teste(db, db_teste.id)
     taxa = None
     if lote.id_especie and dados["tipo_teste"] == "germinacao":
-        taxa = await calcular_taxa_germinacao_especie(db, lote.id_especie)
+        taxa = await calcular_taxa_germinacao_especie(db, lote.id_especie, id_viveiro=id_viveiro)
     return _para_resposta(teste, taxa)
 
 
 async def update_teste(
-    db: AsyncSession, teste_id: int, payload: TesteSementesUpdate
+    db: AsyncSession, teste_id: int, payload: TesteSementesUpdate, id_viveiro: Optional[int] = None
 ) -> Optional[dict]:
-    db_teste = await get_teste(db, teste_id)
+    db_teste = await get_teste(db, teste_id, id_viveiro=id_viveiro)
     if not db_teste:
         return None
     id_matriz = db_teste.lote.id_arvore_matriz
@@ -202,12 +216,16 @@ async def update_teste(
     db_teste = await get_teste(db, teste_id)
     taxa = None
     if db_teste.lote.id_especie:
-        taxa = await calcular_taxa_germinacao_especie(db, db_teste.lote.id_especie)
+        taxa = await calcular_taxa_germinacao_especie(
+            db, db_teste.lote.id_especie, id_viveiro=id_viveiro
+        )
     return _para_resposta(db_teste, taxa)
 
 
-async def delete_teste(db: AsyncSession, teste_id: int) -> Optional[dict]:
-    db_teste = await get_teste(db, teste_id)
+async def delete_teste(
+    db: AsyncSession, teste_id: int, id_viveiro: Optional[int] = None
+) -> Optional[dict]:
+    db_teste = await get_teste(db, teste_id, id_viveiro=id_viveiro)
     if not db_teste:
         return None
     id_matriz = db_teste.lote.id_arvore_matriz

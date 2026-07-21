@@ -21,9 +21,12 @@ from app.schemas.florestal import (
 )
 from app.schemas.funcionarios import FuncionarioOut
 from app.security.rbac import require_permission
-from app.security.viveiro_context import ViveiroContext, get_viveiro_context
+from app.security.scope_context import ScopeContext, get_scope_context
 
 router = APIRouter()
+
+
+from app.security.viveiro_context import ViveiroContext
 
 
 def _assert_florestal(ctx: ViveiroContext) -> None:
@@ -37,34 +40,34 @@ def _assert_florestal(ctx: ViveiroContext) -> None:
 @router.get("/resumo", response_model=FlorestalResumoOut)
 async def resumo(
     db: AsyncSession = Depends(get_db),
-    ctx: ViveiroContext = Depends(get_viveiro_context),
+    scope: ScopeContext = Depends(get_scope_context),
     _user: FuncionarioOut = Depends(require_permission("florestal.view")),
 ):
-    _assert_florestal(ctx)
-    return await crud_florestal.resumo_florestal(db, ctx)
+    _assert_florestal(scope.viveiro)
+    return await crud_florestal.resumo_florestal(db, scope.viveiro)
 
 
 @router.get("/genotipos", response_model=List[GenotipoOut])
 async def list_genotipos(
     ativo: Optional[bool] = True,
     db: AsyncSession = Depends(get_db),
-    ctx: ViveiroContext = Depends(get_viveiro_context),
+    scope: ScopeContext = Depends(get_scope_context),
     _user: FuncionarioOut = Depends(require_permission("florestal.view")),
 ):
-    _assert_florestal(ctx)
-    return await crud_florestal.list_genotipos(db, ctx, ativo=ativo)
+    _assert_florestal(scope.viveiro)
+    return await crud_florestal.list_genotipos(db, scope.viveiro, ativo=ativo)
 
 
 @router.post("/genotipos", response_model=GenotipoOut, status_code=201)
 async def create_genotipo(
     payload: GenotipoCreate,
     db: AsyncSession = Depends(get_db),
-    ctx: ViveiroContext = Depends(get_viveiro_context),
+    scope: ScopeContext = Depends(get_scope_context),
     _user: FuncionarioOut = Depends(require_permission("florestal.create")),
 ):
-    _assert_florestal(ctx)
+    _assert_florestal(scope.viveiro)
     try:
-        row = await crud_florestal.create_genotipo(db, ctx, payload)
+        row = await crud_florestal.create_genotipo(db, scope.viveiro, payload)
         await db.commit()
         return row
     except ValueError as exc:
@@ -77,11 +80,11 @@ async def update_genotipo(
     genotipo_id: int,
     payload: GenotipoUpdate,
     db: AsyncSession = Depends(get_db),
-    ctx: ViveiroContext = Depends(get_viveiro_context),
+    scope: ScopeContext = Depends(get_scope_context),
     _user: FuncionarioOut = Depends(require_permission("florestal.edit")),
 ):
-    _assert_florestal(ctx)
-    row = await crud_florestal.update_genotipo(db, ctx, genotipo_id, payload)
+    _assert_florestal(scope.viveiro)
+    row = await crud_florestal.update_genotipo(db, scope.viveiro, genotipo_id, payload)
     if row is None:
         raise HTTPException(status_code=404, detail="Genótipo não encontrado.")
     await db.commit()
@@ -93,23 +96,23 @@ async def list_lotes(
     estagio: Optional[str] = Query(None),
     id_genotipo: Optional[int] = Query(None),
     db: AsyncSession = Depends(get_db),
-    ctx: ViveiroContext = Depends(get_viveiro_context),
+    scope: ScopeContext = Depends(get_scope_context),
     _user: FuncionarioOut = Depends(require_permission("florestal.view")),
 ):
-    _assert_florestal(ctx)
-    return await crud_florestal.list_lotes(db, ctx, estagio=estagio, id_genotipo=id_genotipo)
+    _assert_florestal(scope.viveiro)
+    return await crud_florestal.list_lotes(db, scope.viveiro, estagio=estagio, id_genotipo=id_genotipo)
 
 
 @router.post("/lotes", response_model=LoteProducaoOut, status_code=201)
 async def create_lote(
     payload: LoteProducaoCreate,
     db: AsyncSession = Depends(get_db),
-    ctx: ViveiroContext = Depends(get_viveiro_context),
+    scope: ScopeContext = Depends(get_scope_context),
     user: FuncionarioOut = Depends(require_permission("florestal.create")),
 ):
-    _assert_florestal(ctx)
+    _assert_florestal(scope.viveiro)
     try:
-        row = await crud_florestal.create_lote(db, ctx, payload, user.id)
+        row = await crud_florestal.create_lote(db, scope.viveiro, payload, user.id)
         await db.commit()
         return row
     except ValueError as exc:
@@ -122,12 +125,12 @@ async def transferir_lote(
     lote_id: int,
     payload: LoteTransferenciaRequest,
     db: AsyncSession = Depends(get_db),
-    ctx: ViveiroContext = Depends(get_viveiro_context),
+    scope: ScopeContext = Depends(get_scope_context),
     user: FuncionarioOut = Depends(require_permission("florestal.transfer")),
 ):
-    _assert_florestal(ctx)
+    _assert_florestal(scope.viveiro)
     try:
-        row = await crud_florestal.transferir_lote(db, ctx, lote_id, payload, user.id)
+        row = await crud_florestal.transferir_lote(db, scope.viveiro, lote_id, payload, user.id)
         await db.commit()
         return row
     except ValueError as exc:
@@ -140,12 +143,12 @@ async def registrar_perda(
     lote_id: int,
     payload: LotePerdaRequest,
     db: AsyncSession = Depends(get_db),
-    ctx: ViveiroContext = Depends(get_viveiro_context),
+    scope: ScopeContext = Depends(get_scope_context),
     user: FuncionarioOut = Depends(require_permission("florestal.edit")),
 ):
-    _assert_florestal(ctx)
+    _assert_florestal(scope.viveiro)
     try:
-        row = await crud_florestal.registrar_perda(db, ctx, lote_id, payload, user.id)
+        row = await crud_florestal.registrar_perda(db, scope.viveiro, lote_id, payload, user.id)
         await db.commit()
         return row
     except ValueError as exc:
@@ -157,8 +160,8 @@ async def registrar_perda(
 async def list_movimentacoes(
     lote_id: int,
     db: AsyncSession = Depends(get_db),
-    ctx: ViveiroContext = Depends(get_viveiro_context),
+    scope: ScopeContext = Depends(get_scope_context),
     _user: FuncionarioOut = Depends(require_permission("florestal.view")),
 ):
-    _assert_florestal(ctx)
-    return await crud_florestal.list_movimentacoes(db, ctx, lote_id)
+    _assert_florestal(scope.viveiro)
+    return await crud_florestal.list_movimentacoes(db, scope.viveiro, lote_id)

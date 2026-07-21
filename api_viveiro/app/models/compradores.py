@@ -1,5 +1,5 @@
 # app/models/compradores.py
-from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, CheckConstraint, func
+from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, CheckConstraint, ForeignKey, func
 from sqlalchemy.orm import relationship
 
 from app.database import Base
@@ -26,6 +26,7 @@ class Comprador(Base):
     senha = Column(String(255))
     data_cadastro = Column(DateTime, default=func.now())
     ativo = Column(Boolean, default=True)
+    id_empresa = Column(Integer, ForeignKey("empresas.id"), nullable=False, index=True)
 
     # Verificar se o tipo é 'PF' ou 'PJ'
     __table_args__ = (

@@ -42,9 +42,11 @@ def _capacidade_campo_layout(campo: Dict[str, Any]) -> int:
     return 0
 
 
-async def capacidades_viveiro_layout(db: AsyncSession) -> Dict[str, int]:
+async def capacidades_viveiro_layout(
+    db: AsyncSession, id_viveiro: Optional[int] = None
+) -> Dict[str, int]:
     """Soma capacidades cadastradas no Viveiro Designer (planta baixa)."""
-    layout = await get_layout(db)
+    layout = await get_layout(db, id_viveiro=id_viveiro)
     caps = {"armazem": 0, "sementeira": 0, "canteiro": 0, "rustificacao": 0}
     for campo in layout.get("campos") or []:
         seg = _TIPO_CAMPO_CAPACIDADE.get(campo.get("tipo") or "")
@@ -144,26 +146,31 @@ def _lote_para_resumo(l: dict) -> dict:
     }
 
 
-async def get_resumo_estoques(db: AsyncSession) -> Dict[str, Any]:
-    lotes = await get_lotes(db, status="ativo", limit=500)
+async def get_resumo_estoques(
+    db: AsyncSession, id_viveiro: Optional[int] = None, id_empresa: Optional[int] = None
+) -> Dict[str, Any]:
+    lotes = await get_lotes(db, status="ativo", limit=500, id_viveiro=id_viveiro)
     lotes_ativos = [l for l in lotes if (l.get("quantidade_disponivel") or 0) > 0]
     lotes_resumo = [_lote_para_resumo(l) for l in lotes_ativos]
     valor_total_sementes = sum(float(l.get("valor_total") or 0) for l in lotes_ativos)
 
     mov_map = await _mapa_movimentacoes_insumo(db)
-    ins_result = await db.execute(select(Insumo).order_by(Insumo.nome))
+    ins_q = select(Insumo).order_by(Insumo.nome)
+    if id_empresa is not None:
+        ins_q = ins_q.where(Insumo.id_empresa == id_empresa)
+    ins_result = await db.execute(ins_q)
     insumos_db = ins_result.scalars().all()
     insumos = [_insumo_para_resumo(i, mov_map.get(i.id)) for i in insumos_db]
     valor_total_insumos = sum(i["valor_estoque"] for i in insumos)
 
-    pipeline = await contar_mudas_pipeline(db)
-    capacidades_viveiro = await capacidades_viveiro_layout(db)
-    analitico_viveiro = await montar_analitico_mudas(db, metrica_idade="viveiro")
-    analitico_rust = await montar_analitico_mudas(db, metrica_idade="rustificacao")
-    cmv_integridade = await verificar_integridade_cmv(db)
-    timeline_especies = await montar_timeline_especies(db)
+    pipeline = await contar_mudas_pipeline(db, id_viveiro=id_viveiro)
+    capacidades_viveiro = await capacidades_viveiro_layout(db, id_viveiro=id_viveiro)
+    analitico_viveiro = await montar_analitico_mudas(db, metrica_idade="viveiro", id_viveiro=id_viveiro)
+    analitico_rust = await montar_analitico_mudas(db, metrica_idade="rustificacao", id_viveiro=id_viveiro)
+    cmv_integridade = await verificar_integridade_cmv(db, id_viveiro=id_viveiro)
+    timeline_especies = await montar_timeline_especies(db, id_viveiro=id_viveiro)
 
-    estoque_comercial_raw = await crud_plantas.get_estoque_resumo(db)
+    estoque_comercial_raw = await crud_plantas.get_estoque_resumo(db, id_viveiro=id_viveiro)
     estoque_comercial = [
         {
             "id_especie": e["id_especie"],
@@ -182,16 +189,12 @@ async def get_resumo_estoques(db: AsyncSession) -> Dict[str, Any]:
     total_mudas_aptas_venda = sum(e["quantidade"] for e in estoque_comercial)
     valor_mudas_comercial = sum(e.get("valor_estoque_especie", 0) for e in estoque_comercial)
 
-    valor_mudas_vivas = float(
-        (
-            await db.execute(
-                select(func.coalesce(func.sum(Planta.custo_atual), 0)).where(
-                    Planta.status.notin_(("VENDIDA", "MORTA"))
-                )
-            )
-        ).scalar()
-        or 0
+    q_mudas_vivas = select(func.coalesce(func.sum(Planta.custo_atual), 0)).where(
+        Planta.status.notin_(("VENDIDA", "MORTA"))
     )
+    if id_viveiro is not None:
+        q_mudas_vivas = q_mudas_vivas.where(Planta.id_viveiro == id_viveiro)
+    valor_mudas_vivas = float((await db.execute(q_mudas_vivas)).scalar() or 0)
 
     return {
         "total_lotes_sementes_ativos": len(lotes_ativos),

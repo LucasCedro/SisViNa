@@ -8,6 +8,7 @@ from app.models.canteiros import Canteiro
 from app.models.especies import Especie
 from app.models.insumos import Insumo
 from app.models.plantas import Planta
+from tests.tenant_fixtures import DEFAULT_EMPRESA_ID, DEFAULT_VIVEIRO_ID
 
 
 @pytest.mark.asyncio
@@ -38,7 +39,7 @@ async def test_estoque_comercial_rustificacao_recomendada_30_dias(
 ):
     """Todas aptas p/ venda entram no estoque; prazo de 30d é só recomendação."""
     especie = Especie(nome_cientifico="Tabebuia sp", nome_popular="Ipê")
-    rust = Canteiro(nome="Rust A", tipo_local="rustificacao", ativo=True)
+    rust = Canteiro(nome="Rust A", tipo_local="rustificacao", ativo=True, id_viveiro=DEFAULT_VIVEIRO_ID)
     db.add(especie)
     db.add(rust)
     await db.commit()
@@ -46,6 +47,7 @@ async def test_estoque_comercial_rustificacao_recomendada_30_dias(
     await db.refresh(rust)
 
     pronta = Planta(
+        id_viveiro=DEFAULT_VIVEIRO_ID,
         id_especie=especie.id,
         id_canteiro=rust.id,
         codigo_rastreio="M-PRONTA",
@@ -55,6 +57,7 @@ async def test_estoque_comercial_rustificacao_recomendada_30_dias(
         preco_venda=5.0,
     )
     recente = Planta(
+        id_viveiro=DEFAULT_VIVEIRO_ID,
         id_especie=especie.id,
         id_canteiro=rust.id,
         codigo_rastreio="M-RECENTE",

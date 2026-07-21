@@ -11,6 +11,7 @@ from app.models.lotes_sementes import LoteSementes
 from app.models.testes_sementes import TesteSementes
 from app.schemas.lotes_sementes import LoteSementesCreate, LoteSementesUpdate
 from app.utils.especies_display import formatar_nome_popular
+from app.security.viveiro_context import ViveiroContext, assert_record_belongs_to_viveiro
 
 
 def _codigo_lote(matriz_id: int, coleta_id: int) -> str:
@@ -90,7 +91,9 @@ async def _mapa_ultimos_testes_germinacao(
     }
 
 
-async def get_lote(db: AsyncSession, lote_id: int) -> Optional[LoteSementes]:
+async def get_lote(
+    db: AsyncSession, lote_id: int, ctx: Optional[ViveiroContext] = None
+) -> Optional[LoteSementes]:
     result = await db.execute(
         select(LoteSementes)
         .options(
@@ -100,7 +103,10 @@ async def get_lote(db: AsyncSession, lote_id: int) -> Optional[LoteSementes]:
         )
         .where(LoteSementes.id == lote_id)
     )
-    return result.scalars().first()
+    row = result.scalars().first()
+    if row and ctx is not None:
+        assert_record_belongs_to_viveiro(row.id_viveiro, ctx, "lote_sementes")
+    return row
 
 
 async def get_lotes(
@@ -110,6 +116,7 @@ async def get_lotes(
     id_arvore_matriz: Optional[int] = None,
     id_coleta_sementes: Optional[int] = None,
     status: Optional[str] = None,
+    id_viveiro: Optional[int] = None,
 ) -> List[dict]:
     query = (
         select(LoteSementes)
@@ -120,6 +127,8 @@ async def get_lotes(
         )
         .order_by(LoteSementes.data_formacao_lote.desc(), LoteSementes.id.desc())
     )
+    if id_viveiro is not None:
+        query = query.where(LoteSementes.id_viveiro == id_viveiro)
     if id_arvore_matriz:
         query = query.where(LoteSementes.id_arvore_matriz == id_arvore_matriz)
     if id_coleta_sementes:
@@ -139,6 +148,7 @@ async def criar_lote_de_coleta(
     beneficiamento: Optional[str] = None,
     condicoes_armazenamento: Optional[str] = None,
     codigo_lote: Optional[str] = None,
+    id_viveiro: Optional[int] = None,
 ) -> LoteSementes:
     arvore = coleta.arvore_matriz or await db.get(ArvoreMatriz, coleta.id_arvore_matriz)
     codigo = codigo_lote or _codigo_lote(coleta.id_arvore_matriz, coleta.id)
@@ -150,6 +160,7 @@ async def criar_lote_de_coleta(
         id_coleta_sementes=coleta.id,
         id_arvore_matriz=coleta.id_arvore_matriz,
         id_especie=arvore.id_especie,
+        id_viveiro=id_viveiro,
         quantidade_inicial=qtd,
         quantidade_disponivel=qtd,
         data_formacao_lote=coleta.data_coleta,
@@ -162,7 +173,9 @@ async def criar_lote_de_coleta(
     return db_lote
 
 
-async def create_lote(db: AsyncSession, payload: LoteSementesCreate) -> dict:
+async def create_lote(
+    db: AsyncSession, payload: LoteSementesCreate, id_viveiro: Optional[int] = None
+) -> dict:
     coleta = await db.get(ColetaSementes, payload.id_coleta_sementes)
     if not coleta:
         raise ValueError("Coleta não encontrada")
@@ -180,6 +193,7 @@ async def create_lote(db: AsyncSession, payload: LoteSementesCreate) -> dict:
         id_coleta_sementes=coleta.id,
         id_arvore_matriz=coleta.id_arvore_matriz,
         id_especie=arvore.id_especie,
+        id_viveiro=id_viveiro,
         quantidade_inicial=qtd,
         quantidade_disponivel=qtd,
         data_formacao_lote=payload.data_formacao_lote or coleta.data_coleta,
@@ -195,7 +209,7 @@ async def create_lote(db: AsyncSession, payload: LoteSementesCreate) -> dict:
     return _para_resposta(lote, ultimo)
 
 
-async def criar_lote_armazem(db: AsyncSession, payload) -> dict:
+async def criar_lote_armazem(db: AsyncSession, payload, id_viveiro: Optional[int] = None) -> dict:
     from app.models.especies import Especie
 
     especie = await db.get(Especie, payload.id_especie)
@@ -218,6 +232,7 @@ async def criar_lote_armazem(db: AsyncSession, payload) -> dict:
         id_coleta_sementes=None,
         id_arvore_matriz=id_matriz,
         id_especie=payload.id_especie,
+        id_viveiro=id_viveiro,
         quantidade_inicial=payload.quantidade,
         quantidade_disponivel=payload.quantidade,
         data_formacao_lote=date.today(),

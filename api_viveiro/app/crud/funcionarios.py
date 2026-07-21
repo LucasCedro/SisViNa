@@ -10,23 +10,39 @@ from app.models.atividades import Atividade
 from app.schemas.funcionarios import FuncionarioCreate, FuncionarioUpdate, FuncionarioPerfilUpdate
 from app.auth.utils import gerar_senha_hash
 
-async def get_funcionario(db: AsyncSession, funcionario_id: int) -> Optional[Funcionario]:
-    result = await db.execute(select(Funcionario).where(Funcionario.id == funcionario_id))
+async def get_funcionario(
+    db: AsyncSession, funcionario_id: int, id_empresa: Optional[int] = None
+) -> Optional[Funcionario]:
+    query = select(Funcionario).where(Funcionario.id == funcionario_id)
+    if id_empresa is not None:
+        query = query.where(Funcionario.id_empresa == id_empresa)
+    result = await db.execute(query)
     return result.scalars().first()
 
 async def get_funcionario_by_usuario(db: AsyncSession, usuario: str) -> Optional[Funcionario]:
     result = await db.execute(select(Funcionario).where(Funcionario.usuario == usuario))
     return result.scalars().first()
 
-async def get_funcionario_by_cpf(db: AsyncSession, cpf: str) -> Optional[Funcionario]:
-    result = await db.execute(select(Funcionario).where(Funcionario.cpf == cpf))
+async def get_funcionario_by_cpf(
+    db: AsyncSession, cpf: str, id_empresa: Optional[int] = None
+) -> Optional[Funcionario]:
+    query = select(Funcionario).where(Funcionario.cpf == cpf)
+    if id_empresa is not None:
+        query = query.where(Funcionario.id_empresa == id_empresa)
+    result = await db.execute(query)
     return result.scalars().first()
 
 async def get_funcionarios(
-    db: AsyncSession, skip: int = 0, limit: int = 100, ativo: Optional[bool] = None
+    db: AsyncSession,
+    skip: int = 0,
+    limit: int = 100,
+    ativo: Optional[bool] = None,
+    id_empresa: Optional[int] = None,
 ) -> List[Funcionario]:
     query = select(Funcionario)
-    
+
+    if id_empresa is not None:
+        query = query.where(Funcionario.id_empresa == id_empresa)
     if ativo is not None:
         query = query.where(Funcionario.ativo == ativo)
     
@@ -35,7 +51,11 @@ async def get_funcionarios(
     return result.scalars().all()
 
 async def get_funcionarios_with_stats(
-    db: AsyncSession, skip: int = 0, limit: int = 100, ativo: Optional[bool] = None
+    db: AsyncSession,
+    skip: int = 0,
+    limit: int = 100,
+    ativo: Optional[bool] = None,
+    id_empresa: Optional[int] = None,
 ) -> List[Dict[str, Any]]:
     query = select(
         Funcionario,
@@ -45,6 +65,8 @@ async def get_funcionarios_with_stats(
         Atividade, Funcionario.id == Atividade.id_funcionario
     )
     
+    if id_empresa is not None:
+        query = query.where(Funcionario.id_empresa == id_empresa)
     if ativo is not None:
         query = query.where(Funcionario.ativo == ativo)
     
@@ -70,8 +92,15 @@ async def get_funcionarios_with_stats(
     
     return funcionarios_with_stats
 
-async def create_funcionario(db: AsyncSession, funcionario: FuncionarioCreate) -> Funcionario:
+async def create_funcionario(
+    db: AsyncSession, funcionario: FuncionarioCreate, id_empresa: Optional[int] = None
+) -> Funcionario:
     funcionario_dict = funcionario.dict()
+    empresa_payload = funcionario_dict.pop("id_empresa", None)
+    if id_empresa is not None:
+        funcionario_dict["id_empresa"] = id_empresa
+    elif empresa_payload is not None:
+        funcionario_dict["id_empresa"] = empresa_payload
     senha_hash = gerar_senha_hash(funcionario_dict.pop("senha"))
     
     db_funcionario = Funcionario(**funcionario_dict, senha=senha_hash)

@@ -110,19 +110,16 @@ async def read_users_me(
     db: AsyncSession = Depends(get_db),
     current_user: FuncionarioOut = Depends(get_current_user),
     x_viveiro_id: Optional[int] = Header(None, alias="X-Viveiro-Id"),
+    x_empresa_id: Optional[int] = Header(None, alias="X-Empresa-Id"),
 ) -> AuthMeOut:
     """
-    Usuário logado + array `permissions` (SSOT) + contexto viveiro ativo.
-
-    O frontend deve usar `permissions` para guards de rota/UI — não inferir
-    acesso pelo campo `cargo` nem replicar a matriz RBAC localmente.
-    Header X-Viveiro-Id: somente admin (validado no backend).
+    Usuário logado + array `permissions` (SSOT) + contexto empresa/viveiro ativo.
     """
-    from app.security.viveiro_context import resolve_viveiro_context
+    from app.security.scope_context import resolve_scope_context
     from app.auth.session import build_auth_me_async
 
-    ctx = await resolve_viveiro_context(db, current_user, x_viveiro_id)
-    return await build_auth_me_async(db, current_user, ctx)
+    scope = await resolve_scope_context(db, current_user, x_empresa_id, x_viveiro_id)
+    return await build_auth_me_async(db, current_user, scope.tenant, scope.viveiro)
 
 
 @router.get("/permissions", response_model=PermissionsOut)
@@ -163,11 +160,12 @@ async def update_users_me(
             detail="Usuário não encontrado",
         )
 
-    from app.security.viveiro_context import resolve_viveiro_context
+    from app.security.scope_context import resolve_scope_context
     from app.auth.session import build_auth_me_async
 
-    ctx = await resolve_viveiro_context(db, FuncionarioOut.from_orm(updated), None)
-    return await build_auth_me_async(db, FuncionarioOut.from_orm(updated), ctx)
+    scope = await resolve_scope_context(db, FuncionarioOut.from_orm(updated), None, None)
+    user_out = FuncionarioOut.from_orm(updated)
+    return await build_auth_me_async(db, user_out, scope.tenant, scope.viveiro)
 
 @router.post("/check-username")
 async def check_username_available(

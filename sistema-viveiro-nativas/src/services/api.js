@@ -1,6 +1,7 @@
 import axios from 'axios'
 
 const ADMIN_VIVEIRO_KEY = 'brotare_admin_viveiro_id'
+const ADMIN_EMPRESA_KEY = 'brotare_admin_empresa_id'
 
 const api = axios.create({
     baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000',
@@ -20,11 +21,26 @@ function adminViveiroHeader() {
     }
 }
 
-// Interceptor para autenticação + contexto viveiro (admin)
+function adminEmpresaHeader() {
+    try {
+        const raw = localStorage.getItem(ADMIN_EMPRESA_KEY)
+        if (!raw) return null
+        const id = Number(raw)
+        return Number.isFinite(id) && id > 0 ? id : null
+    } catch {
+        return null
+    }
+}
+
+// Interceptor para autenticação + contexto empresa/viveiro (admin plataforma)
 api.interceptors.request.use(config => {
     const token = localStorage.getItem('token')
     if (token) {
         config.headers.Authorization = `Bearer ${token}`
+    }
+    const empresaId = adminEmpresaHeader()
+    if (empresaId) {
+        config.headers['X-Empresa-Id'] = String(empresaId)
     }
     const viveiroId = adminViveiroHeader()
     if (viveiroId) {

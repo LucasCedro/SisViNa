@@ -85,12 +85,22 @@ def filtro_abaixo_prazo_rustificacao_recomendado(
     )
 
 
-async def contar_mudas_pipeline(db: AsyncSession, dias_minimos: Optional[int] = None) -> dict:
+def _filtro_viveiro(query, id_viveiro: Optional[int]):
+    if id_viveiro is not None:
+        return query.where(Planta.id_viveiro == id_viveiro)
+    return query
+
+
+async def contar_mudas_pipeline(
+    db: AsyncSession,
+    dias_minimos: Optional[int] = None,
+    id_viveiro: Optional[int] = None,
+) -> dict:
     dias = dias_minimos if dias_minimos is not None else RUSTIFICACAO_DIAS_MINIMO
 
     base_viva = Planta.status.notin_(VENDIDAS_OU_MORTAS)
 
-    q_sementeira = (
+    q_sementeira = _filtro_viveiro(
         select(func.count(Planta.id))
         .select_from(Planta)
         .join(Canteiro, Planta.id_canteiro == Canteiro.id)
@@ -98,9 +108,10 @@ async def contar_mudas_pipeline(db: AsyncSession, dias_minimos: Optional[int] = 
             base_viva,
             Canteiro.tipo_local == "sementeira",
             Planta.estagio_producao.in_((EM_DESENVOLVIMENTO, "semente")),
-        )
+        ),
+        id_viveiro,
     )
-    q_canteiro = (
+    q_canteiro = _filtro_viveiro(
         select(func.count(Planta.id))
         .select_from(Planta)
         .join(Canteiro, Planta.id_canteiro == Canteiro.id)
@@ -108,13 +119,14 @@ async def contar_mudas_pipeline(db: AsyncSession, dias_minimos: Optional[int] = 
             base_viva,
             Canteiro.tipo_local == "canteiro",
             Planta.estagio_producao.in_((EM_DESENVOLVIMENTO, EM_RUSTIFICACAO, "em_crescimento")),
-        )
+        ),
+        id_viveiro,
     )
 
     entrada_rust = _subquery_entrada_rustificacao()
     data_ref = data_ref_rustificacao(entrada_rust)
 
-    q_rust_total = (
+    q_rust_total = _filtro_viveiro(
         select(func.count(Planta.id))
         .select_from(Planta)
         .join(Canteiro, Planta.id_canteiro == Canteiro.id)
@@ -122,10 +134,11 @@ async def contar_mudas_pipeline(db: AsyncSession, dias_minimos: Optional[int] = 
         .where(
             base_viva,
             Canteiro.tipo_local == "rustificacao",
-        )
+        ),
+        id_viveiro,
     )
 
-    q_prontas = (
+    q_prontas = _filtro_viveiro(
         select(func.count(Planta.id))
         .select_from(Planta)
         .join(Canteiro, Planta.id_canteiro == Canteiro.id)
@@ -134,14 +147,18 @@ async def contar_mudas_pipeline(db: AsyncSession, dias_minimos: Optional[int] = 
             Canteiro.tipo_local == "rustificacao",
             Planta.status.in_(DISPONIVEIS_VENDA),
             Planta.estagio_producao == APTA_VENDA,
-        )
+        ),
+        id_viveiro,
     )
 
-    q_aguardando = filtro_abaixo_prazo_rustificacao_recomendado(
-        select(func.count(Planta.id))
-        .select_from(Planta)
-        .join(Canteiro, Planta.id_canteiro == Canteiro.id),
-        dias_minimos_rustificacao=dias,
+    q_aguardando = _filtro_viveiro(
+        filtro_abaixo_prazo_rustificacao_recomendado(
+            select(func.count(Planta.id))
+            .select_from(Planta)
+            .join(Canteiro, Planta.id_canteiro == Canteiro.id),
+            dias_minimos_rustificacao=dias,
+        ),
+        id_viveiro,
     )
 
     sementeira = int((await db.execute(q_sementeira)).scalar() or 0)

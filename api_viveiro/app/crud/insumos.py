@@ -10,18 +10,22 @@ from app.models.insumo_movimentacao import InsumoMovimentacao
 from app.models.atividades import InsumoAtividade
 from app.schemas.insumos import InsumoCreate, InsumoUpdate, InsumoMovimentacaoCreate
 
-async def get_insumo(db: AsyncSession, insumo_id: int) -> Optional[Insumo]:
-    """
-    Obtém um insumo pelo ID
-    """
-    result = await db.execute(select(Insumo).where(Insumo.id == insumo_id))
+async def get_insumo(
+    db: AsyncSession, insumo_id: int, id_empresa: Optional[int] = None
+) -> Optional[Insumo]:
+    query = select(Insumo).where(Insumo.id == insumo_id)
+    if id_empresa is not None:
+        query = query.where(Insumo.id_empresa == id_empresa)
+    result = await db.execute(query)
     return result.scalars().first()
 
-async def get_insumo_by_nome(db: AsyncSession, nome: str) -> Optional[Insumo]:
-    """
-    Obtém um insumo pelo nome
-    """
-    result = await db.execute(select(Insumo).where(Insumo.nome == nome))
+async def get_insumo_by_nome(
+    db: AsyncSession, nome: str, id_empresa: Optional[int] = None
+) -> Optional[Insumo]:
+    query = select(Insumo).where(Insumo.nome == nome)
+    if id_empresa is not None:
+        query = query.where(Insumo.id_empresa == id_empresa)
+    result = await db.execute(query)
     return result.scalars().first()
 
 async def get_insumos(
@@ -30,12 +34,12 @@ async def get_insumos(
     limit: int = 100,
     tipo: Optional[str] = None,
     fornecedor: Optional[str] = None,
-    estoque_minimo: Optional[float] = None
+    estoque_minimo: Optional[float] = None,
+    id_empresa: Optional[int] = None,
 ) -> List[Insumo]:
-    """
-    Obtém lista de insumos com filtros opcionais
-    """
     query = select(Insumo)
+    if id_empresa is not None:
+        query = query.where(Insumo.id_empresa == id_empresa)
     
     if tipo:
         query = query.where(Insumo.tipo == tipo)
@@ -54,11 +58,9 @@ async def get_insumos_com_usos(
     db: AsyncSession,
     skip: int = 0,
     limit: int = 100,
-    tipo: Optional[str] = None
+    tipo: Optional[str] = None,
+    id_empresa: Optional[int] = None,
 ) -> List[Dict[str, Any]]:
-    """
-    Obtém insumos com informações de uso
-    """
     query = select(
         Insumo,
         func.count(InsumoAtividade.id).label("total_usos"),
@@ -67,6 +69,8 @@ async def get_insumos_com_usos(
     ).outerjoin(
         InsumoAtividade, Insumo.id == InsumoAtividade.id_insumo
     )
+    if id_empresa is not None:
+        query = query.where(Insumo.id_empresa == id_empresa)
     
     if tipo:
         query = query.where(Insumo.tipo == tipo)
@@ -103,23 +107,23 @@ async def get_insumos_com_usos(
     
     return insumos_com_usos
 
-async def create_insumo(db: AsyncSession, insumo: InsumoCreate) -> Insumo:
-    """
-    Cria um novo insumo
-    """
-    db_insumo = Insumo(**insumo.dict())
+async def create_insumo(
+    db: AsyncSession, insumo: InsumoCreate, id_empresa: Optional[int] = None
+) -> Insumo:
+    dados = insumo.dict()
+    db_insumo = Insumo(**dados, id_empresa=id_empresa)
     db.add(db_insumo)
     await db.commit()
     await db.refresh(db_insumo)
     return db_insumo
 
 async def update_insumo(
-    db: AsyncSession, insumo_id: int, insumo_update: InsumoUpdate
+    db: AsyncSession, insumo_id: int, insumo_update: InsumoUpdate, id_empresa: Optional[int] = None
 ) -> Optional[Insumo]:
     """
     Atualiza um insumo existente
     """
-    db_insumo = await get_insumo(db, insumo_id)
+    db_insumo = await get_insumo(db, insumo_id, id_empresa)
     if not db_insumo:
         return None
     
@@ -131,11 +135,11 @@ async def update_insumo(
     await db.refresh(db_insumo)
     return db_insumo
 
-async def delete_insumo(db: AsyncSession, insumo_id: int) -> Optional[Insumo]:
+async def delete_insumo(db: AsyncSession, insumo_id: int, id_empresa: Optional[int] = None) -> Optional[Insumo]:
     """
     Deleta um insumo se não estiver em uso
     """
-    db_insumo = await get_insumo(db, insumo_id)
+    db_insumo = await get_insumo(db, insumo_id, id_empresa)
     if not db_insumo:
         return None
     
@@ -162,10 +166,10 @@ def _recalcular_preco_medio(
 
 
 async def baixar_insumo_por_media_movel(
-    db: AsyncSession, insumo_id: int, quantidade: float
+    db: AsyncSession, insumo_id: int, quantidade: float, id_empresa: Optional[int] = None
 ) -> float:
     """Baixa estoque pelo custo médio móvel. Retorna o valor (R$) da baixa."""
-    insumo = await get_insumo(db, insumo_id)
+    insumo = await get_insumo(db, insumo_id, id_empresa)
     if not insumo:
         raise ValueError(f"Insumo {insumo_id} não encontrado")
     qtd_atual = float(insumo.quantidade_estoque or 0)
@@ -185,9 +189,9 @@ async def baixar_insumo_por_media_movel(
 
 
 async def registrar_movimentacao(
-    db: AsyncSession, insumo_id: int, payload: InsumoMovimentacaoCreate
+    db: AsyncSession, insumo_id: int, payload: InsumoMovimentacaoCreate, id_empresa: Optional[int] = None
 ) -> Optional[InsumoMovimentacao]:
-    db_insumo = await get_insumo(db, insumo_id)
+    db_insumo = await get_insumo(db, insumo_id, id_empresa)
     if not db_insumo:
         return None
 
@@ -285,28 +289,32 @@ async def listar_movimentacoes(
     return result.scalars().all()
 
 
-async def get_tipos_insumos(db: AsyncSession) -> List[str]:
-    result = await db.execute(
-        select(distinct(Insumo.tipo)).where(Insumo.tipo.isnot(None)).order_by(Insumo.tipo)
-    )
+async def get_tipos_insumos(db: AsyncSession, id_empresa: Optional[int] = None) -> List[str]:
+    query = select(distinct(Insumo.tipo)).where(Insumo.tipo.isnot(None))
+    if id_empresa is not None:
+        query = query.where(Insumo.id_empresa == id_empresa)
+    result = await db.execute(query.order_by(Insumo.tipo))
     return [row[0] for row in result if row[0]]
 
 
-async def get_fornecedores(db: AsyncSession) -> List[str]:
-    result = await db.execute(
-        select(distinct(Insumo.fornecedor))
-        .where(Insumo.fornecedor.isnot(None))
-        .order_by(Insumo.fornecedor)
-    )
+async def get_fornecedores(db: AsyncSession, id_empresa: Optional[int] = None) -> List[str]:
+    query = select(distinct(Insumo.fornecedor)).where(Insumo.fornecedor.isnot(None))
+    if id_empresa is not None:
+        query = query.where(Insumo.id_empresa == id_empresa)
+    result = await db.execute(query.order_by(Insumo.fornecedor))
     return [row[0] for row in result if row[0]]
 
 
 async def atualizar_estoque(
-    db: AsyncSession, insumo_id: int, quantidade: float, data_compra: Optional[date] = None
+    db: AsyncSession,
+    insumo_id: int,
+    quantidade: float,
+    data_compra: Optional[date] = None,
+    id_empresa: Optional[int] = None,
 ) -> Optional[Insumo]:
     """Compatibilidade: delega para movimentação de entrada/saída."""
     if quantidade == 0:
-        return await get_insumo(db, insumo_id)
+        return await get_insumo(db, insumo_id, id_empresa)
     tipo = "entrada" if quantidade > 0 else "saida"
     await registrar_movimentacao(
         db,
@@ -317,5 +325,6 @@ async def atualizar_estoque(
             data_movimento=data_compra,
             observacao="Atualização legada via /estoque",
         ),
+        id_empresa=id_empresa,
     )
-    return await get_insumo(db, insumo_id)
+    return await get_insumo(db, insumo_id, id_empresa)

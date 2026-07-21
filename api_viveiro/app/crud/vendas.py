@@ -20,13 +20,21 @@ from app.services.vendas_sod import (
     validate_venda_create_status,
     validate_venda_update,
 )
+from app.security.viveiro_context import ViveiroContext, assert_record_belongs_to_viveiro
 
 # Funções CRUD para Venda
-async def get_venda(db: AsyncSession, venda_id: int) -> Optional[Venda]:
+async def get_venda(
+    db: AsyncSession, venda_id: int, ctx: Optional[ViveiroContext] = None
+) -> Optional[Venda]:
     result = await db.execute(select(Venda).where(Venda.id == venda_id))
-    return result.scalars().first()
+    row = result.scalars().first()
+    if row and ctx is not None:
+        assert_record_belongs_to_viveiro(row.id_viveiro, ctx, "venda")
+    return row
 
-async def get_venda_detalhe(db: AsyncSession, venda_id: int) -> Optional[Dict[str, Any]]:
+async def get_venda_detalhe(
+    db: AsyncSession, venda_id: int, ctx: Optional[ViveiroContext] = None
+) -> Optional[Dict[str, Any]]:
     query = select(
         Venda,
         Comprador.nome.label("comprador_nome"),
@@ -44,8 +52,10 @@ async def get_venda_detalhe(db: AsyncSession, venda_id: int) -> Optional[Dict[st
     
     if not row:
         return None
-    
+
     venda, comprador_nome, funcionario_nome = row
+    if ctx is not None:
+        assert_record_belongs_to_viveiro(venda.id_viveiro, ctx, "venda")
     
     # Buscar itens da venda
     itens_query = select(
@@ -110,7 +120,8 @@ async def get_vendas(
     id_funcionario: Optional[int] = None,
     status: Optional[str] = None,
     data_inicio: Optional[datetime] = None,
-    data_fim: Optional[datetime] = None
+    data_fim: Optional[datetime] = None,
+    id_viveiro: Optional[int] = None,
 ) -> List[Dict[str, Any]]:
     query = select(
         Venda,
@@ -126,6 +137,8 @@ async def get_vendas(
     )
     
     # Aplicar filtros
+    if id_viveiro is not None:
+        query = query.where(Venda.id_viveiro == id_viveiro)
     if id_comprador:
         query = query.where(Venda.id_comprador == id_comprador)
     
@@ -221,7 +234,10 @@ async def _resolver_itens_por_especie(
 
 
 async def create_venda(
-    db: AsyncSession, venda: VendaCreate, perfis: Optional[List[str]] = None
+    db: AsyncSession,
+    venda: VendaCreate,
+    perfis: Optional[List[str]] = None,
+    id_viveiro: Optional[int] = None,
 ) -> Dict[str, Any]:
     if venda.itens_por_especie:
         itens = await _resolver_itens_por_especie(db, venda.itens_por_especie)
@@ -258,6 +274,8 @@ async def create_venda(
         itens_dict.append(item_dict)
 
     venda_dict = venda.dict(exclude={"itens", "itens_por_especie"})
+    if id_viveiro is not None:
+        venda_dict["id_viveiro"] = id_viveiro
     venda_dict["status"] = validate_venda_create_status(venda_dict.get("status"), perfis)
     venda_dict["valor_total"] = valor_total
 

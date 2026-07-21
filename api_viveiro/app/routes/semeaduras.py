@@ -4,8 +4,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.jwt import get_current_user
 from app.security.rbac import require_permission
+from app.security.scope_context import ScopeContext, get_scope_context
+from app.crud import plantas as crud_plantas
 from app.crud import semeaduras as crud
 from app.database import get_db
 from app.schemas.funcionarios import FuncionarioOut
@@ -27,6 +28,7 @@ async def listar_semeaduras(
     id_lote_sementes: Optional[int] = None,
     id_arvore_matriz: Optional[int] = None,
     db: AsyncSession = Depends(get_db),
+    scope: ScopeContext = Depends(get_scope_context),
     current_user: FuncionarioOut = Depends(require_permission("producao.view")),
 ):
     return await crud.get_semeaduras(
@@ -35,6 +37,7 @@ async def listar_semeaduras(
         limit=limit,
         id_lote_sementes=id_lote_sementes,
         id_arvore_matriz=id_arvore_matriz,
+        id_viveiro=scope.viveiro.id,
     )
 
 
@@ -42,10 +45,13 @@ async def listar_semeaduras(
 async def criar_semeadura(
     payload: SemeaduraCreate,
     db: AsyncSession = Depends(get_db),
+    scope: ScopeContext = Depends(get_scope_context),
     current_user: FuncionarioOut = Depends(require_permission("producao.create")),
 ):
     try:
-        return await crud.create_semeadura(db, payload, current_user.id)
+        return await crud.create_semeadura(
+            db, payload, current_user.id, id_viveiro=scope.viveiro.id
+        )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
     except IntegrityError as e:
@@ -59,10 +65,13 @@ async def criar_semeadura(
 async def criar_semeaduras_lote(
     payload: SemeaduraLoteCreate,
     db: AsyncSession = Depends(get_db),
+    scope: ScopeContext = Depends(get_scope_context),
     current_user: FuncionarioOut = Depends(require_permission("producao.create")),
 ):
     try:
-        return await crud.create_semeaduras_lote(db, payload, current_user.id)
+        return await crud.create_semeaduras_lote(
+            db, payload, current_user.id, id_viveiro=scope.viveiro.id
+        )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
     except IntegrityError as e:
@@ -76,8 +85,12 @@ async def criar_semeaduras_lote(
 async def rastreabilidade_planta(
     planta_id: int,
     db: AsyncSession = Depends(get_db),
+    scope: ScopeContext = Depends(get_scope_context),
     current_user: FuncionarioOut = Depends(require_permission("producao.view")),
 ):
+    planta = await crud_plantas.get_planta(db, planta_id, ctx=scope.viveiro)
+    if planta is None:
+        raise HTTPException(status_code=404, detail="Planta não encontrada")
     dados = await crud.get_rastreabilidade_planta(db, planta_id)
     if not dados:
         raise HTTPException(status_code=404, detail="Planta não encontrada")

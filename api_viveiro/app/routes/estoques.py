@@ -3,8 +3,8 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.jwt import get_current_user
 from app.security.rbac import require_permission
+from app.security.scope_context import ScopeContext, get_scope_context
 from app.crud import estoques as crud_estoques
 from app.crud.estoques_analytics import listar_detalhe_analitico
 from app.crud.estoques_cmv_detalhe import montar_cmv_detalhe_especie
@@ -26,9 +26,12 @@ router = APIRouter()
 @router.get("/resumo", response_model=EstoqueResumoGeral)
 async def resumo_estoques(
     db: AsyncSession = Depends(get_db),
+    scope: ScopeContext = Depends(get_scope_context),
     current_user: FuncionarioOut = Depends(require_permission("estoques.view")),
 ):
-    return await crud_estoques.get_resumo_estoques(db)
+    return await crud_estoques.get_resumo_estoques(
+        db, id_viveiro=scope.viveiro.id, id_empresa=scope.tenant.id
+    )
 
 
 @router.get("/analitico/detalhe", response_model=EstoqueAnaliticoDetalheOut)
@@ -38,6 +41,7 @@ async def detalhe_analitico_estoque(
     faixa: Optional[str] = None,
     agrupar: str = Query("muda", regex="^(muda|lote)$"),
     db: AsyncSession = Depends(get_db),
+    scope: ScopeContext = Depends(get_scope_context),
     current_user: FuncionarioOut = Depends(require_permission("estoques.view")),
 ):
     data = await listar_detalhe_analitico(
@@ -46,6 +50,7 @@ async def detalhe_analitico_estoque(
         id_especie=id_especie,
         faixa=faixa,
         agrupar=agrupar,
+        id_viveiro=scope.viveiro.id,
     )
     partes = []
     if id_especie and data["itens_muda"]:
@@ -61,9 +66,10 @@ async def detalhe_analitico_estoque(
 async def timeline_especies_estoque(
     id_especie: Optional[int] = None,
     db: AsyncSession = Depends(get_db),
+    scope: ScopeContext = Depends(get_scope_context),
     current_user: FuncionarioOut = Depends(require_permission("estoques.view")),
 ):
-    return await montar_timeline_especies(db, id_especie=id_especie)
+    return await montar_timeline_especies(db, id_especie=id_especie, id_viveiro=scope.viveiro.id)
 
 
 @router.get("/especie/{id_especie}/cmv-detalhe", response_model=EstoqueCmvDetalheOut)
@@ -71,9 +77,12 @@ async def cmv_detalhe_especie(
     id_especie: int,
     escopo: str = Query("comercial", regex="^(comercial|vivas)$"),
     db: AsyncSession = Depends(get_db),
+    scope: ScopeContext = Depends(get_scope_context),
     current_user: FuncionarioOut = Depends(require_permission("estoques.view")),
 ):
-    data = await montar_cmv_detalhe_especie(db, id_especie, escopo=escopo)
+    data = await montar_cmv_detalhe_especie(
+        db, id_especie, escopo=escopo, id_viveiro=scope.viveiro.id
+    )
     if not data:
         raise HTTPException(status_code=404, detail="Espécie não encontrada")
     return data
@@ -83,9 +92,12 @@ async def cmv_detalhe_especie(
 async def entrada_sementes_armazem(
     payload: LoteSementesEntradaArmazem,
     db: AsyncSession = Depends(get_db),
+    scope: ScopeContext = Depends(get_scope_context),
     current_user: FuncionarioOut = Depends(require_permission("estoques.edit")),
 ):
     try:
-        return await crud_lotes.criar_lote_armazem(db, payload)
+        return await crud_lotes.criar_lote_armazem(
+            db, payload, id_viveiro=scope.viveiro.id
+        )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e

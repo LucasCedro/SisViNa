@@ -8,6 +8,7 @@ from app.models.funcionarios import Funcionario
 from app.models.plantas import Planta
 from app.models.especies import Especie
 from app.models.tipos_atividades import TipoAtividade
+from tests.tenant_fixtures import DEFAULT_EMPRESA_ID, DEFAULT_VIVEIRO_ID
 
 # Dados de teste
 insumo_test_data = {
@@ -197,11 +198,12 @@ async def test_get_insumos_com_usos(client: AsyncClient, db: AsyncSession, auth_
     db.add(db_especie)
     
     # 3. Planta
-    db_planta = Planta(id_especie=1, codigo_rastreio="PL-TESTE", status="MUDA")
+    db_planta = Planta(id_viveiro=DEFAULT_VIVEIRO_ID, id_especie=1, codigo_rastreio="PL-TESTE", status="MUDA")
     db.add(db_planta)
     
     # 4. Funcionário
     db_funcionario = Funcionario(
+        id_empresa=DEFAULT_EMPRESA_ID,
         nome="Func Teste", 
         cpf="000.111.222-33", 
         usuario="functeste", 

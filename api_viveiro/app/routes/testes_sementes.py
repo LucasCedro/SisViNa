@@ -4,8 +4,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.jwt import get_current_user
 from app.security.rbac import require_permission
+from app.security.scope_context import ScopeContext, get_scope_context
 from app.crud import testes_sementes as crud
 from app.crud.testes_sementes import _para_resposta, calcular_taxa_germinacao_especie
 from app.database import get_db
@@ -23,6 +23,7 @@ async def listar_testes(
     id_lote_sementes: Optional[int] = None,
     id_arvore_matriz: Optional[int] = None,
     db: AsyncSession = Depends(get_db),
+    scope: ScopeContext = Depends(get_scope_context),
     current_user: FuncionarioOut = Depends(require_permission("coleta.view")),
 ):
     testes = await crud.get_testes(
@@ -31,6 +32,7 @@ async def listar_testes(
         limit=limit,
         id_lote_sementes=id_lote_sementes,
         id_arvore_matriz=id_arvore_matriz,
+        id_viveiro=scope.viveiro.id,
     )
     return [_para_resposta(t) for t in testes]
 
@@ -38,6 +40,7 @@ async def listar_testes(
 @router.get("/kpi-especies")
 async def kpi_germinacao_especies(
     db: AsyncSession = Depends(get_db),
+    scope: ScopeContext = Depends(get_scope_context),
     current_user: FuncionarioOut = Depends(require_permission("coleta.view")),
 ):
     """Média de germinação por espécie (último teste por lote)."""
@@ -45,12 +48,17 @@ async def kpi_germinacao_especies(
     from app.utils.especies_display import formatar_nome_popular
 
     result = await db.execute(
-        select(LoteSementes.id_especie).where(LoteSementes.id_especie.isnot(None)).distinct()
+        select(LoteSementes.id_especie)
+        .where(
+            LoteSementes.id_especie.isnot(None),
+            LoteSementes.id_viveiro == scope.viveiro.id,
+        )
+        .distinct()
     )
     ids = [row[0] for row in result.all()]
     saida = []
     for id_esp in ids:
-        taxa = await calcular_taxa_germinacao_especie(db, id_esp)
+        taxa = await calcular_taxa_germinacao_especie(db, id_esp, id_viveiro=scope.viveiro.id)
         if taxa is None:
             continue
         esp = await db.get(Especie, id_esp)
@@ -72,10 +80,13 @@ async def kpi_germinacao_especies(
 async def criar_teste(
     payload: TesteSementesCreate,
     db: AsyncSession = Depends(get_db),
+    scope: ScopeContext = Depends(get_scope_context),
     current_user: FuncionarioOut = Depends(require_permission("coleta.create")),
 ):
     try:
-        return await crud.create_teste(db, payload, current_user.id)
+        return await crud.create_teste(
+            db, payload, current_user.id, id_viveiro=scope.viveiro.id
+        )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
@@ -85,9 +96,10 @@ async def atualizar_teste(
     teste_id: int,
     payload: TesteSementesUpdate,
     db: AsyncSession = Depends(get_db),
+    scope: ScopeContext = Depends(get_scope_context),
     current_user: FuncionarioOut = Depends(require_permission("coleta.edit")),
 ):
-    teste = await crud.update_teste(db, teste_id, payload)
+    teste = await crud.update_teste(db, teste_id, payload, id_viveiro=scope.viveiro.id)
     if not teste:
         raise HTTPException(status_code=404, detail="Teste não encontrado")
     return teste
@@ -97,9 +109,10 @@ async def atualizar_teste(
 async def excluir_teste(
     teste_id: int,
     db: AsyncSession = Depends(get_db),
+    scope: ScopeContext = Depends(get_scope_context),
     current_user: FuncionarioOut = Depends(require_permission("coleta.delete")),
 ):
-    teste = await crud.delete_teste(db, teste_id)
+    teste = await crud.delete_teste(db, teste_id, id_viveiro=scope.viveiro.id)
     if not teste:
         raise HTTPException(status_code=404, detail="Teste não encontrado")
     return teste

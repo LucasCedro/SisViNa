@@ -9,6 +9,7 @@ from app.models.plantas import Planta
 from app.models.especies import Especie
 from app.models.funcionarios import Funcionario
 from app.models.insumos import Insumo
+from tests.tenant_fixtures import DEFAULT_EMPRESA_ID, DEFAULT_VIVEIRO_ID
 
 # Dados de teste
 tipo_atividade_test_data = {
@@ -94,7 +95,7 @@ async def test_create_atividade(client: AsyncClient, db: AsyncSession, auth_head
     await db.refresh(db_especie)
     
     # 3. Planta
-    db_planta = Planta(id_especie=db_especie.id, codigo_rastreio="PL-ATIV", status="MUDA")
+    db_planta = Planta(id_viveiro=DEFAULT_VIVEIRO_ID, id_especie=db_especie.id, codigo_rastreio="PL-ATIV", status="MUDA")
     db.add(db_planta)
     await db.commit()
     await db.refresh(db_planta)
@@ -144,7 +145,7 @@ async def test_create_atividade_com_insumos(client: AsyncClient, db: AsyncSessio
     db.add(db_especie)
     await db.commit()
     
-    db_planta = Planta(id_especie=db_especie.id, codigo_rastreio="PL-INSUMO", status="JOVEM")
+    db_planta = Planta(id_viveiro=DEFAULT_VIVEIRO_ID, id_especie=db_especie.id, codigo_rastreio="PL-INSUMO", status="JOVEM")
     db.add(db_planta)
     
     # 3. Insumo
@@ -215,7 +216,7 @@ async def test_read_atividade(client: AsyncClient, db: AsyncSession, auth_header
     db.add(db_especie)
     await db.commit()
     
-    db_planta = Planta(id_especie=db_especie.id, codigo_rastreio="PL-LEITURA", status="MUDA")
+    db_planta = Planta(id_viveiro=DEFAULT_VIVEIRO_ID, id_especie=db_especie.id, codigo_rastreio="PL-LEITURA", status="MUDA")
     db.add(db_planta)
     await db.commit()
     
@@ -261,7 +262,7 @@ async def test_read_atividades(client: AsyncClient, db: AsyncSession, auth_heade
     db.add(db_especie)
     await db.commit()
     
-    db_planta = Planta(id_especie=db_especie.id, codigo_rastreio="PL-LISTA", status="JOVEM")
+    db_planta = Planta(id_viveiro=DEFAULT_VIVEIRO_ID, id_especie=db_especie.id, codigo_rastreio="PL-LISTA", status="JOVEM")
     db.add(db_planta)
     await db.commit()
     
@@ -325,7 +326,7 @@ async def test_update_atividade(client: AsyncClient, db: AsyncSession, auth_head
     db.add(db_especie)
     await db.commit()
     
-    db_planta = Planta(id_especie=db_especie.id, codigo_rastreio="PL-UPDATE", status="MUDA")
+    db_planta = Planta(id_viveiro=DEFAULT_VIVEIRO_ID, id_especie=db_especie.id, codigo_rastreio="PL-UPDATE", status="MUDA")
     db.add(db_planta)
     await db.commit()
     
@@ -386,7 +387,7 @@ async def test_delete_atividade(client: AsyncClient, db: AsyncSession, auth_head
     db.add(db_especie)
     await db.commit()
     
-    db_planta = Planta(id_especie=db_especie.id, codigo_rastreio="PL-DELETE", status="ADULTA")
+    db_planta = Planta(id_viveiro=DEFAULT_VIVEIRO_ID, id_especie=db_especie.id, codigo_rastreio="PL-DELETE", status="ADULTA")
     db.add(db_planta)
     await db.commit()
     

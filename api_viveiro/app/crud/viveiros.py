@@ -25,28 +25,47 @@ def viveiro_to_out(v: Viveiro) -> ViveiroOut:
     )
 
 
-async def list_viveiros(db: AsyncSession, *, ativo: Optional[bool] = True) -> List[Viveiro]:
+async def list_viveiros(
+    db: AsyncSession, *, ativo: Optional[bool] = True, id_empresa: Optional[int] = None
+) -> List[Viveiro]:
     stmt = select(Viveiro).order_by(Viveiro.id)
     if ativo is not None:
         stmt = stmt.where(Viveiro.ativo.is_(ativo))
+    if id_empresa is not None:
+        stmt = stmt.where(Viveiro.id_empresa == id_empresa)
     result = await db.execute(stmt)
     return list(result.scalars().all())
 
 
-async def get_viveiro(db: AsyncSession, viveiro_id: int) -> Optional[Viveiro]:
-    return await db.get(Viveiro, viveiro_id)
+async def get_viveiro(
+    db: AsyncSession, viveiro_id: int, id_empresa: Optional[int] = None
+) -> Optional[Viveiro]:
+    row = await db.get(Viveiro, viveiro_id)
+    if row is None:
+        return None
+    if id_empresa is not None and row.id_empresa != id_empresa:
+        return None
+    return row
 
 
-async def get_viveiro_by_slug(db: AsyncSession, slug: str) -> Optional[Viveiro]:
-    result = await db.execute(select(Viveiro).where(Viveiro.slug == slug))
+async def get_viveiro_by_slug(
+    db: AsyncSession, slug: str, id_empresa: Optional[int] = None
+) -> Optional[Viveiro]:
+    stmt = select(Viveiro).where(Viveiro.slug == slug)
+    if id_empresa is not None:
+        stmt = stmt.where(Viveiro.id_empresa == id_empresa)
+    result = await db.execute(stmt)
     return result.scalars().first()
 
 
-async def create_viveiro(db: AsyncSession, payload: ViveiroCreate) -> Viveiro:
+async def create_viveiro(
+    db: AsyncSession, payload: ViveiroCreate, id_empresa: Optional[int] = None
+) -> Viveiro:
     row = Viveiro(
         nome=payload.nome.strip(),
         slug=payload.slug.strip().lower(),
         modo_operacao=payload.modo_operacao,
+        id_empresa=id_empresa,
         ativo=True,
     )
     db.add(row)

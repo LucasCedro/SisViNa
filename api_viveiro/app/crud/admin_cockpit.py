@@ -10,7 +10,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.security.rbac import ALL_PERMISSIONS, ROLE_PERMISSIONS, VALID_ROLE_IDS
 
 ROLE_LABELS = {
-    "admin": "Administrador",
+    "platform_admin": "Admin Plataforma (Brotare)",
+    "empresa_admin": "Admin da Empresa",
+    "admin": "Administrador (legado)",
     "gestor": "Gestor do Viveiro",
     "campo": "Operação de Campo",
     "financeiro": "Financeiro",
@@ -19,6 +21,8 @@ ROLE_LABELS = {
 }
 
 from app.constants.viveiro_modo import MODO_FLORESTAL, MODO_LABELS
+from app.models.empresas import Empresa
+from app.models.auditoria import AuditoriaCrossTenant
 from app.models.especies import Especie
 from app.models.funcionarios import Funcionario
 from app.models.plantas import Planta
@@ -62,6 +66,27 @@ async def get_overview(db: AsyncSession) -> dict[str, Any]:
         alembic_rev = None
 
     viveiros_rows = (await db.execute(select(Viveiro).order_by(Viveiro.id))).scalars().all()
+    empresas_rows = (await db.execute(select(Empresa).order_by(Empresa.id))).scalars().all()
+    empresas_resumo = []
+    for e in empresas_rows:
+        v_count = await db.scalar(
+            select(func.count()).select_from(Viveiro).where(Viveiro.id_empresa == e.id)
+        )
+        f_count = await db.scalar(
+            select(func.count()).select_from(Funcionario).where(Funcionario.id_empresa == e.id)
+        )
+        empresas_resumo.append(
+            {
+                "id": e.id,
+                "nome_fantasia": e.nome_fantasia,
+                "razao_social": e.razao_social,
+                "slug": e.slug,
+                "ativo": bool(e.ativo),
+                "viveiros_total": int(v_count or 0),
+                "funcionarios_total": int(f_count or 0),
+            }
+        )
+
     viveiros_resumo = []
     for v in viveiros_rows:
         fn = await db.scalar(
@@ -87,6 +112,7 @@ async def get_overview(db: AsyncSession) -> dict[str, Any]:
                 "modo_operacao": v.modo_operacao,
                 "modo_label": MODO_LABELS.get(v.modo_operacao, v.modo_operacao),
                 "ativo": bool(v.ativo),
+                "id_empresa": int(v.id_empresa),
                 "funcionarios_vinculados": int(fn or 0),
                 "lotes_producao_ativos": int(lotes or 0),
             }
@@ -100,14 +126,40 @@ async def get_overview(db: AsyncSession) -> dict[str, Any]:
         "plantas_total": await _scalar_count(db, select(func.count()).select_from(Planta)),
         "vendas_total": await _scalar_count(db, select(func.count()).select_from(Venda)),
         "especies_total": await _scalar_count(db, select(func.count()).select_from(Especie)),
+        "empresas_total": len(empresas_rows),
         "viveiros_total": len(viveiros_rows),
         "viveiros_florestal": sum(1 for v in viveiros_rows if v.modo_operacao == MODO_FLORESTAL),
         "permissoes_catalogo": len(ALL_PERMISSIONS),
         "perfis_rbac": len(ROLE_PERMISSIONS),
         "alembic_revision": alembic_rev,
         "por_perfil": por_perfil,
+        "empresas": empresas_resumo,
         "viveiros": viveiros_resumo,
     }
+
+
+async def list_auditoria(db: AsyncSession, *, limit: int = 100) -> list[dict[str, Any]]:
+    rows = (
+        await db.execute(
+            select(AuditoriaCrossTenant).order_by(AuditoriaCrossTenant.id.desc()).limit(limit)
+        )
+    ).scalars().all()
+    return [
+        {
+            "id": r.id,
+            "data_evento": r.data_evento.isoformat() if r.data_evento else None,
+            "usuario": r.usuario,
+            "id_empresa_origem": r.id_empresa_origem,
+            "id_empresa_alvo": r.id_empresa_alvo,
+            "id_viveiro_alvo": r.id_viveiro_alvo,
+            "acao": r.acao,
+            "recurso_tipo": r.recurso_tipo,
+            "recurso_id": r.recurso_id,
+            "detalhes": r.detalhes,
+            "bloqueado": bool(r.bloqueado),
+        }
+        for r in rows
+    ]
 
 
 def get_rbac_matrix() -> dict[str, Any]:

@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.funcionarios import Funcionario
 from app.auth.utils import gerar_senha_hash, verificar_senha
+from tests.tenant_fixtures import DEFAULT_EMPRESA_ID, DEFAULT_VIVEIRO_ID
 
 # Dados de teste
 funcionario_test_data = {
@@ -49,7 +50,7 @@ async def test_read_funcionario(client: AsyncClient, db: AsyncSession, auth_head
     # Primeiro, criar um funcionário
     funcionario_dict = funcionario_test_data.copy()
     hashed_password = gerar_senha_hash(funcionario_dict.pop("senha"))
-    db_funcionario = Funcionario(**funcionario_dict, senha=hashed_password)
+    db_funcionario = Funcionario(**funcionario_dict, senha=hashed_password, id_empresa=DEFAULT_EMPRESA_ID)
     db.add(db_funcionario)
     await db.commit()
     await db.refresh(db_funcionario)
@@ -90,8 +91,8 @@ async def test_read_funcionarios(client: AsyncClient, db: AsyncSession, auth_hea
         "cargo": "Auxiliar"
     }
     
-    db_funcionario1 = Funcionario(**funcionario1_dict)
-    db_funcionario2 = Funcionario(**funcionario2_dict)
+    db_funcionario1 = Funcionario(**funcionario1_dict, id_empresa=DEFAULT_EMPRESA_ID)
+    db_funcionario2 = Funcionario(**funcionario2_dict, id_empresa=DEFAULT_EMPRESA_ID)
     
     db.add(db_funcionario1)
     db.add(db_funcionario2)
@@ -118,7 +119,7 @@ async def test_update_funcionario(client: AsyncClient, db: AsyncSession, auth_he
     # Criar um funcionário
     funcionario_dict = funcionario_test_data.copy()
     hashed_password = gerar_senha_hash(funcionario_dict.pop("senha"))
-    db_funcionario = Funcionario(**funcionario_dict, senha=hashed_password)
+    db_funcionario = Funcionario(**funcionario_dict, senha=hashed_password, id_empresa=DEFAULT_EMPRESA_ID)
     db.add(db_funcionario)
     await db.commit()
     await db.refresh(db_funcionario)
@@ -151,7 +152,7 @@ async def test_update_funcionario_senha(client: AsyncClient, db: AsyncSession, a
     # Criar um funcionário
     funcionario_dict = funcionario_test_data.copy()
     hashed_password = gerar_senha_hash(funcionario_dict.pop("senha"))
-    db_funcionario = Funcionario(**funcionario_dict, senha=hashed_password)
+    db_funcionario = Funcionario(**funcionario_dict, senha=hashed_password, id_empresa=DEFAULT_EMPRESA_ID)
     db.add(db_funcionario)
     await db.commit()
     await db.refresh(db_funcionario)
@@ -193,7 +194,7 @@ async def test_delete_funcionario(client: AsyncClient, db: AsyncSession, auth_he
         "ativo": True
     }
     
-    db_funcionario = Funcionario(**funcionario_dict)
+    db_funcionario = Funcionario(**funcionario_dict, id_empresa=DEFAULT_EMPRESA_ID)
     db.add(db_funcionario)
     await db.commit()
     await db.refresh(db_funcionario)

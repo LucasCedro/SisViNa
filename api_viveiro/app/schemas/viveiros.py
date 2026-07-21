@@ -25,6 +25,7 @@ class ViveiroCreate(BaseModel):
     nome: str = Field(..., min_length=2, max_length=100)
     slug: str = Field(..., min_length=2, max_length=50, regex=r"^[a-z0-9\-]+$")
     modo_operacao: str
+    id_empresa: int = Field(..., ge=1)
 
     @validator("modo_operacao")
     def validar_modo(cls, v: str) -> str:

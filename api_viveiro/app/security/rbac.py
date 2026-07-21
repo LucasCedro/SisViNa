@@ -71,10 +71,13 @@ ALL_PERMISSIONS: FrozenSet[str] = frozenset(
         "florestal.transfer",
         "admin.godmode.view",
         "admin.godmode.manage",
+        "empresa.users.manage",
     }
 )
 
-VALID_ROLE_IDS = frozenset({"admin", "gestor", "campo", "financeiro", "consulta", "rh"})
+VALID_ROLE_IDS = frozenset(
+    {"platform_admin", "empresa_admin", "admin", "gestor", "campo", "financeiro", "consulta", "rh"}
+)
 
 _VIEW_PERMISSIONS: FrozenSet[str] = frozenset(p for p in ALL_PERMISSIONS if p.endswith(".view"))
 _CONSULTA_VIEW: FrozenSet[str] = _VIEW_PERMISSIONS - frozenset({"users.view"})
@@ -111,9 +114,30 @@ _CONTAB_ALL = _module_all("contabilidade", ("view", "edit"))
 _BIBLIOTECA_ALL = _module_all("biblioteca", ("view", "edit"))
 _PRESCRICAO_ALL = _module_all("prescricao", ("view", "create"))
 _FLORESTAL_ALL = _module_all("florestal", ("view", "create", "edit", "transfer"))
+_GODMODE = _perms("admin.godmode.view", "admin.godmode.manage")
+_EMPRESA_USERS = _perms("users.view", "users.create", "users.edit", "users.delete", "empresa.users.manage")
+_EMPRESA_ADMIN_BASE = (
+    _UI
+    | _COLETA_ALL
+    | _PRODUCAO_ALL
+    | _VIVEIRO_ALL
+    | _FITO_ALL
+    | _FERT_ALL
+    | _ESTOQUES_ALL
+    | _VENDAS_GESTOR
+    | _FIN_ALL
+    | _FISCAL_ALL
+    | _CONTAB_ALL
+    | _BIBLIOTECA_ALL
+    | _PRESCRICAO_ALL
+    | _FLORESTAL_ALL
+    | _EMPRESA_USERS
+)
 
 ROLE_PERMISSIONS: dict[str, FrozenSet[str]] = {
     "admin": ALL_PERMISSIONS,
+    "platform_admin": ALL_PERMISSIONS,
+    "empresa_admin": _EMPRESA_ADMIN_BASE,
     "gestor": _UI
     | _COLETA_ALL
     | _PRODUCAO_ALL
@@ -165,6 +189,16 @@ def normalize_role_ids(perfis: Iterable[str] | None) -> list[str]:
     return ordered
 
 
+def is_platform_admin(perfis: Iterable[str] | None) -> bool:
+    roles = normalize_role_ids(perfis)
+    return "platform_admin" in roles or "admin" in roles
+
+
+def is_empresa_admin(perfis: Iterable[str] | None) -> bool:
+    roles = normalize_role_ids(perfis)
+    return "empresa_admin" in roles or is_platform_admin(perfis)
+
+
 def resolve_permissions(perfis: Iterable[str] | None) -> Set[str]:
     roles = normalize_role_ids(perfis)
     if not roles:
@@ -207,8 +241,8 @@ def require_permission(permission: str) -> Callable:
 
 def require_godmode(permission: str) -> Callable:
     """
-    Cockpit Admin (God Mode): exige perfil `admin` no BD **e** permissão exclusiva.
-    Dupla trava — esconder botão no front não basta.
+    Cockpit Admin (God Mode): exige platform_admin no BD **e** permissão exclusiva.
+    empresa_admin NÃO acessa God Mode.
     """
     if permission not in ALL_PERMISSIONS:
         raise ValueError(f"Permissão God Mode não registrada: {permission}")
@@ -216,19 +250,18 @@ def require_godmode(permission: str) -> Callable:
     async def _dependency(
         current_user: FuncionarioOut = Depends(get_current_user),
     ) -> FuncionarioOut:
-        roles = normalize_role_ids(current_user.perfis)
-        if "admin" not in roles:
+        if not is_platform_admin(current_user.perfis):
             logger.warning(
-                "God Mode negado usuario=%s id=%s — perfil admin ausente (perfis=%s)",
+                "God Mode negado usuario=%s id=%s — platform_admin ausente (perfis=%s)",
                 current_user.usuario,
                 current_user.id,
                 current_user.perfis,
             )
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Acesso exclusivo do administrador do sistema.",
+                detail="Acesso exclusivo do administrador da plataforma Brotare.",
             )
-        if not has_permission(roles, permission):
+        if not has_permission(current_user.perfis, permission):
             logger.warning(
                 "God Mode negado usuario=%s id=%s permissao=%s perfis=%s",
                 current_user.usuario,
@@ -241,5 +274,28 @@ def require_godmode(permission: str) -> Callable:
                 detail=f"Acesso negado. Permissão necessária: {permission}",
             )
         return current_user
+
+    return _dependency
+
+
+def require_empresa_user_manage() -> Callable:
+    """Criação/edição de usuários: empresa_admin (própria empresa) ou platform_admin."""
+
+    async def _dependency(
+        current_user: FuncionarioOut = Depends(get_current_user),
+    ) -> FuncionarioOut:
+        if is_empresa_admin(current_user.perfis) and has_permission(
+            current_user.perfis, "users.create"
+        ):
+            return current_user
+        logger.warning(
+            "Gestão usuários negada usuario=%s perfis=%s",
+            current_user.usuario,
+            current_user.perfis,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Acesso negado. Permissão necessária para gerenciar usuários da empresa.",
+        )
 
     return _dependency

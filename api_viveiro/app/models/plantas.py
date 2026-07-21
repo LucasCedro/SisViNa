@@ -1,11 +1,14 @@
 # app/models/plantas.py
-from sqlalchemy import Column, Integer, String, Text, Date, DateTime, Numeric, ForeignKey, func
+from sqlalchemy import Column, Integer, String, Text, Date, DateTime, Numeric, ForeignKey, func, UniqueConstraint
 from sqlalchemy.orm import relationship
 
 from app.database import Base
 
 class Planta(Base):
     __tablename__ = "plantas"
+    __table_args__ = (
+        UniqueConstraint("id_viveiro", "codigo_rastreio", name="uq_plantas_viveiro_codigo_rastreio"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     id_viveiro = Column(Integer, ForeignKey("viveiros.id"), nullable=False, index=True)
@@ -13,7 +16,7 @@ class Planta(Base):
     id_canteiro = Column(Integer, ForeignKey("canteiros.id"))
     id_lote_sementes = Column(Integer, ForeignKey("lotes_sementes.id"))
     id_semeadura = Column(Integer, ForeignKey("semeaduras.id"))
-    codigo_rastreio = Column(String(20), unique=True)
+    codigo_rastreio = Column(String(20))
     data_plantio = Column(Date)
     data_germinacao = Column(Date)
     data_inicio_estagio_atual = Column(Date)  # início do estagio_producao atual (métricas)

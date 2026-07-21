@@ -11,6 +11,8 @@ services:
     volumes:
       - ../api_viveiro/app:/app/app
       - ../api_viveiro/scripts:/app/scripts
+      - ../api_viveiro/tests:/app/tests
+      - ../api_viveiro/pytest.ini:/app/pytest.ini
       - ../api_viveiro/alembic:/app/alembic
       - ../api_viveiro/alembic.ini:/app/alembic.ini
       - ../sistema-viveiro-nativas/public:/biblioteca_public:ro

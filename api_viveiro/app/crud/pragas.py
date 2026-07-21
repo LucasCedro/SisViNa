@@ -17,31 +17,46 @@ from app.schemas.pragas import (
 )
 
 # Funções CRUD para TipoPraga
-async def get_tipo_praga(db: AsyncSession, tipo_id: int) -> Optional[TipoPraga]:
-    result = await db.execute(select(TipoPraga).where(TipoPraga.id == tipo_id))
+async def get_tipo_praga(
+    db: AsyncSession, tipo_id: int, id_empresa: Optional[int] = None
+) -> Optional[TipoPraga]:
+    query = select(TipoPraga).where(TipoPraga.id == tipo_id)
+    if id_empresa is not None:
+        query = query.where(TipoPraga.id_empresa == id_empresa)
+    result = await db.execute(query)
     return result.scalars().first()
 
-async def get_tipo_praga_by_nome(db: AsyncSession, nome: str) -> Optional[TipoPraga]:
-    result = await db.execute(select(TipoPraga).where(TipoPraga.nome == nome))
+async def get_tipo_praga_by_nome(
+    db: AsyncSession, nome: str, id_empresa: Optional[int] = None
+) -> Optional[TipoPraga]:
+    query = select(TipoPraga).where(TipoPraga.nome == nome)
+    if id_empresa is not None:
+        query = query.where(TipoPraga.id_empresa == id_empresa)
+    result = await db.execute(query)
     return result.scalars().first()
 
 async def get_tipos_pragas(
-    db: AsyncSession, skip: int = 0, limit: int = 100
+    db: AsyncSession, skip: int = 0, limit: int = 100, id_empresa: Optional[int] = None
 ) -> List[TipoPraga]:
-    result = await db.execute(select(TipoPraga).offset(skip).limit(limit))
+    query = select(TipoPraga)
+    if id_empresa is not None:
+        query = query.where(TipoPraga.id_empresa == id_empresa)
+    result = await db.execute(query.offset(skip).limit(limit))
     return result.scalars().all()
 
-async def create_tipo_praga(db: AsyncSession, tipo_praga: TipoPragaCreate) -> TipoPraga:
-    db_tipo = TipoPraga(**tipo_praga.dict())
+async def create_tipo_praga(
+    db: AsyncSession, tipo_praga: TipoPragaCreate, id_empresa: Optional[int] = None
+) -> TipoPraga:
+    db_tipo = TipoPraga(**tipo_praga.dict(), id_empresa=id_empresa)
     db.add(db_tipo)
     await db.commit()
     await db.refresh(db_tipo)
     return db_tipo
 
 async def update_tipo_praga(
-    db: AsyncSession, tipo_id: int, tipo_update: TipoPragaUpdate
+    db: AsyncSession, tipo_id: int, tipo_update: TipoPragaUpdate, id_empresa: Optional[int] = None
 ) -> Optional[TipoPraga]:
-    db_tipo = await get_tipo_praga(db, tipo_id)
+    db_tipo = await get_tipo_praga(db, tipo_id, id_empresa)
     if not db_tipo:
         return None
     
@@ -53,8 +68,10 @@ async def update_tipo_praga(
     await db.refresh(db_tipo)
     return db_tipo
 
-async def delete_tipo_praga(db: AsyncSession, tipo_id: int) -> Optional[TipoPraga]:
-    db_tipo = await get_tipo_praga(db, tipo_id)
+async def delete_tipo_praga(
+    db: AsyncSession, tipo_id: int, id_empresa: Optional[int] = None
+) -> Optional[TipoPraga]:
+    db_tipo = await get_tipo_praga(db, tipo_id, id_empresa)
     if not db_tipo:
         return None
     
@@ -71,27 +88,37 @@ async def delete_tipo_praga(db: AsyncSession, tipo_id: int) -> Optional[TipoPrag
     return db_tipo
 
 # Funções CRUD para MetodoCombate
-async def get_metodo_combate(db: AsyncSession, metodo_id: int) -> Optional[MetodoCombate]:
-    result = await db.execute(select(MetodoCombate).where(MetodoCombate.id == metodo_id))
+async def get_metodo_combate(
+    db: AsyncSession, metodo_id: int, id_empresa: Optional[int] = None
+) -> Optional[MetodoCombate]:
+    query = select(MetodoCombate).where(MetodoCombate.id == metodo_id)
+    if id_empresa is not None:
+        query = query.where(MetodoCombate.id_empresa == id_empresa)
+    result = await db.execute(query)
     return result.scalars().first()
 
 async def get_metodos_combate(
-    db: AsyncSession, skip: int = 0, limit: int = 100
+    db: AsyncSession, skip: int = 0, limit: int = 100, id_empresa: Optional[int] = None
 ) -> List[MetodoCombate]:
-    result = await db.execute(select(MetodoCombate).offset(skip).limit(limit))
+    query = select(MetodoCombate)
+    if id_empresa is not None:
+        query = query.where(MetodoCombate.id_empresa == id_empresa)
+    result = await db.execute(query.offset(skip).limit(limit))
     return result.scalars().all()
 
-async def create_metodo_combate(db: AsyncSession, metodo_combate: MetodoCombateCreate) -> MetodoCombate:
-    db_metodo = MetodoCombate(**metodo_combate.dict())
+async def create_metodo_combate(
+    db: AsyncSession, metodo_combate: MetodoCombateCreate, id_empresa: Optional[int] = None
+) -> MetodoCombate:
+    db_metodo = MetodoCombate(**metodo_combate.dict(), id_empresa=id_empresa)
     db.add(db_metodo)
     await db.commit()
     await db.refresh(db_metodo)
     return db_metodo
 
 async def update_metodo_combate(
-    db: AsyncSession, metodo_id: int, metodo_update: MetodoCombateUpdate
+    db: AsyncSession, metodo_id: int, metodo_update: MetodoCombateUpdate, id_empresa: Optional[int] = None
 ) -> Optional[MetodoCombate]:
-    db_metodo = await get_metodo_combate(db, metodo_id)
+    db_metodo = await get_metodo_combate(db, metodo_id, id_empresa)
     if not db_metodo:
         return None
     
@@ -103,8 +130,10 @@ async def update_metodo_combate(
     await db.refresh(db_metodo)
     return db_metodo
 
-async def delete_metodo_combate(db: AsyncSession, metodo_id: int) -> Optional[MetodoCombate]:
-    db_metodo = await get_metodo_combate(db, metodo_id)
+async def delete_metodo_combate(
+    db: AsyncSession, metodo_id: int, id_empresa: Optional[int] = None
+) -> Optional[MetodoCombate]:
+    db_metodo = await get_metodo_combate(db, metodo_id, id_empresa)
     if not db_metodo:
         return None
     
@@ -121,11 +150,27 @@ async def delete_metodo_combate(db: AsyncSession, metodo_id: int) -> Optional[Me
     return db_metodo
 
 # Funções CRUD para PragaPlanta
-async def get_praga_planta(db: AsyncSession, praga_id: int) -> Optional[PragaPlanta]:
-    result = await db.execute(select(PragaPlanta).where(PragaPlanta.id == praga_id))
+async def _planta_no_viveiro(db: AsyncSession, id_planta: int, id_viveiro: int) -> bool:
+    r = await db.execute(
+        select(Planta.id).where(Planta.id == id_planta, Planta.id_viveiro == id_viveiro)
+    )
+    return r.scalar_one_or_none() is not None
+
+
+async def get_praga_planta(db: AsyncSession, praga_id: int, id_viveiro: Optional[int] = None) -> Optional[PragaPlanta]:
+    if id_viveiro is None:
+        result = await db.execute(select(PragaPlanta).where(PragaPlanta.id == praga_id))
+        return result.scalars().first()
+    result = await db.execute(
+        select(PragaPlanta)
+        .join(Planta, PragaPlanta.id_planta == Planta.id)
+        .where(PragaPlanta.id == praga_id, Planta.id_viveiro == id_viveiro)
+    )
     return result.scalars().first()
 
-async def get_praga_planta_detalhe(db: AsyncSession, praga_id: int) -> Optional[Dict[str, Any]]:
+async def get_praga_planta_detalhe(
+    db: AsyncSession, praga_id: int, id_viveiro: Optional[int] = None
+) -> Optional[Dict[str, Any]]:
     query = select(
         PragaPlanta,
         TipoPraga,
@@ -142,7 +187,10 @@ async def get_praga_planta_detalhe(db: AsyncSession, praga_id: int) -> Optional[
         CombateRealizado, PragaPlanta.id == CombateRealizado.id_praga_planta
     ).where(
         PragaPlanta.id == praga_id
-    ).group_by(
+    )
+    if id_viveiro is not None:
+        query = query.where(Planta.id_viveiro == id_viveiro)
+    query = query.group_by(
         PragaPlanta.id,
         TipoPraga.id,
         Planta.codigo_rastreio,
@@ -179,7 +227,8 @@ async def get_pragas_plantas(
     limit: int = 100,
     id_planta: Optional[int] = None,
     id_tipo_praga: Optional[int] = None,
-    nivel_infestacao: Optional[str] = None
+    nivel_infestacao: Optional[str] = None,
+    id_viveiro: Optional[int] = None,
 ) -> List[Dict[str, Any]]:
     query = select(
         PragaPlanta,
@@ -206,6 +255,8 @@ async def get_pragas_plantas(
     
     if nivel_infestacao:
         query = query.where(PragaPlanta.nivel_infestacao == nivel_infestacao)
+    if id_viveiro is not None:
+        query = query.where(Planta.id_viveiro == id_viveiro)
     
     query = query.group_by(
         PragaPlanta.id,
@@ -236,7 +287,11 @@ async def get_pragas_plantas(
     
     return pragas_plantas
 
-async def create_praga_planta(db: AsyncSession, praga_planta: PragaPlantaCreate) -> PragaPlanta:
+async def create_praga_planta(
+    db: AsyncSession, praga_planta: PragaPlantaCreate, id_viveiro: Optional[int] = None
+) -> PragaPlanta:
+    if id_viveiro is not None and not await _planta_no_viveiro(db, praga_planta.id_planta, id_viveiro):
+        raise ValueError("Planta não pertence à unidade viveiro ativa")
     db_praga = PragaPlanta(**praga_planta.dict())
     db.add(db_praga)
     await db.commit()
@@ -244,9 +299,9 @@ async def create_praga_planta(db: AsyncSession, praga_planta: PragaPlantaCreate)
     return db_praga
 
 async def update_praga_planta(
-    db: AsyncSession, praga_id: int, praga_update: PragaPlantaUpdate
+    db: AsyncSession, praga_id: int, praga_update: PragaPlantaUpdate, id_viveiro: Optional[int] = None
 ) -> Optional[PragaPlanta]:
-    db_praga = await get_praga_planta(db, praga_id)
+    db_praga = await get_praga_planta(db, praga_id, id_viveiro=id_viveiro)
     if not db_praga:
         return None
     
@@ -258,8 +313,10 @@ async def update_praga_planta(
     await db.refresh(db_praga)
     return db_praga
 
-async def delete_praga_planta(db: AsyncSession, praga_id: int) -> Optional[PragaPlanta]:
-    db_praga = await get_praga_planta(db, praga_id)
+async def delete_praga_planta(
+    db: AsyncSession, praga_id: int, id_viveiro: Optional[int] = None
+) -> Optional[PragaPlanta]:
+    db_praga = await get_praga_planta(db, praga_id, id_viveiro=id_viveiro)
     if not db_praga:
         return None
     
@@ -276,11 +333,23 @@ async def delete_praga_planta(db: AsyncSession, praga_id: int) -> Optional[Praga
     return db_praga
 
 # Funções CRUD para CombateRealizado
-async def get_combate_realizado(db: AsyncSession, combate_id: int) -> Optional[CombateRealizado]:
-    result = await db.execute(select(CombateRealizado).where(CombateRealizado.id == combate_id))
+async def get_combate_realizado(
+    db: AsyncSession, combate_id: int, id_viveiro: Optional[int] = None
+) -> Optional[CombateRealizado]:
+    if id_viveiro is None:
+        result = await db.execute(select(CombateRealizado).where(CombateRealizado.id == combate_id))
+        return result.scalars().first()
+    result = await db.execute(
+        select(CombateRealizado)
+        .join(PragaPlanta, CombateRealizado.id_praga_planta == PragaPlanta.id)
+        .join(Planta, PragaPlanta.id_planta == Planta.id)
+        .where(CombateRealizado.id == combate_id, Planta.id_viveiro == id_viveiro)
+    )
     return result.scalars().first()
 
-async def get_combate_realizado_detalhe(db: AsyncSession, combate_id: int) -> Optional[Dict[str, Any]]:
+async def get_combate_realizado_detalhe(
+    db: AsyncSession, combate_id: int, id_viveiro: Optional[int] = None
+) -> Optional[Dict[str, Any]]:
     query = select(
         CombateRealizado,
         MetodoCombate,
@@ -300,6 +369,8 @@ async def get_combate_realizado_detalhe(db: AsyncSession, combate_id: int) -> Op
     ).where(
         CombateRealizado.id == combate_id
     )
+    if id_viveiro is not None:
+        query = query.where(Planta.id_viveiro == id_viveiro)
     
     result = await db.execute(query)
     row = result.first()
@@ -343,7 +414,8 @@ async def get_combates_realizados(
     id_metodo_combate: Optional[int] = None,
     id_funcionario: Optional[int] = None,
     data_inicio: Optional[datetime] = None,
-    data_fim: Optional[datetime] = None
+    data_fim: Optional[datetime] = None,
+    id_viveiro: Optional[int] = None,
 ) -> List[Dict[str, Any]]:
     query = select(
         CombateRealizado,
@@ -382,6 +454,8 @@ async def get_combates_realizados(
         query = query.where(CombateRealizado.data_aplicacao >= data_inicio)
     elif data_fim:
         query = query.where(CombateRealizado.data_aplicacao <= data_fim)
+    if id_viveiro is not None:
+        query = query.where(Planta.id_viveiro == id_viveiro)
     
     query = query.order_by(
         CombateRealizado.data_aplicacao.desc()
@@ -414,13 +488,22 @@ async def get_combates_realizados(
     
     return combates
 
-async def create_combate_realizado(db: AsyncSession, combate: CombateRealizadoCreate) -> CombateRealizado:
+async def create_combate_realizado(
+    db: AsyncSession, combate: CombateRealizadoCreate, id_viveiro: Optional[int] = None,
+    id_empresa: Optional[int] = None,
+) -> CombateRealizado:
+    praga = await get_praga_planta(db, combate.id_praga_planta, id_viveiro=id_viveiro)
+    if id_viveiro is not None and praga is None:
+        raise ValueError("Ocorrência de praga não pertence à unidade viveiro ativa")
+    metodo_q = select(MetodoCombate).where(MetodoCombate.id == combate.id_metodo_combate)
+    if id_empresa is not None:
+        metodo_q = metodo_q.where(MetodoCombate.id_empresa == id_empresa)
+    metodo = (await db.execute(metodo_q)).scalars().first()
+    if metodo is None:
+        raise ValueError("Método de combate não encontrado na empresa")
     # Calcular custo total se não fornecido
     if combate.custo_total is None and combate.quantidade_aplicada is not None:
-        # Buscar custo unitário do método de combate
-        metodo_query = select(MetodoCombate.custo_unitario).where(MetodoCombate.id == combate.id_metodo_combate)
-        metodo_result = await db.execute(metodo_query)
-        custo_unitario = metodo_result.scalar_one_or_none()
+        custo_unitario = metodo.custo_unitario
         
         if custo_unitario:
             combate_dict = combate.dict()
@@ -453,9 +536,9 @@ async def create_combate_realizado(db: AsyncSession, combate: CombateRealizadoCr
     return db_combate
 
 async def update_combate_realizado(
-    db: AsyncSession, combate_id: int, combate_update: CombateRealizadoUpdate
+    db: AsyncSession, combate_id: int, combate_update: CombateRealizadoUpdate, id_viveiro: Optional[int] = None
 ) -> Optional[CombateRealizado]:
-    db_combate = await get_combate_realizado(db, combate_id)
+    db_combate = await get_combate_realizado(db, combate_id, id_viveiro=id_viveiro)
     if not db_combate:
         return None
     
@@ -500,13 +583,14 @@ async def update_combate_realizado(
     await db.refresh(db_combate)
     return db_combate
 
-async def delete_combate_realizado(db: AsyncSession, combate_id: int) -> Optional[Dict[str, Any]]:
-    db_combate = await get_combate_realizado(db, combate_id)
+async def delete_combate_realizado(
+    db: AsyncSession, combate_id: int, id_viveiro: Optional[int] = None
+) -> Optional[Dict[str, Any]]:
+    db_combate = await get_combate_realizado(db, combate_id, id_viveiro=id_viveiro)
     if not db_combate:
         return None
     
-    # Registrar dados para retorno
-    combate_detalhe = await get_combate_realizado_detalhe(db, combate_id)
+    combate_detalhe = await get_combate_realizado_detalhe(db, combate_id, id_viveiro=id_viveiro)
     
     # Remover custo do combate da planta
     if db_combate.custo_total and float(db_combate.custo_total) > 0:

@@ -16,6 +16,7 @@ class LancamentoFinanceiro(Base):
     forma_pagamento = Column(String(40))
     observacoes = Column(Text)
     id_funcionario = Column(Integer, ForeignKey("funcionarios.id"))
+    id_empresa = Column(Integer, ForeignKey("empresas.id"), nullable=False, index=True)
     data_registro = Column(DateTime, default=func.now())
 
     funcionario = relationship("Funcionario")

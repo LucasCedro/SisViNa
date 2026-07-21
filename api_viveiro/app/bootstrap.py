@@ -1,15 +1,19 @@
-from sqlalchemy import select
+from sqlalchemy import select, text
 
 from app.auth.utils import gerar_senha_hash
 from app.database import AsyncSessionLocal
 from app.models.especies import Especie
 from app.models.funcionarios import Funcionario
 from app.models.compradores import Comprador
+from app.models.empresas import Empresa
 from app.models.viveiros import Viveiro
 from app.models.funcionario_viveiro import FuncionarioViveiro
+
 from app.constants.viveiro_modo import MODO_FLORESTAL, MODO_NATIVO
 
-ALL_PERFIS = ["admin", "gestor", "campo", "financeiro", "rh", "consulta"]
+DEFAULT_EMPRESA_ID = 1
+
+ALL_PERFIS = ["platform_admin", "admin", "gestor", "campo", "financeiro", "rh", "consulta"]
 
 DEFAULT_ADMIN = {
     "nome": "Administrador",
@@ -26,12 +30,20 @@ RBAC_DEMO_PASSWORD = "Senha!@#"
 
 RBAC_DEMO_USERS = [
     {
+        "usuario": "demo.platform",
+        "nome": "Demo Plataforma Brotare",
+        "cpf": "453.178.287-91",
+        "cargo": "Admin Plataforma",
+        "email": "demo.platform@viveiro.local",
+        "perfis": ["platform_admin"],
+    },
+    {
         "usuario": "demo.admin",
         "nome": "Demo Administrador",
         "cpf": "529.982.247-25",
         "cargo": "Administrador",
         "email": "demo.admin@viveiro.local",
-        "perfis": ["admin"],
+        "perfis": ["empresa_admin"],
     },
     {
         "usuario": "demo.gestor",
@@ -76,6 +88,47 @@ RBAC_DEMO_USERS = [
 ]
 
 
+async def ensure_default_empresa() -> None:
+    """Garante empresa padrão (tenant SaaS)."""
+    async with AsyncSessionLocal() as db:
+        try:
+            result = await db.execute(select(Empresa).limit(1))
+        except Exception:
+            await db.rollback()
+            return
+
+        if not result.scalars().first():
+            db.add(
+                Empresa(
+                    id=DEFAULT_EMPRESA_ID,
+                    razao_social="Brotare Viveiros Ltda",
+                    nome_fantasia="Brotare Viveiros",
+                    slug="brotare",
+                    ativo=True,
+                )
+            )
+            await db.flush()
+
+        await db.execute(
+            text(
+                """
+                UPDATE funcionarios SET id_empresa = :eid
+                WHERE id_empresa IS NULL OR id_empresa = 0
+                """
+            ),
+            {"eid": DEFAULT_EMPRESA_ID},
+        )
+        await db.execute(
+            text("UPDATE viveiros SET id_empresa = :eid WHERE id_empresa IS NULL"),
+            {"eid": DEFAULT_EMPRESA_ID},
+        )
+        await db.execute(
+            text("UPDATE compradores SET id_empresa = :eid WHERE id_empresa IS NULL"),
+            {"eid": DEFAULT_EMPRESA_ID},
+        )
+        await db.commit()
+
+
 async def ensure_default_admin() -> None:
     """Seed somente em banco vazio (1º deploy). Renomear/trocar senha não recria admin."""
     async with AsyncSessionLocal() as db:
@@ -91,7 +144,8 @@ async def ensure_default_admin() -> None:
                 senha=gerar_senha_hash(DEFAULT_ADMIN["senha_plana"]),
                 cargo=DEFAULT_ADMIN["cargo"],
                 email=DEFAULT_ADMIN["email"],
-                perfis=list(ALL_PERFIS),
+                perfis=["platform_admin", "admin"],
+                id_empresa=DEFAULT_EMPRESA_ID,
                 ativo=True,
             )
         )
@@ -115,6 +169,8 @@ async def ensure_rbac_demo_users() -> None:
                 row.perfis = list(spec["perfis"])
                 row.senha = senha_hash
                 row.ativo = True
+                if getattr(row, "id_empresa", None) is None:
+                    row.id_empresa = DEFAULT_EMPRESA_ID
             else:
                 db.add(
                     Funcionario(
@@ -125,6 +181,7 @@ async def ensure_rbac_demo_users() -> None:
                         cargo=spec["cargo"],
                         email=spec["email"],
                         perfis=list(spec["perfis"]),
+                        id_empresa=DEFAULT_EMPRESA_ID,
                         ativo=True,
                     )
                 )
@@ -144,22 +201,42 @@ async def ensure_default_viveiros() -> None:
         if not result.scalars().first():
             db.add_all(
                 [
-                    Viveiro(id=1, nome="Viveiro Principal", slug="principal", modo_operacao=MODO_NATIVO, ativo=True),
+                    Viveiro(
+                        id=1,
+                        nome="Viveiro Principal",
+                        slug="principal",
+                        modo_operacao=MODO_NATIVO,
+                        id_empresa=DEFAULT_EMPRESA_ID,
+                        ativo=True,
+                    ),
                     Viveiro(
                         id=2,
-                        nome="Demo Florestal",
-                        slug="demo-florestal",
+                        nome="Viveiro Florestal",
+                        slug="viveiro-florestal",
                         modo_operacao=MODO_FLORESTAL,
+                        id_empresa=DEFAULT_EMPRESA_ID,
                         ativo=True,
                     ),
                 ]
             )
             await db.flush()
 
+        # Renomeia instalações antigas (seed "Demo Florestal")
+        await db.execute(
+            text(
+                """
+                UPDATE viveiros
+                SET nome = 'Viveiro Florestal', slug = 'viveiro-florestal'
+                WHERE slug = 'demo-florestal'
+                   OR (id = 2 AND modo_operacao = 'florestal' AND nome ILIKE '%demo%')
+                """
+            )
+        )
+
         funcionarios = (await db.execute(select(Funcionario))).scalars().all()
         for f in funcionarios:
             await db.merge(FuncionarioViveiro(id_funcionario=f.id, id_viveiro=1))
-            if f.usuario in ("admin", "demo.admin"):
+            if f.usuario in ("admin", "demo.admin", "demo.platform"):
                 await db.merge(FuncionarioViveiro(id_funcionario=f.id, id_viveiro=2))
         await db.commit()
 
@@ -221,6 +298,7 @@ async def ensure_demo_comprador() -> None:
                 codigo_municipio_ibge="3550308",
                 indicador_ie="9",
                 ativo=True,
+                id_empresa=DEFAULT_EMPRESA_ID,
             )
         )
         await db.commit()

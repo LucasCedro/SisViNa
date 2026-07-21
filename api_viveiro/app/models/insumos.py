@@ -1,13 +1,15 @@
 # app/models/insumos.py
-from sqlalchemy import Column, Integer, String, Text, Date, DateTime, Numeric, func
+from sqlalchemy import Column, Integer, String, Text, Date, DateTime, Numeric, func, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import relationship
 
 from app.database import Base
 
 class Insumo(Base):
     __tablename__ = "insumos"
+    __table_args__ = (UniqueConstraint("id_empresa", "nome", name="uq_insumos_empresa_nome"),)
 
     id = Column(Integer, primary_key=True, index=True)
+    id_empresa = Column(Integer, ForeignKey("empresas.id"), nullable=False, index=True)
     nome = Column(String(100), nullable=False)
     tipo = Column(String(50), nullable=False)
     descricao = Column(Text)

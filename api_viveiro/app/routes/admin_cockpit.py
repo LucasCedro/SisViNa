@@ -11,6 +11,7 @@ from app.crud import funcionarios as crud_funcionarios
 from app.database import get_db
 from app.models.funcionarios import Funcionario
 from app.schemas.admin_cockpit import (
+    AdminAuditoriaOut,
     AdminFuncionarioListOut,
     AdminOverviewOut,
     AdminRbacOut,
@@ -48,9 +49,9 @@ async def create_admin_viveiro(
     admin=Depends(require_godmode("admin.godmode.manage")),
 ):
     """Cria unidade viveiro — God Mode."""
-    if await crud_viveiros.get_viveiro_by_slug(db, payload.slug):
-        raise HTTPException(status_code=400, detail="Slug já em uso.")
-    row = await crud_viveiros.create_viveiro(db, payload)
+    if await crud_viveiros.get_viveiro_by_slug(db, payload.slug, id_empresa=payload.id_empresa):
+        raise HTTPException(status_code=400, detail="Slug já em uso nesta empresa.")
+    row = await crud_viveiros.create_viveiro(db, payload, id_empresa=payload.id_empresa)
     await crud_viveiros.link_funcionario_viveiro(db, admin.id, row.id)
     await db.commit()
     await db.refresh(row)
@@ -63,6 +64,16 @@ async def create_admin_viveiro(
         ativo=bool(row.ativo),
         data_cadastro=row.data_cadastro,
     )
+
+
+@router.get("/auditoria", response_model=List[AdminAuditoriaOut])
+async def list_admin_auditoria(
+    limit: int = Query(100, le=500),
+    db: AsyncSession = Depends(get_db),
+    _admin=Depends(require_godmode("admin.godmode.view")),
+):
+    """Log cross-tenant — somente platform_admin."""
+    return await crud_admin.list_auditoria(db, limit=limit)
 
 
 @router.get("/funcionarios", response_model=AdminFuncionarioListOut)
@@ -87,11 +98,12 @@ async def create_admin_funcionario(
     db: AsyncSession = Depends(get_db),
     _admin=Depends(require_godmode("admin.godmode.manage")),
 ):
+    empresa_id = funcionario.id_empresa or 1
     if await crud_funcionarios.get_funcionario_by_usuario(db, funcionario.usuario):
         raise HTTPException(status_code=400, detail="Usuário já registrado no sistema")
-    if await crud_funcionarios.get_funcionario_by_cpf(db, funcionario.cpf):
+    if await crud_funcionarios.get_funcionario_by_cpf(db, funcionario.cpf, id_empresa=empresa_id):
         raise HTTPException(status_code=400, detail="CPF já registrado no sistema")
-    return await crud_funcionarios.create_funcionario(db, funcionario)
+    return await crud_funcionarios.create_funcionario(db, funcionario, id_empresa=empresa_id)
 
 
 @router.put("/funcionarios/{funcionario_id}", response_model=FuncionarioOut)
@@ -111,7 +123,9 @@ async def update_admin_funcionario(
             raise HTTPException(status_code=400, detail="Usuário já registrado por outro funcionário")
 
     if funcionario.cpf:
-        existing_cpf = await crud_funcionarios.get_funcionario_by_cpf(db, funcionario.cpf)
+        existing_cpf = await crud_funcionarios.get_funcionario_by_cpf(
+            db, funcionario.cpf, id_empresa=db_funcionario.id_empresa
+        )
         if existing_cpf and existing_cpf.id != funcionario_id:
             raise HTTPException(status_code=400, detail="CPF já registrado por outro funcionário")
 

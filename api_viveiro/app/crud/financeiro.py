@@ -18,7 +18,63 @@ from app.models.vendas import ItemVenda, Venda
 from app.models.compradores import Comprador
 from app.models.canteiros import Canteiro
 from app.crud.plantas_estoque import filtro_aptas_venda_comercial
+from app.security.financeiro_scope import (
+    insumo_movimento_scope_clause,
+    insumo_scope_clause,
+    lancamento_scope_clause,
+    lote_scope_clause,
+    planta_scope_clause,
+    venda_scope_clause,
+)
 from app.services.custeio import estimar_despesas_periodo
+
+
+def _venda_where(*parts):
+    clauses = [p for p in parts if p is not None]
+    vc = venda_scope_clause()
+    if vc is not None:
+        clauses.append(vc)
+    return and_(*clauses) if len(clauses) > 1 else clauses[0]
+
+
+def _lancamento_where(*parts):
+    clauses = [p for p in parts if p is not None]
+    lc = lancamento_scope_clause()
+    if lc is not None:
+        clauses.append(lc)
+    return and_(*clauses) if len(clauses) > 1 else clauses[0]
+
+
+def _planta_where(*parts):
+    clauses = [p for p in parts if p is not None]
+    pc = planta_scope_clause()
+    if pc is not None:
+        clauses.append(pc)
+    return and_(*clauses) if len(clauses) > 1 else clauses[0]
+
+
+def _insumo_where(*parts):
+    clauses = [p for p in parts if p is not None]
+    ic = insumo_scope_clause()
+    if ic is not None:
+        clauses.append(ic)
+    return and_(*clauses) if len(clauses) > 1 else clauses[0]
+
+
+def _lote_where(*parts):
+    clauses = [p for p in parts if p is not None]
+    lc = lote_scope_clause()
+    if lc is not None:
+        clauses.append(lc)
+    return and_(*clauses) if len(clauses) > 1 else clauses[0]
+
+
+def _insumo_mov_where(*parts):
+    clauses = [p for p in parts if p is not None]
+    mc = insumo_movimento_scope_clause()
+    if mc is not None:
+        clauses.append(mc)
+    return and_(*clauses) if len(clauses) > 1 else clauses[0]
 
 
 MESES_PT = (
@@ -43,16 +99,18 @@ def _filtro_vendas(regime: str, inicio: datetime, fim: datetime):
     Competência: PENDENTE + PAGO (fato gerador na data_venda / fornecimento).
     """
     if regime == REGIME_COMPETENCIA:
-        return and_(
+        base = and_(
             Venda.status.in_(("PENDENTE", "PAGO")),
             Venda.data_venda >= inicio,
             Venda.data_venda < fim,
         )
-    return and_(
-        Venda.status == "PAGO",
-        _data_referencia_caixa() >= inicio,
-        _data_referencia_caixa() < fim,
-    )
+    else:
+        base = and_(
+            Venda.status == "PAGO",
+            _data_referencia_caixa() >= inicio,
+            _data_referencia_caixa() < fim,
+        )
+    return _venda_where(base)
 
 
 def _descricao_regime(regime: str) -> str:
@@ -100,7 +158,9 @@ async def _total_compras_insumos(
     return float(
         (
             await db.execute(
-                select(func.coalesce(func.sum(InsumoMovimentacao.valor_total), 0)).where(filtro)
+                select(func.coalesce(func.sum(InsumoMovimentacao.valor_total), 0)).where(
+                    _insumo_mov_where(filtro)
+                )
             )
         ).scalar()
         or 0
@@ -129,7 +189,7 @@ async def _detalhe_compras_insumos(
         await db.execute(
             select(InsumoMovimentacao, Insumo.nome.label("insumo_nome"))
             .join(Insumo, InsumoMovimentacao.id_insumo == Insumo.id)
-            .where(filtro)
+            .where(_insumo_where(filtro))
             .order_by(data_ordem.desc(), InsumoMovimentacao.id.desc())
             .limit(limit)
         )
@@ -294,9 +354,11 @@ async def _dre_periodo(
         (
             await db.execute(
                 select(func.coalesce(func.sum(LancamentoFinanceiro.valor), 0)).where(
-                    LancamentoFinanceiro.tipo == "CAPEX",
-                    LancamentoFinanceiro.data_lancamento >= inicio_d,
-                    LancamentoFinanceiro.data_lancamento <= fim_d,
+                    _lancamento_where(
+                        LancamentoFinanceiro.tipo == "CAPEX",
+                        LancamentoFinanceiro.data_lancamento >= inicio_d,
+                        LancamentoFinanceiro.data_lancamento <= fim_d,
+                    )
                 )
             )
         ).scalar()
@@ -329,7 +391,9 @@ async def _estoque_financeiro(db: AsyncSession) -> Dict[str, Any]:
     mudas_vivas = int(
         (
             await db.execute(
-                select(func.count(Planta.id)).where(Planta.status.notin_(("VENDIDA", "MORTA")))
+                select(func.count(Planta.id)).where(
+                    _planta_where(Planta.status.notin_(("VENDIDA", "MORTA")))
+                )
             )
         ).scalar()
         or 0
@@ -338,14 +402,23 @@ async def _estoque_financeiro(db: AsyncSession) -> Dict[str, Any]:
         (
             await db.execute(
                 select(func.coalesce(func.sum(Planta.custo_atual), 0)).where(
-                    Planta.status.notin_(("VENDIDA", "MORTA"))
+                    _planta_where(Planta.status.notin_(("VENDIDA", "MORTA")))
                 )
             )
         ).scalar()
         or 0
     )
-    insumos = (await db.execute(select(Insumo))).scalars().all()
-    valor_insumos = sum(float(i.valor_estoque or 0) for i in insumos)
+    valor_insumos = float(
+        (
+            await db.execute(
+                select(func.coalesce(func.sum(Insumo.valor_estoque), 0)).where(_insumo_where())
+            )
+        ).scalar()
+        or 0
+    )
+    total_insumos = int(
+        (await db.execute(select(func.count(Insumo.id)).where(_insumo_where()))).scalar() or 0
+    )
 
     from app.models.lotes_sementes import LoteSementes
 
@@ -353,8 +426,10 @@ async def _estoque_financeiro(db: AsyncSession) -> Dict[str, Any]:
         (
             await db.execute(
                 select(func.coalesce(func.sum(LoteSementes.valor_total), 0)).where(
-                    LoteSementes.status == "ativo",
-                    LoteSementes.quantidade_disponivel > 0,
+                    _lote_where(
+                        LoteSementes.status == "ativo",
+                        LoteSementes.quantidade_disponivel > 0,
+                    )
                 )
             )
         ).scalar()
@@ -370,6 +445,9 @@ async def _estoque_financeiro(db: AsyncSession) -> Dict[str, Any]:
         .join(Canteiro, Planta.id_canteiro == Canteiro.id)
     )
     q_comercial = filtro_aptas_venda_comercial(q_comercial)
+    pc = planta_scope_clause()
+    if pc is not None:
+        q_comercial = q_comercial.where(pc)
     row_com = (await db.execute(q_comercial)).one()
     mudas_comercial = int(row_com[0] or 0)
     valor_comercial = float(row_com[1] or 0)
@@ -382,7 +460,7 @@ async def _estoque_financeiro(db: AsyncSession) -> Dict[str, Any]:
         "mudas_comercial": mudas_comercial,
         "custo_medio_muda_comercial": round(valor_comercial / mudas_comercial, 2) if mudas_comercial else 0,
         "valor_insumos": valor_insumos,
-        "total_insumos": len(insumos),
+        "total_insumos": total_insumos,
         "valor_sementes": valor_sementes,
     }
 
@@ -393,7 +471,7 @@ async def _integridade_financeira(db: AsyncSession) -> Dict[str, Any]:
     from app.services.custeio import obter_valor_hora_coleta_campo
 
     valor_hora = await obter_valor_hora_coleta_campo(db)
-    filtro_lote_ativo = and_(
+    filtro_lote_ativo = _lote_where(
         LoteSementes.status == "ativo",
         LoteSementes.quantidade_disponivel > 0,
     )
@@ -445,8 +523,10 @@ async def _integridade_financeira(db: AsyncSession) -> Dict[str, Any]:
         (
             await db.execute(
                 select(func.count(Planta.id)).where(
-                    Planta.status.notin_(("VENDIDA", "MORTA")),
-                    func.coalesce(Planta.custo_atual, 0) <= 0,
+                    _planta_where(
+                        Planta.status.notin_(("VENDIDA", "MORTA")),
+                        func.coalesce(Planta.custo_atual, 0) <= 0,
+                    )
                 )
             )
         ).scalar()
@@ -755,9 +835,11 @@ async def _distribuicao_categoria(
                 func.coalesce(func.sum(LancamentoFinanceiro.valor), 0).label("valor"),
             )
             .where(
-                LancamentoFinanceiro.tipo == tipo,
-                LancamentoFinanceiro.data_lancamento >= inicio_d,
-                LancamentoFinanceiro.data_lancamento <= fim_d,
+                _lancamento_where(
+                    LancamentoFinanceiro.tipo == tipo,
+                    LancamentoFinanceiro.data_lancamento >= inicio_d,
+                    LancamentoFinanceiro.data_lancamento <= fim_d,
+                )
             )
             .group_by(LancamentoFinanceiro.categoria)
             .order_by(func.sum(LancamentoFinanceiro.valor).desc())
@@ -869,7 +951,11 @@ async def _detalhe_cmv_vendas(
 
 
 async def _detalhe_estoque_insumos(db: AsyncSession) -> List[Dict[str, Any]]:
-    insumos = (await db.execute(select(Insumo).order_by(Insumo.valor_estoque.desc()))).scalars().all()
+    insumos = (
+        await db.execute(
+            select(Insumo).where(_insumo_where()).order_by(Insumo.valor_estoque.desc())
+        )
+    ).scalars().all()
     return [
         {
             "id": i.id,
@@ -901,8 +987,10 @@ async def _detalhe_estoque_sementes(db: AsyncSession) -> List[Dict[str, Any]]:
             )
             .join(Especie, LoteSementes.id_especie == Especie.id)
             .where(
-                LoteSementes.status == "ativo",
-                LoteSementes.quantidade_disponivel > 0,
+                _lote_where(
+                    LoteSementes.status == "ativo",
+                    LoteSementes.quantidade_disponivel > 0,
+                )
             )
             .order_by(LoteSementes.valor_total.desc())
         )
@@ -926,9 +1014,11 @@ async def _detalhe_capex_lancamentos(db: AsyncSession, mes: int, ano: int) -> Li
         await db.execute(
             select(LancamentoFinanceiro)
             .where(
-                LancamentoFinanceiro.tipo == "CAPEX",
-                LancamentoFinanceiro.data_lancamento >= inicio_d,
-                LancamentoFinanceiro.data_lancamento <= fim_d,
+                _lancamento_where(
+                    LancamentoFinanceiro.tipo == "CAPEX",
+                    LancamentoFinanceiro.data_lancamento >= inicio_d,
+                    LancamentoFinanceiro.data_lancamento <= fim_d,
+                )
             )
             .order_by(LancamentoFinanceiro.data_lancamento.desc())
         )
@@ -1168,11 +1258,18 @@ async def _listar_vendas_pendentes(
             Comprador.nome.label("comprador_nome"),
         )
         .join(Comprador, Venda.id_comprador == Comprador.id)
-        .where(Venda.status == "PENDENTE")
     )
     if mes is not None and ano is not None:
         inicio, fim = _periodo_datetime(mes, ano)
-        q = q.where(Venda.data_venda >= inicio, Venda.data_venda < fim)
+        q = q.where(
+            _venda_where(
+                Venda.status == "PENDENTE",
+                Venda.data_venda >= inicio,
+                Venda.data_venda < fim,
+            )
+        )
+    else:
+        q = q.where(_venda_where(Venda.status == "PENDENTE"))
     rows = (await db.execute(q.order_by(Venda.data_venda.desc()).limit(100))).all()
     return [
         {
@@ -1333,8 +1430,14 @@ async def get_painel_financeiro(
 
     dre = await _dre_periodo(db, mes, ano, regime)
     from app.crud.coletas_sementes import sanear_custos_coleta_campo_pendentes
+    from app.security.financeiro_scope import get_fin_scope
 
-    await sanear_custos_coleta_campo_pendentes(db)
+    fin_scope = get_fin_scope()
+    await sanear_custos_coleta_campo_pendentes(
+        db,
+        id_viveiro=fin_scope.id_viveiro if fin_scope else None,
+        id_empresa=fin_scope.id_empresa if fin_scope else None,
+    )
     integridade = await _integridade_financeira(db)
     desp = await estimar_despesas_periodo(db, dre["faturamento"])
     desp_escalada = _escala_despesas_periodo(desp, mes, ano)
@@ -1399,22 +1502,31 @@ async def _dfc_periodo(db: AsyncSession, mes: int, ano: int) -> Dict[str, Any]:
     a_receber_aberto = float(
         (
             await db.execute(
-                select(func.coalesce(func.sum(Venda.valor_total), 0)).where(Venda.status == "PENDENTE")
+                select(func.coalesce(func.sum(Venda.valor_total), 0)).where(
+                    _venda_where(Venda.status == "PENDENTE")
+                )
             )
         ).scalar()
         or 0
     )
     qtd_pendentes = int(
-        (await db.execute(select(func.count(Venda.id)).where(Venda.status == "PENDENTE"))).scalar() or 0
+        (
+            await db.execute(
+                select(func.count(Venda.id)).where(_venda_where(Venda.status == "PENDENTE"))
+            )
+        ).scalar()
+        or 0
     )
 
     a_receber_periodo = float(
         (
             await db.execute(
                 select(func.coalesce(func.sum(Venda.valor_total), 0)).where(
-                    Venda.status == "PENDENTE",
-                    Venda.data_venda >= inicio,
-                    Venda.data_venda < fim,
+                    _venda_where(
+                        Venda.status == "PENDENTE",
+                        Venda.data_venda >= inicio,
+                        Venda.data_venda < fim,
+                    )
                 )
             )
         ).scalar()
@@ -1424,9 +1536,11 @@ async def _dfc_periodo(db: AsyncSession, mes: int, ano: int) -> Dict[str, Any]:
         (
             await db.execute(
                 select(func.count(Venda.id)).where(
-                    Venda.status == "PENDENTE",
-                    Venda.data_venda >= inicio,
-                    Venda.data_venda < fim,
+                    _venda_where(
+                        Venda.status == "PENDENTE",
+                        Venda.data_venda >= inicio,
+                        Venda.data_venda < fim,
+                    )
                 )
             )
         ).scalar()
@@ -1445,9 +1559,11 @@ async def _dfc_periodo(db: AsyncSession, mes: int, ano: int) -> Dict[str, Any]:
         (
             await db.execute(
                 select(func.coalesce(func.sum(InsumoMovimentacao.valor_total), 0)).where(
-                    InsumoMovimentacao.tipo == "entrada",
-                    InsumoMovimentacao.status_pagamento == "PENDENTE",
-                    func.coalesce(InsumoMovimentacao.valor_total, 0) > 0,
+                    _insumo_mov_where(
+                        InsumoMovimentacao.tipo == "entrada",
+                        InsumoMovimentacao.status_pagamento == "PENDENTE",
+                        func.coalesce(InsumoMovimentacao.valor_total, 0) > 0,
+                    )
                 )
             )
         ).scalar()
@@ -1457,9 +1573,11 @@ async def _dfc_periodo(db: AsyncSession, mes: int, ano: int) -> Dict[str, Any]:
         (
             await db.execute(
                 select(func.count(InsumoMovimentacao.id)).where(
-                    InsumoMovimentacao.tipo == "entrada",
-                    InsumoMovimentacao.status_pagamento == "PENDENTE",
-                    func.coalesce(InsumoMovimentacao.valor_total, 0) > 0,
+                    _insumo_mov_where(
+                        InsumoMovimentacao.tipo == "entrada",
+                        InsumoMovimentacao.status_pagamento == "PENDENTE",
+                        func.coalesce(InsumoMovimentacao.valor_total, 0) > 0,
+                    )
                 )
             )
         ).scalar()
@@ -1469,11 +1587,13 @@ async def _dfc_periodo(db: AsyncSession, mes: int, ano: int) -> Dict[str, Any]:
         (
             await db.execute(
                 select(func.coalesce(func.sum(InsumoMovimentacao.valor_total), 0)).where(
-                    InsumoMovimentacao.tipo == "entrada",
-                    InsumoMovimentacao.status_pagamento == "PENDENTE",
-                    func.coalesce(InsumoMovimentacao.valor_total, 0) > 0,
-                    InsumoMovimentacao.data_movimento >= inicio_d,
-                    InsumoMovimentacao.data_movimento <= fim_d,
+                    _insumo_mov_where(
+                        InsumoMovimentacao.tipo == "entrada",
+                        InsumoMovimentacao.status_pagamento == "PENDENTE",
+                        func.coalesce(InsumoMovimentacao.valor_total, 0) > 0,
+                        InsumoMovimentacao.data_movimento >= inicio_d,
+                        InsumoMovimentacao.data_movimento <= fim_d,
+                    )
                 )
             )
         ).scalar()
@@ -1483,11 +1603,13 @@ async def _dfc_periodo(db: AsyncSession, mes: int, ano: int) -> Dict[str, Any]:
         (
             await db.execute(
                 select(func.count(InsumoMovimentacao.id)).where(
-                    InsumoMovimentacao.tipo == "entrada",
-                    InsumoMovimentacao.status_pagamento == "PENDENTE",
-                    func.coalesce(InsumoMovimentacao.valor_total, 0) > 0,
-                    InsumoMovimentacao.data_movimento >= inicio_d,
-                    InsumoMovimentacao.data_movimento <= fim_d,
+                    _insumo_mov_where(
+                        InsumoMovimentacao.tipo == "entrada",
+                        InsumoMovimentacao.status_pagamento == "PENDENTE",
+                        func.coalesce(InsumoMovimentacao.valor_total, 0) > 0,
+                        InsumoMovimentacao.data_movimento >= inicio_d,
+                        InsumoMovimentacao.data_movimento <= fim_d,
+                    )
                 )
             )
         ).scalar()
@@ -1561,7 +1683,12 @@ async def _listar_vendas_pendentes_ate(
                 Comprador.nome.label("comprador_nome"),
             )
             .join(Comprador, Venda.id_comprador == Comprador.id)
-            .where(Venda.status == "PENDENTE", Venda.data_venda <= fim_dt)
+            .where(
+                _venda_where(
+                    Venda.status == "PENDENTE",
+                    Venda.data_venda <= fim_dt,
+                )
+            )
             .order_by(Venda.data_venda.desc())
             .limit(limit)
         )
@@ -1588,10 +1715,12 @@ async def _listar_compras_pendentes_ate(
             select(InsumoMovimentacao, Insumo.nome.label("insumo_nome"))
             .join(Insumo, InsumoMovimentacao.id_insumo == Insumo.id)
             .where(
-                InsumoMovimentacao.tipo == "entrada",
-                InsumoMovimentacao.status_pagamento == "PENDENTE",
-                func.coalesce(InsumoMovimentacao.valor_total, 0) > 0,
-                InsumoMovimentacao.data_movimento <= fim_d,
+                _insumo_where(
+                    InsumoMovimentacao.tipo == "entrada",
+                    InsumoMovimentacao.status_pagamento == "PENDENTE",
+                    func.coalesce(InsumoMovimentacao.valor_total, 0) > 0,
+                    InsumoMovimentacao.data_movimento <= fim_d,
+                )
             )
             .order_by(InsumoMovimentacao.data_movimento.desc(), InsumoMovimentacao.id.desc())
             .limit(limit)
@@ -1693,8 +1822,10 @@ async def _caixa_equivalentes_ate(db: AsyncSession, fim_d: date, fim_dt: datetim
         (
             await db.execute(
                 select(func.coalesce(func.sum(Venda.valor_total), 0)).where(
-                    Venda.status == "PAGO",
-                    _data_referencia_caixa() <= fim_dt,
+                    _venda_where(
+                        Venda.status == "PAGO",
+                        _data_referencia_caixa() <= fim_dt,
+                    )
                 )
             )
         ).scalar()
@@ -1704,13 +1835,15 @@ async def _caixa_equivalentes_ate(db: AsyncSession, fim_d: date, fim_dt: datetim
         (
             await db.execute(
                 select(func.coalesce(func.sum(InsumoMovimentacao.valor_total), 0)).where(
-                    InsumoMovimentacao.tipo == "entrada",
-                    func.coalesce(InsumoMovimentacao.valor_total, 0) > 0,
-                    or_(
-                        InsumoMovimentacao.status_pagamento == "PAGO",
-                        InsumoMovimentacao.status_pagamento.is_(None),
-                    ),
-                    _data_pagamento_compra() <= fim_d,
+                    _insumo_mov_where(
+                        InsumoMovimentacao.tipo == "entrada",
+                        func.coalesce(InsumoMovimentacao.valor_total, 0) > 0,
+                        or_(
+                            InsumoMovimentacao.status_pagamento == "PAGO",
+                            InsumoMovimentacao.status_pagamento.is_(None),
+                        ),
+                        _data_pagamento_compra() <= fim_d,
+                    )
                 )
             )
         ).scalar()
@@ -1720,8 +1853,10 @@ async def _caixa_equivalentes_ate(db: AsyncSession, fim_d: date, fim_dt: datetim
         (
             await db.execute(
                 select(func.coalesce(func.sum(LancamentoFinanceiro.valor), 0)).where(
-                    LancamentoFinanceiro.tipo == "CAPEX",
-                    LancamentoFinanceiro.data_lancamento <= fim_d,
+                    _lancamento_where(
+                        LancamentoFinanceiro.tipo == "CAPEX",
+                        LancamentoFinanceiro.data_lancamento <= fim_d,
+                    )
                 )
             )
         ).scalar()
@@ -1742,8 +1877,10 @@ async def _imobilizado_ate(db: AsyncSession, fim_d: date) -> float:
         (
             await db.execute(
                 select(func.coalesce(func.sum(LancamentoFinanceiro.valor), 0)).where(
-                    LancamentoFinanceiro.tipo == "CAPEX",
-                    LancamentoFinanceiro.data_lancamento <= fim_d,
+                    _lancamento_where(
+                        LancamentoFinanceiro.tipo == "CAPEX",
+                        LancamentoFinanceiro.data_lancamento <= fim_d,
+                    )
                 )
             )
         ).scalar()
@@ -1977,8 +2114,10 @@ async def get_balanco_patrimonial(
         (
             await db.execute(
                 select(func.coalesce(func.sum(Venda.valor_total), 0)).where(
-                    Venda.status == "PENDENTE",
-                    Venda.data_venda <= fim_dt,
+                    _venda_where(
+                        Venda.status == "PENDENTE",
+                        Venda.data_venda <= fim_dt,
+                    )
                 )
             )
         ).scalar()
@@ -1989,10 +2128,12 @@ async def get_balanco_patrimonial(
         (
             await db.execute(
                 select(func.coalesce(func.sum(InsumoMovimentacao.valor_total), 0)).where(
-                    InsumoMovimentacao.tipo == "entrada",
-                    InsumoMovimentacao.status_pagamento == "PENDENTE",
-                    func.coalesce(InsumoMovimentacao.valor_total, 0) > 0,
-                    InsumoMovimentacao.data_movimento <= fim_d,
+                    _insumo_mov_where(
+                        InsumoMovimentacao.tipo == "entrada",
+                        InsumoMovimentacao.status_pagamento == "PENDENTE",
+                        func.coalesce(InsumoMovimentacao.valor_total, 0) > 0,
+                        InsumoMovimentacao.data_movimento <= fim_d,
+                    )
                 )
             )
         ).scalar()
@@ -2233,9 +2374,11 @@ async def get_notas_explicativas(
         (
             await db.execute(
                 select(func.count(Venda.id)).where(
-                    Venda.status == "PENDENTE",
-                    Venda.data_venda >= inicio,
-                    Venda.data_venda < fim,
+                    _venda_where(
+                        Venda.status == "PENDENTE",
+                        Venda.data_venda >= inicio,
+                        Venda.data_venda < fim,
+                    )
                 )
             )
         ).scalar()

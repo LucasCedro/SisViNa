@@ -9,8 +9,8 @@ from app.schemas.compradores_analitico import CompradoresAnaliticoOut
 from app.schemas.nfe import CompradorNfeReadinessOut
 from app.services.nfe_validacao import erros_comprador_nfe
 from app.crud import compradores as crud_compradores
-from app.auth.jwt import get_current_user
 from app.security.rbac import require_permission
+from app.security.scope_context import ScopeContext, get_scope_context
 from app.schemas.funcionarios import FuncionarioOut
 
 router = APIRouter()
@@ -22,13 +22,14 @@ async def read_compradores(
     ativo: Optional[bool] = None,
     tipo: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
+    scope: ScopeContext = Depends(get_scope_context),
     current_user: FuncionarioOut = Depends(require_permission("vendas.view"))
 ):
     """
     Recupera todos os compradores.
     """
     compradores = await crud_compradores.get_compradores(
-        db, skip=skip, limit=limit, ativo=ativo, tipo=tipo
+        db, skip=skip, limit=limit, ativo=ativo, tipo=tipo, id_empresa=scope.tenant.id
     )
     return compradores
 
@@ -36,10 +37,13 @@ async def read_compradores(
 async def read_compradores_analitico(
     meses: int = Query(12, ge=0, le=60, description="0 = todo o período"),
     db: AsyncSession = Depends(get_db),
+    scope: ScopeContext = Depends(get_scope_context),
     current_user: FuncionarioOut = Depends(require_permission("vendas.view")),
 ):
     """Painel analítico de clientes — lucro, fidelidade, geografia."""
-    dados = await crud_compradores.get_compradores_analitico(db, meses=meses)
+    dados = await crud_compradores.get_compradores_analitico(
+        db, meses=meses, id_empresa=scope.tenant.id
+    )
     return crud_compradores.aplicar_visibilidade_analitico(dados, current_user.perfis)
 
 
@@ -50,13 +54,14 @@ async def read_compradores_with_vendas(
     ativo: Optional[bool] = None,
     tipo: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
+    scope: ScopeContext = Depends(get_scope_context),
     current_user: FuncionarioOut = Depends(require_permission("vendas.view"))
 ):
     """
     Recupera todos os compradores com informações de vendas.
     """
     compradores = await crud_compradores.get_compradores_with_vendas(
-        db, skip=skip, limit=limit, ativo=ativo, tipo=tipo
+        db, skip=skip, limit=limit, ativo=ativo, tipo=tipo, id_empresa=scope.tenant.id
     )
     return compradores
 
@@ -64,12 +69,15 @@ async def read_compradores_with_vendas(
 async def read_comprador(
     comprador_id: int,
     db: AsyncSession = Depends(get_db),
+    scope: ScopeContext = Depends(get_scope_context),
     current_user: FuncionarioOut = Depends(require_permission("vendas.view"))
 ):
     """
     Recupera um comprador específico pelo ID.
     """
-    db_comprador = await crud_compradores.get_comprador(db, comprador_id)
+    db_comprador = await crud_compradores.get_comprador(
+        db, comprador_id, id_empresa=scope.tenant.id
+    )
     if db_comprador is None:
         raise HTTPException(status_code=404, detail="Comprador não encontrado")
     return db_comprador
@@ -78,10 +86,13 @@ async def read_comprador(
 async def comprador_nfe_readiness(
     comprador_id: int,
     db: AsyncSession = Depends(get_db),
+    scope: ScopeContext = Depends(get_scope_context),
     current_user: FuncionarioOut = Depends(require_permission("vendas.view")),
 ):
     """Campos faltantes para emitir NF-e para este comprador."""
-    db_comprador = await crud_compradores.get_comprador(db, comprador_id)
+    db_comprador = await crud_compradores.get_comprador(
+        db, comprador_id, id_empresa=scope.tenant.id
+    )
     if db_comprador is None:
         raise HTTPException(status_code=404, detail="Comprador não encontrado")
     faltando = erros_comprador_nfe(db_comprador)
@@ -91,48 +102,56 @@ async def comprador_nfe_readiness(
 async def create_comprador(
     comprador: CompradorCreate,
     db: AsyncSession = Depends(get_db),
+    scope: ScopeContext = Depends(get_scope_context),
     current_user: FuncionarioOut = Depends(require_permission("vendas.create"))
 ):
     """
     Cria um novo comprador.
     """
-    # Verificar CPF/CNPJ
-    db_comprador_cpf_cnpj = await crud_compradores.get_comprador_by_cpf_cnpj(db, comprador.cpf_cnpj)
+    db_comprador_cpf_cnpj = await crud_compradores.get_comprador_by_cpf_cnpj(
+        db, comprador.cpf_cnpj, id_empresa=scope.tenant.id
+    )
     if db_comprador_cpf_cnpj:
         raise HTTPException(
             status_code=400,
             detail=f"{'CPF' if comprador.tipo == 'PF' else 'CNPJ'} já registrado no sistema"
         )
     
-    # Verificar usuário se fornecido
     if comprador.usuario:
-        db_comprador_usuario = await crud_compradores.get_comprador_by_usuario(db, comprador.usuario)
+        db_comprador_usuario = await crud_compradores.get_comprador_by_usuario(
+            db, comprador.usuario, id_empresa=scope.tenant.id
+        )
         if db_comprador_usuario:
             raise HTTPException(
                 status_code=400,
                 detail="Usuário já registrado no sistema"
             )
     
-    return await crud_compradores.create_comprador(db=db, comprador=comprador)
+    return await crud_compradores.create_comprador(
+        db=db, comprador=comprador, id_empresa=scope.tenant.id
+    )
 
 @router.put("/{comprador_id}", response_model=Comprador)
 async def update_comprador(
     comprador_id: int,
     comprador: CompradorUpdate,
     db: AsyncSession = Depends(get_db),
+    scope: ScopeContext = Depends(get_scope_context),
     current_user: FuncionarioOut = Depends(require_permission("vendas.edit"))
 ):
     """
     Atualiza um comprador existente.
     """
-    # Verificar se o comprador existe
-    db_comprador = await crud_compradores.get_comprador(db, comprador_id)
+    db_comprador = await crud_compradores.get_comprador(
+        db, comprador_id, id_empresa=scope.tenant.id
+    )
     if db_comprador is None:
         raise HTTPException(status_code=404, detail="Comprador não encontrado")
     
-    # Verificar CPF/CNPJ se atualizado
     if comprador.cpf_cnpj:
-        existing_cpf_cnpj = await crud_compradores.get_comprador_by_cpf_cnpj(db, comprador.cpf_cnpj)
+        existing_cpf_cnpj = await crud_compradores.get_comprador_by_cpf_cnpj(
+            db, comprador.cpf_cnpj, id_empresa=scope.tenant.id
+        )
         if existing_cpf_cnpj and existing_cpf_cnpj.id != comprador_id:
             tipo_doc = 'CPF' if comprador.tipo == 'PF' or (comprador.tipo is None and db_comprador.tipo == 'PF') else 'CNPJ'
             raise HTTPException(
@@ -140,9 +159,10 @@ async def update_comprador(
                 detail=f"{tipo_doc} já registrado por outro comprador"
             )
     
-    # Verificar usuário se atualizado
     if comprador.usuario:
-        existing_user = await crud_compradores.get_comprador_by_usuario(db, comprador.usuario)
+        existing_user = await crud_compradores.get_comprador_by_usuario(
+            db, comprador.usuario, id_empresa=scope.tenant.id
+        )
         if existing_user and existing_user.id != comprador_id:
             raise HTTPException(
                 status_code=400,
@@ -155,11 +175,17 @@ async def update_comprador(
 async def delete_comprador(
     comprador_id: int,
     db: AsyncSession = Depends(get_db),
+    scope: ScopeContext = Depends(get_scope_context),
     current_user: FuncionarioOut = Depends(require_permission("vendas.edit"))
 ):
     """
     Deleta um comprador. Se houver vendas associadas, apenas desativa o comprador.
     """
+    db_comprador = await crud_compradores.get_comprador(
+        db, comprador_id, id_empresa=scope.tenant.id
+    )
+    if db_comprador is None:
+        raise HTTPException(status_code=404, detail="Comprador não encontrado")
     db_comprador = await crud_compradores.delete_comprador(db, comprador_id)
     if db_comprador is None:
         raise HTTPException(status_code=404, detail="Comprador não encontrado")

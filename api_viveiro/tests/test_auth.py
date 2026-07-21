@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.funcionarios import Funcionario
 from app.auth.utils import gerar_senha_hash
+from tests.tenant_fixtures import DEFAULT_EMPRESA_ID, DEFAULT_VIVEIRO_ID
 
 # Dados de teste
 user_test_data = {
@@ -93,7 +94,8 @@ async def test_login_fail_inactive_user(client: AsyncClient, db: AsyncSession):
         usuario=user_test_data["usuario"],
         senha=hashed_password,
         cargo=user_test_data["cargo"],
-        ativo=False  # Usuário inativo
+        ativo=False,
+        id_empresa=DEFAULT_EMPRESA_ID,
     )
     db.add(db_user)
     await db.commit()

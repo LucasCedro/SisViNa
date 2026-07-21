@@ -179,6 +179,14 @@
           </p>
         </div>
 
+        <div v-if="podeGerenciarUsuarios && !podeGodMode" class="cfg-subsection">
+          <h3 class="cfg-subsection__title">Usuários da empresa</h3>
+          <p class="cfg-subsection__lead">
+            Crie e gerencie os usuários da sua empresa ({{ auth.user?.empresa_ativa?.nome_fantasia }}).
+          </p>
+          <EmpresaUsuariosPanel />
+        </div>
+
         <div v-if="podeGodMode" class="cfg-subsection cfg-subsection--godmode">
           <h3 class="cfg-subsection__title">Administração do sistema</h3>
           <p class="cfg-subsection__lead">
@@ -200,6 +208,7 @@ import { useRouter } from 'vue-router'
 import PageLayout from '@/components/layout/PageLayout.vue'
 import PageSection from '@/components/layout/PageSection.vue'
 import MaskedInput from '@/components/form/MaskedInput.vue'
+import EmpresaUsuariosPanel from '@/components/configuracoes/EmpresaUsuariosPanel.vue'
 import { useAuthStore } from '@/store/auth'
 import { usePageTab } from '@/composables/usePageTab'
 import { validatePassword } from '@/services/auth'
@@ -253,7 +262,11 @@ const iniciais = computed(() => {
 const perfisLabel = computed(() => auth.perfilLabels.join(' · '))
 
 const podeGodMode = computed(
-  () => auth.can('admin.godmode.view') && auth.user?.perfis?.includes('admin')
+  () => auth.can('admin.godmode.view') && Boolean(auth.user?.is_platform_admin)
+)
+
+const podeGerenciarUsuarios = computed(
+  () => auth.can('users.create') && auth.can('empresa.users.manage')
 )
 
 const perfilAlterado = computed(() => {

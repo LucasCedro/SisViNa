@@ -33,8 +33,8 @@ from app.schemas.producao import (
 )
 from app.services import producao_operacao_lote as svc_lote
 from app.crud import plantas as crud_plantas
-from app.auth.jwt import get_current_user
 from app.security.rbac import require_permission
+from app.security.scope_context import ScopeContext, get_scope_context
 from app.schemas.funcionarios import FuncionarioOut
 
 router = APIRouter()
@@ -48,6 +48,7 @@ async def read_plantas(
     status: Optional[str] = None,
     estagio_producao: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
+    scope: ScopeContext = Depends(get_scope_context),
     current_user: FuncionarioOut = Depends(require_permission("viveiro.view"))
 ):
     """
@@ -61,6 +62,7 @@ async def read_plantas(
         id_canteiro=id_canteiro,
         status=status,
         estagio_producao=estagio_producao,
+        id_viveiro=scope.viveiro.id,
     )
     return plantas
 
@@ -72,6 +74,7 @@ async def read_plantas_with_relations(
     id_canteiro: Optional[int] = None,
     status: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
+    scope: ScopeContext = Depends(get_scope_context),
     current_user: FuncionarioOut = Depends(require_permission("viveiro.view"))
 ):
     """
@@ -83,7 +86,8 @@ async def read_plantas_with_relations(
         limit=limit, 
         id_especie=id_especie,
         id_canteiro=id_canteiro,
-        status=status
+        status=status,
+        id_viveiro=scope.viveiro.id,
     )
     return plantas
 
@@ -93,6 +97,7 @@ async def read_pendentes_transferencia(
     id_especie: Optional[int] = None,
     limit: int = Query(2000, le=5000),
     db: AsyncSession = Depends(get_db),
+    scope: ScopeContext = Depends(get_scope_context),
     current_user: FuncionarioOut = Depends(require_permission("producao.view")),
 ):
     return await crud_plantas.get_plantas_pendentes_transferencia(
@@ -106,6 +111,7 @@ async def read_em_desenvolvimento_sementeira(
     id_especie: Optional[int] = None,
     limit: int = Query(2000, le=5000),
     db: AsyncSession = Depends(get_db),
+    scope: ScopeContext = Depends(get_scope_context),
     current_user: FuncionarioOut = Depends(require_permission("producao.view")),
 ):
     return await crud_plantas.get_plantas_em_desenvolvimento_sementeira(
@@ -119,6 +125,7 @@ async def read_em_crescimento_canteiro(
     id_especie: Optional[int] = None,
     limit: int = Query(2000, le=5000),
     db: AsyncSession = Depends(get_db),
+    scope: ScopeContext = Depends(get_scope_context),
     current_user: FuncionarioOut = Depends(require_permission("producao.view")),
 ):
     return await crud_plantas.get_plantas_em_crescimento_canteiro(
@@ -132,6 +139,7 @@ async def read_aptas_rustificacao_canteiro(
     id_especie: Optional[int] = None,
     limit: int = Query(2000, le=5000),
     db: AsyncSession = Depends(get_db),
+    scope: ScopeContext = Depends(get_scope_context),
     current_user: FuncionarioOut = Depends(require_permission("producao.view")),
 ):
     return await crud_plantas.get_plantas_aptas_rustificacao_canteiro(
@@ -144,6 +152,7 @@ async def read_resumo_operacao_lote(
     etapa: str = Query(..., description=f"Uma de: {', '.join(ETAPAS_OPERACAO_LOTE)}"),
     id_canteiro: Optional[int] = None,
     db: AsyncSession = Depends(get_db),
+    scope: ScopeContext = Depends(get_scope_context),
     current_user: FuncionarioOut = Depends(require_permission("producao.view")),
 ):
     try:
@@ -156,6 +165,7 @@ async def read_resumo_operacao_lote(
 async def atualizar_estagio_lote(
     body: AtualizarEstagioLoteRequest,
     db: AsyncSession = Depends(get_db),
+    scope: ScopeContext = Depends(get_scope_context),
     current_user: FuncionarioOut = Depends(require_permission("producao.transfer")),
 ):
     etapa_map = {
@@ -181,6 +191,7 @@ async def atualizar_estagio_lote(
 async def promover_mudas_lote(
     body: PromoverMudasLoteRequest,
     db: AsyncSession = Depends(get_db),
+    scope: ScopeContext = Depends(get_scope_context),
     current_user: FuncionarioOut = Depends(require_permission("producao.transfer")),
 ):
     try:
@@ -198,6 +209,7 @@ async def promover_mudas_lote(
 async def transferir_rustificacao_lote(
     body: TransferirRustificacaoLoteRequest,
     db: AsyncSession = Depends(get_db),
+    scope: ScopeContext = Depends(get_scope_context),
     current_user: FuncionarioOut = Depends(require_permission("producao.transfer")),
 ):
     try:
@@ -215,6 +227,7 @@ async def transferir_rustificacao_lote(
 async def atualizar_estagio(
     body: AtualizarEstagioRequest,
     db: AsyncSession = Depends(get_db),
+    scope: ScopeContext = Depends(get_scope_context),
     current_user: FuncionarioOut = Depends(require_permission("producao.transfer")),
 ):
     try:
@@ -229,6 +242,7 @@ async def read_em_rustificacao(
     id_especie: Optional[int] = None,
     limit: int = Query(2000, le=5000),
     db: AsyncSession = Depends(get_db),
+    scope: ScopeContext = Depends(get_scope_context),
     current_user: FuncionarioOut = Depends(require_permission("producao.view")),
 ):
     return await crud_plantas.get_plantas_em_rustificacao(
@@ -240,6 +254,7 @@ async def read_em_rustificacao(
 async def transferir_rustificacao(
     body: TransferirRustificacaoRequest,
     db: AsyncSession = Depends(get_db),
+    scope: ScopeContext = Depends(get_scope_context),
     current_user: FuncionarioOut = Depends(require_permission("producao.transfer")),
 ):
     try:
@@ -254,6 +269,7 @@ async def transferir_rustificacao(
 async def promover_mudas(
     body: PromoverMudasRequest,
     db: AsyncSession = Depends(get_db),
+    scope: ScopeContext = Depends(get_scope_context),
     current_user: FuncionarioOut = Depends(require_permission("producao.transfer")),
 ):
     try:
@@ -266,10 +282,11 @@ async def promover_mudas(
 async def cadastro_lote_plantas(
     body: CadastroLotePlantasRequest,
     db: AsyncSession = Depends(get_db),
+    scope: ScopeContext = Depends(get_scope_context),
     current_user: FuncionarioOut = Depends(require_permission("producao.create")),
 ):
     try:
-        return await crud_plantas.cadastro_lote_plantas(db, body)
+        return await crud_plantas.cadastro_lote_plantas(db, body, id_viveiro=scope.viveiro.id)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
@@ -277,6 +294,7 @@ async def cadastro_lote_plantas(
 @router.get("/estoque-resumo", response_model=List[EstoqueResumoItem])
 async def read_estoque_resumo(
     db: AsyncSession = Depends(get_db),
+    scope: ScopeContext = Depends(get_scope_context),
     current_user: FuncionarioOut = Depends(require_permission("vendas.view")),
 ):
     """Estoque comercial: apenas mudas apta_venda (baixa exclusiva via vendas)."""
@@ -289,6 +307,7 @@ async def read_plantas_disponiveis_venda_detalhado(
     id_lote_sementes: Optional[int] = Query(None, description="Filtrar por lote de sementes"),
     limit: int = Query(500, le=500),
     db: AsyncSession = Depends(get_db),
+    scope: ScopeContext = Depends(get_scope_context),
     current_user: FuncionarioOut = Depends(require_permission("vendas.view")),
 ):
     """Mudas aptas à venda com lote, canteiro e dias na rustificação."""
@@ -302,6 +321,7 @@ async def read_plantas_disponiveis_venda(
     id_especie: int = Query(..., description="Espécie para listar unidades expedíveis"),
     limit: int = Query(500, le=500),
     db: AsyncSession = Depends(get_db),
+    scope: ScopeContext = Depends(get_scope_context),
     current_user: FuncionarioOut = Depends(require_permission("vendas.view")),
 ):
     """Plantas individuais aptas à venda (estagio apta_venda)."""
@@ -315,6 +335,7 @@ async def patch_preco_especie(
     id_especie: int,
     body: AtualizarPrecoEspecie,
     db: AsyncSession = Depends(get_db),
+    scope: ScopeContext = Depends(get_scope_context),
     current_user: FuncionarioOut = Depends(require_permission("vendas.edit")),
 ):
     n = await crud_plantas.atualizar_preco_especie(db, id_especie, body.preco_venda)
@@ -325,12 +346,13 @@ async def patch_preco_especie(
 async def read_planta(
     planta_id: int,
     db: AsyncSession = Depends(get_db),
+    scope: ScopeContext = Depends(get_scope_context),
     current_user: FuncionarioOut = Depends(require_permission("viveiro.view"))
 ):
     """
     Recupera uma planta específica pelo ID.
     """
-    db_planta = await crud_plantas.get_planta(db, planta_id)
+    db_planta = await crud_plantas.get_planta(db, planta_id, ctx=scope.viveiro)
     if db_planta is None:
         raise HTTPException(status_code=404, detail="Planta não encontrada")
     return db_planta
@@ -339,18 +361,22 @@ async def read_planta(
 async def create_planta(
     planta: PlantaCreate,
     db: AsyncSession = Depends(get_db),
+    scope: ScopeContext = Depends(get_scope_context),
     current_user: FuncionarioOut = Depends(require_permission("producao.create")),
 ):
     """
     Cria uma nova planta.
     """
-    return await crud_plantas.create_planta(db=db, planta=planta)
+    return await crud_plantas.create_planta(
+        db=db, planta=planta, id_viveiro=scope.viveiro.id
+    )
 
 @router.post("/bulk", response_model=List[Planta])
 async def create_plantas_bulk(
     planta: PlantaCreate,
     quantidade: int = Query(..., description="Quantidade de plantas a serem criadas", gt=0),
     db: AsyncSession = Depends(get_db),
+    scope: ScopeContext = Depends(get_scope_context),
     current_user: FuncionarioOut = Depends(require_permission("producao.create")),
 ):
     """
@@ -362,18 +388,24 @@ async def create_plantas_bulk(
             detail="Número máximo de plantas por operação é 500"
         )
     
-    return await crud_plantas.create_plantas_bulk(db=db, planta_base=planta, quantidade=quantidade)
+    return await crud_plantas.create_plantas_bulk(
+        db=db, planta_base=planta, quantidade=quantidade, id_viveiro=scope.viveiro.id
+    )
 
 @router.put("/{planta_id}", response_model=Planta)
 async def update_planta(
     planta_id: int,
     planta: PlantaUpdate,
     db: AsyncSession = Depends(get_db),
+    scope: ScopeContext = Depends(get_scope_context),
     current_user: FuncionarioOut = Depends(require_permission("producao.edit")),
 ):
     """
     Atualiza uma planta existente.
     """
+    existente = await crud_plantas.get_planta(db, planta_id, ctx=scope.viveiro)
+    if existente is None:
+        raise HTTPException(status_code=404, detail="Planta não encontrada")
     try:
         db_planta = await crud_plantas.update_planta(db, planta_id, planta)
     except ValueError as e:
@@ -386,11 +418,15 @@ async def update_planta(
 async def delete_planta(
     planta_id: int,
     db: AsyncSession = Depends(get_db),
+    scope: ScopeContext = Depends(get_scope_context),
     current_user: FuncionarioOut = Depends(require_permission("producao.edit")),
 ):
     """
     Deleta uma planta.
     """
+    existente = await crud_plantas.get_planta(db, planta_id, ctx=scope.viveiro)
+    if existente is None:
+        raise HTTPException(status_code=404, detail="Planta não encontrada")
     db_planta = await crud_plantas.delete_planta(db, planta_id)
     if db_planta is None:
         raise HTTPException(status_code=404, detail="Planta não encontrada")

@@ -148,7 +148,7 @@ router.beforeEach(async (to) => {
         if (!auth.can(perm)) {
             return { path: '/', query: { acesso: 'negado', de: to.fullPath } }
         }
-        if (to.meta.adminOnly && !auth.user?.perfis?.includes('admin')) {
+        if (to.meta.adminOnly && !auth.user?.is_platform_admin) {
             return { path: '/', query: { acesso: 'negado', de: to.fullPath } }
         }
         const moduleKey = to.meta.moduleKey

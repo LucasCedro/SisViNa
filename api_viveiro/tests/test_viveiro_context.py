@@ -1,6 +1,7 @@
 """Testes de isolamento e anti-escalação do contexto viveiro."""
 
 import pytest
+import pytest_asyncio
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -9,20 +10,37 @@ from app.constants.viveiro_modo import MODO_FLORESTAL, MODO_NATIVO
 from app.models.funcionario_viveiro import FuncionarioViveiro
 from app.models.funcionarios import Funcionario
 from app.models.viveiros import Viveiro
+from tests.tenant_fixtures import DEFAULT_EMPRESA_ID, DEFAULT_VIVEIRO_ID
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def viveiros_seed(db: AsyncSession):
-    nativo = Viveiro(id=1, nome="Teste Nativo", slug="teste-nativo", modo_operacao=MODO_NATIVO, ativo=True)
-    florestal = Viveiro(
-        id=2, nome="Teste Florestal", slug="teste-florestal", modo_operacao=MODO_FLORESTAL, ativo=True
-    )
-    db.add_all([nativo, florestal])
+    from tests.tenant_fixtures import ensure_tenant_base
+
+    _, nativo = await ensure_tenant_base(db)
+    nativo.nome = "Teste Nativo"
+    nativo.slug = "teste-nativo"
+    nativo.modo_operacao = MODO_NATIVO
+
+    florestal = await db.get(Viveiro, 2)
+    if florestal is None:
+        florestal = Viveiro(
+            id=2,
+            id_empresa=DEFAULT_EMPRESA_ID,
+            nome="Teste Florestal",
+            slug="teste-florestal",
+            modo_operacao=MODO_FLORESTAL,
+            ativo=True,
+        )
+        db.add(florestal)
+    else:
+        florestal.modo_operacao = MODO_FLORESTAL
+        florestal.id_empresa = DEFAULT_EMPRESA_ID
     await db.flush()
     return nativo, florestal
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def users_viveiro(db: AsyncSession, viveiros_seed):
   senha = gerar_senha_hash("Senha!@#")
   admin = Funcionario(
@@ -33,6 +51,7 @@ async def users_viveiro(db: AsyncSession, viveiros_seed):
       email="admin.viveiro@test.local",
       perfis=["admin"],
       ativo=True,
+      id_empresa=DEFAULT_EMPRESA_ID,
   )
   campo = Funcionario(
       nome="Campo Test",
@@ -42,6 +61,7 @@ async def users_viveiro(db: AsyncSession, viveiros_seed):
       email="campo.viveiro@test.local",
       perfis=["campo"],
       ativo=True,
+      id_empresa=DEFAULT_EMPRESA_ID,
   )
   db.add_all([admin, campo])
   await db.flush()
