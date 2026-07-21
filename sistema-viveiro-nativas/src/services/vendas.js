@@ -21,3 +21,8 @@ export async function updateVenda(id, payload) {
   const { data } = await api.put(`${API_V1}/vendas/${id}`, payload)
   return data
 }
+
+export async function aprovarVenda(id) {
+  const { data } = await api.post(`${API_V1}/vendas/${id}/aprovar`)
+  return data
+}

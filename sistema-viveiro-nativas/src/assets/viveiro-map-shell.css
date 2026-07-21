@@ -9,6 +9,21 @@
   --v-page-x: 1.5rem;
   --v-panel-x: 1.25rem;
   --v-panel-y: 1.25rem;
+
+  /* Mapa viveiro — espelha src/constants/viveiroMapColors.js */
+  --viveiro-grid-fine: #EEF0EA;
+  --viveiro-grid-marker: #8E9089;
+  --viveiro-tipo-canteiro: #596247;
+  --viveiro-tipo-sementeira: #C8A84B;
+  --viveiro-tipo-rustificacao: #A4B39A;
+  --viveiro-tipo-area-trabalho: #A4B39A;
+  --viveiro-tipo-estoque: #8E9089;
+  --viveiro-tipo-sede: #47607B;
+  --viveiro-tipo-lago: #3A5066;
+  --viveiro-tipo-garagem: #8E9089;
+  --viveiro-tipo-campo: #A4B39A;
+  --viveiro-tipo-espaco: #C8A84B;
+  --viveiro-selecao: #47503A;
 }
 
 .viveiro-toolbar {
@@ -72,13 +87,13 @@
 
 .viveiro-map-canvas-bg {
   background:
-    radial-gradient(ellipse 80% 50% at 20% 0%, rgba(164, 179, 154, 0.25) 0%, transparent 55%),
-    radial-gradient(ellipse 60% 40% at 90% 100%, rgba(89, 98, 71, 0.12) 0%, transparent 50%),
-    linear-gradient(180deg, #e9ede4 0%, #dfe6d8 100%);
+    radial-gradient(ellipse 80% 50% at 20% 0%, color-mix(in srgb, var(--color-primary-200) 25%, transparent) 0%, transparent 55%),
+    radial-gradient(ellipse 60% 40% at 90% 100%, color-mix(in srgb, var(--color-primary) 12%, transparent) 0%, transparent 50%),
+    linear-gradient(180deg, var(--color-primary-50) 0%, var(--color-primary-100) 100%);
 }
 
 .viveiro-map-surface {
-  background: rgba(255, 255, 255, 0.96);
+  background: color-mix(in srgb, var(--color-surface) 96%, transparent);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-md);

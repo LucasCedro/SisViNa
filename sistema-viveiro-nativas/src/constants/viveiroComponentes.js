@@ -1,4 +1,6 @@
 /** Tipos de área no mapa do viveiro */
+import { corPadraoTipo } from '@/constants/viveiroMapColors'
+
 export const TIPOS_COMPONENTE = {
   CANTEIRO: 'canteiro',
   SEMENTEIRA: 'sementeira',
@@ -14,21 +16,21 @@ export const CATALOGO_PRODUTIVO = [
     tipo: TIPOS_COMPONENTE.SEMENTEIRA,
     titulo: 'Sementeira',
     descricao: 'Germinação e bandejas',
-    corPadrao: '#ff9600',
+    corPadrao: corPadraoTipo('sementeira'),
     grupo: 'produtivo',
   },
   {
     tipo: TIPOS_COMPONENTE.CANTEIRO,
     titulo: 'Canteiro',
     descricao: 'Mudas em tubetes (grade)',
-    corPadrao: '#6ca234',
+    corPadrao: corPadraoTipo('canteiro'),
     grupo: 'produtivo',
   },
   {
     tipo: TIPOS_COMPONENTE.RUSTIFICACAO,
     titulo: 'Rustificação',
     descricao: 'Aclimatação antes do campo',
-    corPadrao: '#ffe135',
+    corPadrao: corPadraoTipo('rustificacao'),
     grupo: 'produtivo',
   },
 ]
@@ -38,28 +40,28 @@ export const CATALOGO_VISUAL = [
     tipo: TIPOS_COMPONENTE.SEDE,
     titulo: 'Sede / escritório',
     descricao: 'Apenas no croqui (sem produção)',
-    corPadrao: '#6b8cae',
+    corPadrao: corPadraoTipo('sede'),
     grupo: 'visual',
   },
   {
     tipo: TIPOS_COMPONENTE.LAGO,
     titulo: 'Lago / caixa d\'água',
     descricao: 'Fonte de água',
-    corPadrao: '#4a9fd4',
+    corPadrao: corPadraoTipo('lago'),
     grupo: 'visual',
   },
   {
     tipo: TIPOS_COMPONENTE.GARAGEM,
     titulo: 'Garagem / depósito',
     descricao: 'Veículos e materiais',
-    corPadrao: '#8E9089',
+    corPadrao: corPadraoTipo('garagem'),
     grupo: 'visual',
   },
   {
     tipo: TIPOS_COMPONENTE.AREA_TRABALHO,
     titulo: 'Área de trabalho',
     descricao: 'Preparo de substrato, etc.',
-    corPadrao: '#A4B39A',
+    corPadrao: corPadraoTipo('area-trabalho'),
     grupo: 'visual',
   },
 ]

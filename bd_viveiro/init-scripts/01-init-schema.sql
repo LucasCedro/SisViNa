@@ -190,6 +190,7 @@ CREATE TABLE vendas (
     id_comprador INT NOT NULL REFERENCES compradores(id),
     id_funcionario INT NOT NULL REFERENCES funcionarios(id),
     data_venda TIMESTAMP NOT NULL,
+    data_pagamento TIMESTAMP,
     valor_total DECIMAL(10,2) NOT NULL,
     forma_pagamento VARCHAR(20),
     status VARCHAR(20) CHECK (status IN ('PENDENTE', 'PAGO', 'CANCELADO')),

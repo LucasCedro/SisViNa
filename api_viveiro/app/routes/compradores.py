@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.schemas.compradores import Comprador, CompradorCreate, CompradorUpdate, CompradorWithVendas
+from app.schemas.compradores_analitico import CompradoresAnaliticoOut
 from app.schemas.nfe import CompradorNfeReadinessOut
 from app.services.nfe_validacao import erros_comprador_nfe
 from app.crud import compradores as crud_compradores
@@ -30,6 +31,17 @@ async def read_compradores(
         db, skip=skip, limit=limit, ativo=ativo, tipo=tipo
     )
     return compradores
+
+@router.get("/analitico", response_model=CompradoresAnaliticoOut)
+async def read_compradores_analitico(
+    meses: int = Query(12, ge=0, le=60, description="0 = todo o período"),
+    db: AsyncSession = Depends(get_db),
+    current_user: FuncionarioOut = Depends(require_permission("vendas.view")),
+):
+    """Painel analítico de clientes — lucro, fidelidade, geografia."""
+    dados = await crud_compradores.get_compradores_analitico(db, meses=meses)
+    return crud_compradores.aplicar_visibilidade_analitico(dados, current_user.perfis)
+
 
 @router.get("/with-vendas", response_model=List[CompradorWithVendas])
 async def read_compradores_with_vendas(

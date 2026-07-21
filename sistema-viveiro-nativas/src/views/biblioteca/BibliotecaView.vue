@@ -57,14 +57,11 @@
 
     <div v-else-if="!carregando && !erro" class="vazio">Nenhuma espécie encontrada.</div>
 
-    <div
-      v-if="selecionada"
-      class="modal-overlay"
-      @pointerdown.self="onOverlayPointerDown"
-      @pointerup.self="onOverlayPointerUp"
-      @pointercancel.self="cancelarFechamentoOverlay"
+    <AppModalOverlay
+      :aberto="!!selecionada"
+      :handlers="modalClose"
+      panel-class="app-modal-panel--xl"
     >
-      <div class="modal-card" @pointerdown="onModalPointerDown">
         <header class="modal-header">
           <h3>{{ selecionada.nome_popular || selecionada.nome_cientifico }}</h3>
           <button type="button" class="btn-fechar" @click="fecharModal">×</button>
@@ -117,8 +114,7 @@
             </button>
           </section>
         </div>
-      </div>
-    </div>
+    </AppModalOverlay>
 
     <BibliotecaLightbox
       ref="lightboxRef"
@@ -131,9 +127,10 @@
 <script setup>
 import { ref, computed, onMounted } from "vue";
 import PageLayout from "@/components/layout/PageLayout.vue";
+import AppModalOverlay from "@/components/shared/AppModalOverlay.vue";
 import BibliotecaLightbox from "@/components/biblioteca/BibliotecaLightbox.vue";
 import { listEspeciesBiblioteca, getImagensExternasEspecie } from "@/services/especies";
-import { useModalOverlayClose } from "@/composables/useModalOverlayClose";
+import { useSimpleModalClose } from "@/composables/useSimpleModalClose";
 import {
   capaDaEspecie,
   urlThumbnail,
@@ -281,16 +278,10 @@ function fecharModalInterno() {
   lightboxRef.value?.fechar();
 }
 
-const {
-  onModalPointerDown,
-  onOverlayPointerDown,
-  onOverlayPointerUp,
-  cancelarFechamentoOverlay,
-  resetOverlayPress,
-} = useModalOverlayClose(fecharModalInterno);
+const modalClose = useSimpleModalClose(fecharModalInterno, () => !!selecionada.value);
 
 function fecharModal() {
-  resetOverlayPress();
+  modalClose.resetOverlayPress();
   fecharModalInterno();
 }
 
@@ -443,26 +434,6 @@ onMounted(async () => {
   text-align: center;
   color: var(--color-text-secondary);
   padding: 2rem;
-}
-
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1rem;
-  z-index: 2000;
-}
-
-.modal-card {
-  width: min(980px, 100%);
-  max-height: 88vh;
-  overflow: auto;
-  background: var(--color-surface);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg);
 }
 
 .modal-header {

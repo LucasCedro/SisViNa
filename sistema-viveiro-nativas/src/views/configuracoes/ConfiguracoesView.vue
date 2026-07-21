@@ -51,12 +51,12 @@
 
             <label class="cfg-field">
               <span class="cfg-field__label">Telefone</span>
-              <input v-model="formPerfil.telefone" type="tel" maxlength="20" placeholder="(00) 00000-0000" />
+              <MaskedInput v-model="formPerfil.telefone" mask="telefone" bare />
             </label>
 
             <label class="cfg-field">
               <span class="cfg-field__label">RG</span>
-              <input v-model="formPerfil.rg" type="text" maxlength="20" />
+              <MaskedInput v-model="formPerfil.rg" mask="rg" bare />
             </label>
 
             <label class="cfg-field cfg-field--full">
@@ -196,15 +196,17 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRouter } from 'vue-router'
 import PageLayout from '@/components/layout/PageLayout.vue'
 import PageSection from '@/components/layout/PageSection.vue'
+import MaskedInput from '@/components/form/MaskedInput.vue'
 import { useAuthStore } from '@/store/auth'
+import { usePageTab } from '@/composables/usePageTab'
 import { validatePassword } from '@/services/auth'
+import { onlyDigits, parseRg } from '@/utils/inputMasks'
 
 const auth = useAuthStore()
 const router = useRouter()
-const route = useRoute()
 
 const ABAS_VALIDAS = ['perfil', 'configuracoes']
 
@@ -212,7 +214,13 @@ const tabs = [
   { id: 'perfil', label: 'Perfil' },
   { id: 'configuracoes', label: 'Configurações' },
 ]
-const abaAtiva = ref('perfil')
+const abaAtiva = usePageTab('configuracoes', 'perfil', {
+  valid: ABAS_VALIDAS,
+  queryResolver: (r) => {
+    const aba = r.query.aba
+    return typeof aba === 'string' && ABAS_VALIDAS.includes(aba) ? aba : null
+  },
+})
 
 const formPerfil = reactive({
   nome: '',
@@ -267,8 +275,8 @@ function snapshotPerfil(user) {
   return {
     nome: user?.nome || '',
     email: user?.email || '',
-    telefone: user?.telefone || '',
-    rg: user?.rg || '',
+    telefone: onlyDigits(user?.telefone).slice(0, 11),
+    rg: parseRg(user?.rg),
     endereco: user?.endereco || '',
   }
 }
@@ -302,9 +310,11 @@ async function salvarPerfil() {
   try {
     const payload = {}
     for (const [k, v] of Object.entries(formPerfil)) {
-      const trimmed = typeof v === 'string' ? v.trim() : v
-      if (trimmed !== (perfilOriginal.value?.[k] || '')) {
-        payload[k] = trimmed || null
+      let val = typeof v === 'string' ? v.trim() : v
+      if (k === 'telefone') val = onlyDigits(val).slice(0, 11) || null
+      if (k === 'rg') val = parseRg(val) || null
+      if (val !== (perfilOriginal.value?.[k] || '')) {
+        payload[k] = val || null
       }
     }
     if (!Object.keys(payload).length) return
@@ -367,15 +377,6 @@ function selecionarAba(id) {
   router.replace({ name: 'configuracoes', query: { aba: id } })
 }
 
-function aplicarAbaDaRota() {
-  const aba = route.query.aba
-  if (typeof aba === 'string' && ABAS_VALIDAS.includes(aba)) {
-    abaAtiva.value = aba
-  }
-}
-
-watch(() => route.query.aba, aplicarAbaDaRota)
-
 watch(
   () => auth.user,
   (user) => {
@@ -388,7 +389,6 @@ watch(
 
 onMounted(async () => {
   if (!auth.user) await auth.hydrate()
-  aplicarAbaDaRota()
 })
 </script>
 

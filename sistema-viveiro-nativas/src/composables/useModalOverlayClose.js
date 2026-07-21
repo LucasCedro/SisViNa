@@ -1,9 +1,16 @@
 /**
  * Fecha overlay só se pointerdown e pointerup ocorrerem no fundo escuro.
  * Evita fechar ao selecionar texto no formulário e soltar fora do modal.
+ * Com `isOpen`, também fecha com Escape.
  */
-export function useModalOverlayClose(onClose) {
+import { useModalEscape } from '@/composables/useModalEscape'
+
+export function useModalOverlayClose(onClose, isOpen = null) {
   let overlayPress = false
+
+  if (isOpen != null) {
+    useModalEscape(onClose, isOpen)
+  }
 
   function onModalPointerDown() {
     overlayPress = false

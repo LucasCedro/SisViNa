@@ -17,14 +17,18 @@
                 </div>
                 <div class="toolbar-acoes">
                     <ExportacaoColeta />
-                    <button type="button" class="btn btn-outline" @click="abrirCadastroColeta()">
-                        <span class="btn-icon">+</span>
-                        Cadastrar coleta
-                    </button>
-                    <button type="button" class="btn btn-primary" @click="abrirCadastro">
-                        <span class="btn-icon">+</span>
-                        Cadastrar matriz
-                    </button>
+                    <CanAccess permission="coleta.create">
+                      <button type="button" class="btn btn-outline" @click="abrirCadastroColeta()">
+                          <span class="btn-icon">+</span>
+                          Cadastrar coleta
+                      </button>
+                    </CanAccess>
+                    <CanAccess permission="coleta.create">
+                      <button type="button" class="btn btn-primary" @click="abrirCadastro">
+                          <span class="btn-icon">+</span>
+                          Cadastrar matriz
+                      </button>
+                    </CanAccess>
                 </div>
             </section>
 
@@ -149,8 +153,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { ref, onMounted, computed } from 'vue'
 import PageLayout from '@/components/layout/PageLayout.vue'
 import MapaColeta from '@/components/coleta/MapaColeta.vue'
 import GraficosColeta from '@/components/coleta/GraficosColeta.vue'
@@ -165,19 +168,35 @@ import FormSemeadura from '@/components/coleta/FormSemeadura.vue'
 import ExportacaoColeta from '@/components/coleta/ExportacaoColeta.vue'
 import RelatorioColetaPdf from '@/components/coleta/RelatorioColetaPdf.vue'
 import ColetaFiltros from '@/components/coleta/ColetaFiltros.vue'
+import CanAccess from '@/components/shared/CanAccess.vue'
 import { useColetaStore } from '@/store/coleta'
+import { usePermissions } from '@/composables/usePermissions'
+import { usePageTab } from '@/composables/usePageTab'
 
 import { lotePrecisaTesteGerminacao } from '@/utils/coletaKpi'
 
 const store = useColetaStore()
-const route = useRoute()
+const { can, canAny } = usePermissions()
+
+const ABAS_COLETA = ['matrizes', 'coletas', 'lotes']
+
+function coletaTabFromQuery(route) {
+  const q = String(route.query.aba || '')
+  if (q === 'germinacao' || q === 'teste-germinacao' || q === 'lotes') return 'lotes'
+  if (ABAS_COLETA.includes(q)) return q
+  return null
+}
+
+const abaTabelaAtiva = usePageTab('coleta', 'matrizes', {
+  valid: ABAS_COLETA,
+  queryResolver: coletaTabFromQuery,
+})
+const matrizEmEdicao = ref(null)
 const modalMatrizAberto = ref(false)
 const modalColetaAberto = ref(false)
 const modalEditarColetaAberto = ref(false)
 const modalTesteAberto = ref(false)
 const modalSemeaduraAberto = ref(false)
-const abaTabelaAtiva = ref('matrizes')
-const matrizEmEdicao = ref(null)
 const matrizParaColeta = ref(null)
 const coletaEmEdicao = ref(null)
 const loteParaTeste = ref(null)
@@ -187,46 +206,38 @@ const lotesSemGerminacao = computed(() =>
   store.lotesFiltrados.filter((l) => lotePrecisaTesteGerminacao(l, store.testes)).length
 )
 
-function aplicarAbaDaRota() {
-  const aba = String(route.query.aba || '')
-  if (aba === 'germinacao' || aba === 'teste-germinacao' || aba === 'lotes') {
-    abaTabelaAtiva.value = 'lotes'
-  } else if (aba === 'coletas') {
-    abaTabelaAtiva.value = 'coletas'
-  } else if (aba === 'matrizes') {
-    abaTabelaAtiva.value = 'matrizes'
-  }
-}
-
 onMounted(() => {
   store.carregar()
 })
 
-watch(() => route.query.aba, aplicarAbaDaRota, { immediate: true })
-
 function abrirCadastro() {
+    if (!can('coleta.create')) return
     matrizEmEdicao.value = null
     modalMatrizAberto.value = true
     abaTabelaAtiva.value = 'matrizes'
 }
 
 function abrirEdicao(matriz) {
+    if (!can('coleta.edit')) return
     matrizEmEdicao.value = matriz
     modalMatrizAberto.value = true
 }
 
 function abrirCadastroColeta(matriz = null) {
+    if (!can('coleta.create')) return
     matrizParaColeta.value = matriz
     modalColetaAberto.value = true
 }
 
 function abrirEditarColeta(coleta) {
+    if (!can('coleta.edit')) return
     coletaEmEdicao.value = coleta
     modalEditarColetaAberto.value = true
     abaTabelaAtiva.value = 'coletas'
 }
 
 function abrirTeste(lote) {
+    if (!can('coleta.create')) return
     loteParaTeste.value = lote
     modalTesteAberto.value = true
     abaTabelaAtiva.value = 'lotes'
@@ -240,6 +251,7 @@ function focarMatrizNoMapa(matriz) {
 }
 
 function abrirSemeadura(lote) {
+    if (!canAny('producao.create', 'producao.transfer')) return
     loteParaSemeadura.value = lote
     modalSemeaduraAberto.value = true
 }

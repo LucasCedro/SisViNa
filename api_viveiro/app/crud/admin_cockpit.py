@@ -18,10 +18,15 @@ ROLE_LABELS = {
     "rh": "Recursos Humanos",
 }
 
+from app.constants.viveiro_modo import MODO_FLORESTAL, MODO_LABELS
 from app.models.especies import Especie
 from app.models.funcionarios import Funcionario
 from app.models.plantas import Planta
 from app.models.vendas import Venda
+from app.models.viveiros import Viveiro
+from app.models.funcionario_viveiro import FuncionarioViveiro
+from app.models.lotes_producao import LoteProducao
+from app.constants.florestal_estagios import ESTAGIOS_ATIVOS
 
 
 async def _scalar_count(db: AsyncSession, stmt) -> int:
@@ -56,6 +61,37 @@ async def get_overview(db: AsyncSession) -> dict[str, Any]:
     except Exception:
         alembic_rev = None
 
+    viveiros_rows = (await db.execute(select(Viveiro).order_by(Viveiro.id))).scalars().all()
+    viveiros_resumo = []
+    for v in viveiros_rows:
+        fn = await db.scalar(
+            select(func.count())
+            .select_from(FuncionarioViveiro)
+            .where(FuncionarioViveiro.id_viveiro == v.id)
+        )
+        lotes = 0
+        if v.modo_operacao == MODO_FLORESTAL:
+            lotes = await db.scalar(
+                select(func.count())
+                .select_from(LoteProducao)
+                .where(
+                    LoteProducao.id_viveiro == v.id,
+                    LoteProducao.estagio.in_(tuple(ESTAGIOS_ATIVOS)),
+                )
+            )
+        viveiros_resumo.append(
+            {
+                "id": v.id,
+                "nome": v.nome,
+                "slug": v.slug,
+                "modo_operacao": v.modo_operacao,
+                "modo_label": MODO_LABELS.get(v.modo_operacao, v.modo_operacao),
+                "ativo": bool(v.ativo),
+                "funcionarios_vinculados": int(fn or 0),
+                "lotes_producao_ativos": int(lotes or 0),
+            }
+        )
+
     return {
         "funcionarios_total": total,
         "funcionarios_ativos": ativos,
@@ -64,10 +100,13 @@ async def get_overview(db: AsyncSession) -> dict[str, Any]:
         "plantas_total": await _scalar_count(db, select(func.count()).select_from(Planta)),
         "vendas_total": await _scalar_count(db, select(func.count()).select_from(Venda)),
         "especies_total": await _scalar_count(db, select(func.count()).select_from(Especie)),
+        "viveiros_total": len(viveiros_rows),
+        "viveiros_florestal": sum(1 for v in viveiros_rows if v.modo_operacao == MODO_FLORESTAL),
         "permissoes_catalogo": len(ALL_PERMISSIONS),
         "perfis_rbac": len(ROLE_PERMISSIONS),
         "alembic_revision": alembic_rev,
         "por_perfil": por_perfil,
+        "viveiros": viveiros_resumo,
     }
 
 

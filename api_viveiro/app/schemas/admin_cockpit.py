@@ -15,10 +15,24 @@ class AdminOverviewOut(BaseModel):
     plantas_total: int
     vendas_total: int
     especies_total: int
+    viveiros_total: int
+    viveiros_florestal: int
     permissoes_catalogo: int
     perfis_rbac: int
     alembic_revision: Optional[str] = None
     por_perfil: Dict[str, int]
+    viveiros: List["AdminViveiroResumoOut"] = []
+
+
+class AdminViveiroResumoOut(BaseModel):
+    id: int
+    nome: str
+    slug: str
+    modo_operacao: str
+    modo_label: str
+    ativo: bool
+    funcionarios_vinculados: int = 0
+    lotes_producao_ativos: int = 0
 
 
 class AdminRbacRoleOut(BaseModel):

@@ -1,12 +1,9 @@
 <template>
-  <div
-    v-if="aberto"
-    class="modal-overlay"
-    @pointerdown.self="onOverlayPointerDown"
-    @pointerup.self="onOverlayPointerUp"
-    @pointercancel.self="cancelarFechamentoOverlay"
+  <AppModalOverlay
+    :aberto="aberto"
+    :handlers="modalClose"
+    panel-class="app-modal-panel--md"
   >
-    <div class="modal-card" role="dialog" @pointerdown="onModalPointerDown">
       <header class="modal-header">
         <h2>Teste de germinação</h2>
         <button type="button" class="btn-fechar" @click="fechar">×</button>
@@ -92,15 +89,22 @@
           </button>
         </footer>
       </form>
-    </div>
-  </div>
+  </AppModalOverlay>
+  <ConfirmSaidaModal
+    :aberto="confirmAberto"
+    @confirmar="confirmarSaida"
+    @cancelar="cancelarSaida"
+  />
 </template>
 
 <script setup>
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed, nextTick } from 'vue'
+import AppModalOverlay from '@/components/shared/AppModalOverlay.vue'
+import ConfirmSaidaModal from '@/components/shared/ConfirmSaidaModal.vue'
+import { useModalFormClose } from '@/composables/useModalFormClose'
+import { useFormDirty } from '@/utils/formDirty'
 import { createTesteSementes } from '@/services/testesSementes'
 import { useColetaStore } from '@/store/coleta'
-import { useModalOverlayClose } from '@/composables/useModalOverlayClose'
 
 const props = defineProps({
   aberto: Boolean,
@@ -181,10 +185,15 @@ function resetForm() {
   }
 }
 
+const { isDirty, rebase } = useFormDirty(form, () => props.aberto)
+
 watch(
   () => [props.aberto, props.lote?.id],
-  ([aberto]) => {
-    if (aberto) resetForm()
+  async ([aberto]) => {
+    if (!aberto) return
+    resetForm()
+    await nextTick()
+    rebase()
   }
 )
 
@@ -192,17 +201,19 @@ function fecharInterno() {
   emit('fechar')
 }
 
+const modalClose = useModalFormClose(fecharInterno, () => isDirty.value, () => props.aberto)
 const {
-  onModalPointerDown,
-  onOverlayPointerDown,
-  onOverlayPointerUp,
-  cancelarFechamentoOverlay,
   resetOverlayPress,
-} = useModalOverlayClose(fecharInterno)
+  confirmAberto,
+  confirmarSaida,
+  cancelarSaida,
+  requestClose,
+  sairSemConfirmar,
+} = modalClose
 
 function fechar() {
   resetOverlayPress()
-  fecharInterno()
+  requestClose()
 }
 
 async function salvar() {
@@ -237,7 +248,7 @@ async function salvar() {
     }
     await store.recarregarMatriz(props.lote.id_arvore_matriz)
     emit('salvo', teste)
-    fechar()
+    sairSemConfirmar()
   } catch (e) {
     erro.value = e.response?.data?.detail || e.message || 'Erro ao salvar'
   } finally {
@@ -247,26 +258,6 @@ async function salvar() {
 </script>
 
 <style scoped>
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 1500;
-  background: rgba(0, 0, 0, 0.45);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1rem;
-}
-
-.modal-card {
-  background: var(--color-surface);
-  border-radius: 12px;
-  width: 100%;
-  max-width: 440px;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
-  overflow: hidden;
-}
-
 .modal-header {
   display: flex;
   justify-content: space-between;

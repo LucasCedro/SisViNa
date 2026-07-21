@@ -199,7 +199,7 @@
 .module-banner--warn {
   background: var(--color-attention-bg);
   border: 1px solid var(--color-attention);
-  color: #664d03;
+  color: var(--color-text-secondary);
 }
 
 .module-banner--info {
@@ -211,7 +211,13 @@
 .module-banner--mock {
   background: var(--color-attention-bg);
   border: 1px solid var(--color-attention);
-  color: #664d03;
+  color: var(--color-text-secondary);
+}
+
+.module-banner--error {
+  background: var(--color-error-bg);
+  border: 1px solid color-mix(in srgb, var(--color-error) 40%, var(--color-border));
+  color: var(--color-error);
 }
 
 .module-banner p {
@@ -340,4 +346,53 @@
 
 .field-hint--info {
   margin: 0;
+}
+
+/* ── Status semânticos (NF-e, contabilidade, vendas, fiscal) ── */
+
+.sem-text-success { color: var(--color-success); }
+.sem-text-error { color: var(--color-error); }
+.sem-text-info { color: var(--color-info-dark); }
+
+.sem-fill-success {
+  background: var(--color-success-bg);
+  color: var(--color-success);
+}
+
+.sem-fill-attention {
+  background: var(--color-attention-bg);
+  color: var(--color-text-secondary);
+}
+
+.sem-fill-error {
+  background: var(--color-error-bg);
+  color: var(--color-error);
+}
+
+.sem-fill-info {
+  background: var(--color-info-bg);
+  color: var(--color-info-dark);
+}
+
+.sem-fill-neutral {
+  background: var(--color-surface-muted);
+  color: var(--color-text-muted);
+}
+
+.sem-border-success { border-color: var(--color-success); }
+.sem-border-attention { border-color: var(--color-attention); }
+.sem-border-error {
+  border-color: color-mix(in srgb, var(--color-error) 40%, var(--color-border));
+}
+
+.sem-panel-info {
+  background: var(--color-info-bg);
+  border: 1px solid var(--color-info);
+  color: var(--color-info-dark);
+}
+
+.sem-panel-attention {
+  background: var(--color-attention-bg);
+  border: 1px solid var(--color-attention);
+  color: var(--color-text-secondary);
 }

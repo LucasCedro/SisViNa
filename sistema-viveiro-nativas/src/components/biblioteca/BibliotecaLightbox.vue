@@ -81,7 +81,7 @@ const {
   onOverlayPointerUp,
   cancelarFechamentoOverlay,
   resetOverlayPress,
-} = useModalOverlayClose(fecharInterno);
+} = useModalOverlayClose(fecharInterno, aberto);
 
 function fechar() {
   resetOverlayPress();
@@ -109,7 +109,6 @@ function onErro() {
 
 function onKeydown(e) {
   if (!aberto.value) return;
-  if (e.key === "Escape") fechar();
   if (e.key === "ArrowLeft") anterior();
   if (e.key === "ArrowRight") proxima();
 }

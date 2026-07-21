@@ -2,7 +2,7 @@
 from datetime import timedelta
 from typing import Any, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status, Body
+from fastapi import APIRouter, Depends, HTTPException, status, Body, Header
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -107,15 +107,22 @@ async def reset_password(
 
 @router.get("/me", response_model=AuthMeOut)
 async def read_users_me(
+    db: AsyncSession = Depends(get_db),
     current_user: FuncionarioOut = Depends(get_current_user),
+    x_viveiro_id: Optional[int] = Header(None, alias="X-Viveiro-Id"),
 ) -> AuthMeOut:
     """
-    Usuário logado + array `permissions` (SSOT).
+    Usuário logado + array `permissions` (SSOT) + contexto viveiro ativo.
 
     O frontend deve usar `permissions` para guards de rota/UI — não inferir
     acesso pelo campo `cargo` nem replicar a matriz RBAC localmente.
+    Header X-Viveiro-Id: somente admin (validado no backend).
     """
-    return build_auth_me(current_user)
+    from app.security.viveiro_context import resolve_viveiro_context
+    from app.auth.session import build_auth_me_async
+
+    ctx = await resolve_viveiro_context(db, current_user, x_viveiro_id)
+    return await build_auth_me_async(db, current_user, ctx)
 
 
 @router.get("/permissions", response_model=PermissionsOut)
@@ -156,7 +163,11 @@ async def update_users_me(
             detail="Usuário não encontrado",
         )
 
-    return build_auth_me(FuncionarioOut.from_orm(updated))
+    from app.security.viveiro_context import resolve_viveiro_context
+    from app.auth.session import build_auth_me_async
+
+    ctx = await resolve_viveiro_context(db, FuncionarioOut.from_orm(updated), None)
+    return await build_auth_me_async(db, FuncionarioOut.from_orm(updated), ctx)
 
 @router.post("/check-username")
 async def check_username_available(

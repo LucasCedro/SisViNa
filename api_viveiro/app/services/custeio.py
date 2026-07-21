@@ -21,6 +21,7 @@ from app.services.unidades_insumo import (
 )
 from app.models.lotes_sementes import LoteSementes
 from app.models.plantas import Planta
+from app.models.semeaduras import Semeadura
 
 
 def preco_medio_insumo(insumo: Insumo) -> float:
@@ -84,13 +85,35 @@ def calcular_custo_coleta_campo(
     return total, unit
 
 
-def definir_valor_lote_entrada(lote: LoteSementes, valor_total: Optional[float]) -> None:
-    if valor_total is None or valor_total <= 0:
+def aplicar_custo_campo_no_lote(
+    lote: LoteSementes,
+    custo_total_coleta: float,
+    qtd_sementes_rateio: int,
+) -> None:
+    """Rateia custo de campo da coleta no lote; valor_total reflete o saldo restante."""
+    qtd_rateio = int(qtd_sementes_rateio or 0)
+    disp = int(lote.quantidade_disponivel or 0)
+    if custo_total_coleta <= 0 or qtd_rateio <= 0:
+        lote.valor_total = None
+        lote.custo_unitario = None
         return
-    lote.valor_total = float(valor_total)
-    qtd = int(lote.quantidade_inicial or 0)
-    if qtd > 0:
-        lote.custo_unitario = float(valor_total) / qtd
+    unit = float(custo_total_coleta) / qtd_rateio
+    lote.custo_unitario = round(unit, 4)
+    lote.valor_total = round(unit * disp, 2) if disp > 0 else 0.0
+
+
+def definir_valor_lote_entrada(lote: LoteSementes, valor_total: Optional[float]) -> None:
+    """Entrada manual de valor no lote (legado / cadastro direto)."""
+    if valor_total is None or valor_total <= 0:
+        lote.valor_total = None
+        lote.custo_unitario = None
+        return
+    disp = int(lote.quantidade_disponivel or lote.quantidade_inicial or 0)
+    aplicar_custo_campo_no_lote(
+        lote,
+        float(valor_total),
+        int(lote.quantidade_inicial or disp or 0),
+    )
 
 
 async def _contar_mudas_vivas(db: AsyncSession) -> int:
@@ -126,16 +149,94 @@ async def _premissas_custo_ativas(db: AsyncSession) -> List[FinanceiroPremissa]:
     return list(result.scalars().all())
 
 
+def _base_rateio_mudas(mudas_vivas: int, qtd_mudas: int) -> int:
+    """Parque total para rateio mensal: todas as mudas vivas (inclui o lote novo)."""
+    return max(int(mudas_vivas or 0) + max(int(qtd_mudas or 0), 0), 1)
+
+
+def _mensal_premissa(prem: FinanceiroPremissa) -> float:
+    tipo = (prem.tipo_calculo or "").lower()
+    if tipo == "mensal_rateio":
+        return float(prem.valor or 0)
+    if tipo == "pessoas_x_salario_rateio":
+        n = float(prem.quantidade or 0)
+        sal = float(prem.valor or 0)
+        if n <= 0 or sal <= 0:
+            return 0.0
+        return n * sal
+    return 0.0
+
+
+def _premissa_eh_cif_rateio(prem: FinanceiroPremissa) -> bool:
+    return (prem.tipo_calculo or "").lower() in ("mensal_rateio", "pessoas_x_salario_rateio")
+
+
+async def calcular_cif_unitario_parque(
+    db: AsyncSession,
+    *,
+    parque_total: Optional[int] = None,
+) -> Dict[str, Any]:
+    """CIF mensal (água, energia, MO…) rateado igualmente pelo parque inteiro."""
+    if parque_total is None:
+        parque_total = await _contar_mudas_vivas(db)
+    parque = max(int(parque_total or 0), 1)
+
+    unitario_total = 0.0
+    itens: List[dict] = []
+    for prem in await _premissas_custo_ativas(db):
+        if not _premissa_eh_cif_rateio(prem):
+            continue
+        mensal = _mensal_premissa(prem)
+        if mensal <= 0:
+            continue
+        unit = mensal / parque
+        unitario_total += unit
+        itens.append(
+            {
+                "chave": prem.chave,
+                "nome": prem.nome,
+                "mensal": round(mensal, 2),
+                "unitario": round(unit, 4),
+                "descricao": (
+                    f"{prem.nome}: R$ {mensal:.2f}/mês ÷ {parque} mudas no parque "
+                    f"= R$ {unit:.4f}/muda"
+                ),
+            }
+        )
+
+    return {
+        "parque_total": parque,
+        "cif_unitario": round(unitario_total, 4),
+        "cif_mensal_total": round(sum(i["mensal"] for i in itens), 2),
+        "itens": itens,
+    }
+
+
+async def _custo_atividades_planta(db: AsyncSession, planta_id: int) -> float:
+    from app.models.atividades import Atividade
+
+    return float(
+        (
+            await db.execute(
+                select(func.coalesce(func.sum(Atividade.custo_atividade), 0)).where(
+                    Atividade.id_planta == planta_id
+                )
+            )
+        ).scalar()
+        or 0
+    )
+
+
 def _custo_premissa_item(
     prem: FinanceiroPremissa,
     insumo: Optional[Insumo],
     qtd_mudas: int,
-    mudas_vivas: int = 1,
+    mudas_base_rateio: int = 1,
     recipiente: str = "tubete",
 ) -> Tuple[float, str]:
     tipo = (prem.tipo_calculo or "").lower()
     qtd_mudas = max(qtd_mudas, 1)
-    mudas_vivas = max(mudas_vivas, 1)
+    mudas_base_rateio = max(mudas_base_rateio, 1)
 
     if tipo == "config":
         return 0.0, ""
@@ -185,11 +286,12 @@ def _custo_premissa_item(
         if n <= 0 or sal <= 0:
             return 0.0, f"{prem.nome}: informe funcionários e salário"
         mensal = n * sal
-        por_muda = mensal / mudas_vivas
+        por_muda = mensal / mudas_base_rateio
         total = round(por_muda * qtd_mudas, 2)
         return (
             total,
-            f"{prem.nome}: {n:.0f} × R$ {sal:.2f}/mês ÷ {mudas_vivas} mudas × {qtd_mudas}",
+            f"{prem.nome}: R$ {mensal:.2f}/mês ÷ {mudas_base_rateio} mudas no parque "
+            f"= R$ {por_muda:.4f}/muda",
         )
 
     if tipo == "por_muda":
@@ -205,11 +307,12 @@ def _custo_premissa_item(
         mensal = float(prem.valor or 0)
         if mensal <= 0:
             return 0.0, f"{prem.nome}: informe a fatura mensal da produção"
-        por_muda = mensal / mudas_vivas
+        por_muda = mensal / mudas_base_rateio
         total = round(por_muda * qtd_mudas, 2)
         return (
             total,
-            f"{prem.nome}: R$ {mensal:.2f}/mês ÷ {mudas_vivas} mudas × {qtd_mudas}",
+            f"{prem.nome}: R$ {mensal:.2f}/mês ÷ {mudas_base_rateio} mudas no parque "
+            f"= R$ {por_muda:.4f}/muda",
         )
 
     return 0.0, f"{prem.nome}: tipo não aplicável ao lote"
@@ -220,8 +323,10 @@ async def calcular_custo_lote_semeadura(
     lote: LoteSementes,
     qtd_sementes: int,
     qtd_mudas: int,
+    *,
+    mudas_vivas_existentes: Optional[int] = None,
 ) -> Dict[str, Any]:
-    """Custo total do lote de semeadura rateado por número de mudas."""
+    """Custo do lote: direto (sementes/insumos) + CIF mensal ÷ parque total."""
     qtd_mudas = max(int(qtd_mudas or 0), 0)
     if qtd_mudas <= 0:
         qtd_mudas = 1
@@ -238,7 +343,11 @@ async def calcular_custo_lote_semeadura(
     custo_insumos = 0.0
     custo_indireto = 0.0
 
-    mudas_vivas = await _contar_mudas_vivas(db)
+    if mudas_vivas_existentes is None:
+        mudas_vivas = await _contar_mudas_vivas(db)
+    else:
+        mudas_vivas = int(mudas_vivas_existentes or 0)
+    mudas_base_rateio = _base_rateio_mudas(mudas_vivas, qtd_mudas)
     recipiente = await _obter_recipiente_semeadura(db)
     premissas = await _premissas_custo_ativas(db)
     for prem in premissas:
@@ -246,7 +355,7 @@ async def calcular_custo_lote_semeadura(
         if prem.id_insumo:
             insumo = await db.get(Insumo, prem.id_insumo)
         valor_item, detalhe = _custo_premissa_item(
-            prem, insumo, qtd_mudas, mudas_vivas, recipiente
+            prem, insumo, qtd_mudas, mudas_base_rateio, recipiente
         )
         if valor_item <= 0:
             continue
@@ -267,7 +376,80 @@ async def calcular_custo_lote_semeadura(
         "custo_total": custo_total,
         "custo_unitario_muda": custo_unitario,
         "itens_premissa": itens,
+        "mudas_base_rateio": mudas_base_rateio,
     }
+
+
+async def redistribuir_cif_parque(
+    db: AsyncSession,
+    *,
+    commit: bool = True,
+) -> Dict[str, Any]:
+    """
+    Recalcula o CIF mensal em TODAS as mudas vivas com o mesmo denominador (parque inteiro).
+    Cada muda recebe: custo direto da semeadura + CIF/parque + atividades posteriores.
+    """
+    cif_info = await calcular_cif_unitario_parque(db)
+    parque = cif_info["parque_total"]
+    cif_unit = float(cif_info["cif_unitario"])
+
+    semeaduras = list((await db.execute(select(Semeadura))).scalars().all())
+    direct_por_semeadura: Dict[int, float] = {}
+    semeaduras_atualizadas = 0
+
+    for sem in semeaduras:
+        qtd = int(sem.quantidade_mudas_obtidas or 0)
+        if qtd <= 0:
+            qtd = int(
+                (
+                    await db.execute(
+                        select(func.count(Planta.id)).where(Planta.id_semeadura == sem.id)
+                    )
+                ).scalar()
+                or 0
+            )
+        if qtd <= 0:
+            continue
+
+        direct_total = float(sem.custo_sementes or 0) + float(sem.custo_insumos or 0)
+        direct_unit = direct_total / qtd
+        direct_por_semeadura[int(sem.id)] = direct_unit
+
+        sem.custo_indireto = round(cif_unit * qtd, 2)
+        sem.custo_total = round(direct_total + float(sem.custo_indireto), 2)
+        sem.custo_unitario_muda = round(sem.custo_total / qtd, 2)
+        if not sem.quantidade_mudas_obtidas:
+            sem.quantidade_mudas_obtidas = qtd
+        semeaduras_atualizadas += 1
+
+    plantas = (
+        await db.execute(select(Planta).where(Planta.status.notin_(("VENDIDA", "MORTA"))))
+    ).scalars().all()
+    plantas_atualizadas = 0
+    for planta in plantas:
+        direct = direct_por_semeadura.get(int(planta.id_semeadura or 0), 0.0)
+        ativ = await _custo_atividades_planta(db, int(planta.id))
+        ci = round(direct + cif_unit, 2)
+        planta.custo_inicial = ci
+        planta.custo_atual = round(ci + ativ, 2)
+        plantas_atualizadas += 1
+
+    if commit:
+        await db.commit()
+
+    return {
+        "parque_total": parque,
+        "cif_unitario": cif_unit,
+        "cif_mensal_total": cif_info["cif_mensal_total"],
+        "semeaduras_atualizadas": semeaduras_atualizadas,
+        "plantas_atualizadas": plantas_atualizadas,
+        "itens_cif": cif_info["itens"],
+    }
+
+
+async def recalcular_custos_semeaduras(db: AsyncSession) -> Dict[str, Any]:
+    """Alias: redistribui CIF pelo parque inteiro e recalcula CMV de todas as mudas."""
+    return await redistribuir_cif_parque(db, commit=True)
 
 
 async def estimar_despesas_periodo(
@@ -282,13 +464,40 @@ async def estimar_despesas_periodo(
     premissas = list(result.scalars().all())
     comissao = 0.0
     fixas = 0.0
+    itens: List[Dict[str, Any]] = []
     for p in premissas:
         if p.tipo_calculo == "percentual_receita":
-            comissao += faturamento * (float(p.valor or 0) / 100)
+            val = round(faturamento * (float(p.valor or 0) / 100), 2)
+            comissao += val
+            pct = float(p.valor or 0)
+            itens.append(
+                {
+                    "nome": p.nome,
+                    "chave": p.chave,
+                    "valor": val,
+                    "tipo": "comissao",
+                    "formula": f"Faturamento (R$ {faturamento:.2f}) × {pct:g}%",
+                    "base_valor": pct,
+                    "base_unidade": "%",
+                }
+            )
         elif p.tipo_calculo == "mensal":
-            fixas += float(p.valor or 0)
+            val = round(float(p.valor or 0), 2)
+            fixas += val
+            itens.append(
+                {
+                    "nome": p.nome,
+                    "chave": p.chave,
+                    "valor": val,
+                    "tipo": "fixa",
+                    "formula": f"Premissa mensal fixa: R$ {val:.2f}/mês",
+                    "base_valor": val,
+                    "base_unidade": "R$/mês",
+                }
+            )
     return {
         "comissao_estimada": round(comissao, 2),
         "despesas_fixas_mes": round(fixas, 2),
         "premissas_despesa": premissas,
+        "itens": itens,
     }

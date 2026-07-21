@@ -39,6 +39,7 @@
             <td>{{ labelStatus(lote.status) }}</td>
             <td class="acoes">
               <button
+                v-if="podeCriar"
                 type="button"
                 class="btn-teste"
                 title="Registrar teste de germinação"
@@ -46,6 +47,7 @@
               >
                 {{ germinacaoLote(lote) != null ? 'Novo teste' : 'Teste germ.' }}
               </button>
+              <span v-else class="acoes-muted">—</span>
             </td>
           </tr>
           <tr v-if="!store.carregando && store.lotesFiltrados.length === 0">
@@ -62,12 +64,15 @@
 <script setup>
 import { computed } from 'vue'
 import { useColetaStore } from '@/store/coleta'
+import { usePermissions } from '@/composables/usePermissions'
 import { STATUS_LOTE } from '@/constants/coletaDominio'
 import { germinacaoLote as taxaGermLote } from '@/utils/coletaKpi'
 import { nomePopularExibicao } from '@/utils/especiesDisplay'
 
 const emit = defineEmits(['registrar-teste'])
 const store = useColetaStore()
+const { can } = usePermissions()
+const podeCriar = computed(() => can('coleta.create'))
 
 const lotesOrdenados = computed(() =>
   [...store.lotesFiltrados].sort((a, b) =>

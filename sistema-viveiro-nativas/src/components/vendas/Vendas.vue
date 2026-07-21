@@ -20,10 +20,11 @@
 
 <script setup>
 import { ref, watch } from 'vue'
+import { usePageTab } from '@/composables/usePageTab'
 import VendasPanel from './VendasPanel.vue'
 import VendasClientesPanel from './VendasClientesPanel.vue'
 
-const aba = ref('vendas')
+const aba = usePageTab('vendas', 'vendas', { valid: ['vendas', 'clientes'] })
 const vendasPanelRef = ref(null)
 
 const abas = [

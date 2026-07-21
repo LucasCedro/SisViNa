@@ -12,6 +12,12 @@ export async function createSemeadura(payload) {
   return data
 }
 
+/** Várias espécies/lotes na mesma data e sementeira (até 25 mil sementes). */
+export async function createSemeadurasLote(payload) {
+  const { data } = await api.post(`${API_V1}/semeaduras/lote`, payload)
+  return data
+}
+
 export async function getRastreabilidadePlanta(plantaId) {
   const { data } = await api.get(`${API_V1}/semeaduras/rastreabilidade/planta/${plantaId}`)
   return data

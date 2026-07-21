@@ -37,13 +37,14 @@
             <td>{{ arvore.taxa_germinacao != null ? `${arvore.taxa_germinacao}%` : '—' }}</td>
             <td>{{ formatarData(arvore.data_ultima_coleta) }}</td>
             <td class="acoes">
-              <button type="button" class="btn-coletar" title="Registrar coleta" @click.stop="emit('coletar', arvore)">
+              <button v-if="podeColetar" type="button" class="btn-coletar" title="Registrar coleta" @click.stop="emit('coletar', arvore)">
                 Coleta
               </button>
-              <button type="button" class="btn-editar" title="Editar" @click.stop="emit('editar', arvore)">
+              <button v-if="podeEditar" type="button" class="btn-editar" title="Editar" @click.stop="emit('editar', arvore)">
                 Editar
               </button>
-              <button type="button" class="btn-excluir" title="Excluir" @click.stop="excluir(arvore)">×</button>
+              <button v-if="podeExcluir" type="button" class="btn-excluir" title="Excluir" @click.stop="excluir(arvore)">×</button>
+              <span v-if="!podeColetar && !podeEditar && !podeExcluir" class="acoes-muted">—</span>
             </td>
           </tr>
           <tr v-if="!store.carregando && store.matrizesFiltradas.length === 0">
@@ -63,10 +64,17 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import { useColetaStore } from '@/store/coleta'
+import { usePermissions } from '@/composables/usePermissions'
 
 const emit = defineEmits(['editar', 'coletar'])
 const store = useColetaStore()
+const { can } = usePermissions()
+
+const podeColetar = computed(() => can('coleta.create'))
+const podeEditar = computed(() => can('coleta.edit'))
+const podeExcluir = computed(() => can('coleta.delete'))
 
 function formatarData(data) {
   if (!data) return '—'

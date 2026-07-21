@@ -13,13 +13,67 @@
   font-size: 0.9375rem;
   color: var(--color-text-secondary);
   max-width: 42rem;
-  line-height: 1.45;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.page-lead strong {
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .estoque-page-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .estoque-page-header__acoes {
+    width: 100%;
+  }
+
+  .estoque-page-header__acoes .btn {
+    flex: 1;
+  }
+
+  .page-lead {
+    font-size: 0.875rem;
+  }
 }
 
 .estoque-page-header__acoes {
   display: flex;
   gap: 0.5rem;
   flex-wrap: wrap;
+}
+
+.estoque-kpis-linha {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  margin: 0.65rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.estoque-kpis-linha li {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.estoque-kpis-linha__lbl {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-text-muted);
+}
+
+.estoque-kpis-linha strong {
+  font-size: 0.9375rem;
+  color: var(--color-primary-800);
+  font-variant-numeric: tabular-nums;
 }
 
 .estoque-guias {
@@ -92,7 +146,38 @@
 
 .estoque-table .col-acoes {
   text-align: right;
-  white-space: nowrap;
+  min-width: 8.5rem;
+  vertical-align: middle;
+}
+
+.estoque-table .estoque-acoes-grupo {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.35rem;
+  max-width: 100%;
+}
+
+.estoque-table .estoque-acoes-grupo .btn-sm {
+  width: 100%;
+  max-width: 9.5rem;
+  white-space: normal;
+  line-height: 1.25;
+  text-align: center;
+}
+
+@media (min-width: 960px) {
+  .estoque-table .estoque-acoes-grupo {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .estoque-table .estoque-acoes-grupo .btn-sm {
+    width: auto;
+    max-width: none;
+    white-space: nowrap;
+  }
 }
 
 .estoque-empty {
@@ -184,26 +269,6 @@
   gap: 0.35rem;
 }
 
-.estoque-modal-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 1000;
-  background: rgba(34, 42, 28, 0.45);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: var(--spacing-md);
-}
-
-.estoque-modal {
-  width: 100%;
-  max-width: 440px;
-  background: var(--color-surface);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-lg);
-  overflow: hidden;
-}
-
 .estoque-modal__header {
   padding: var(--spacing-lg);
   border-bottom: 1px solid var(--color-border-subtle);
@@ -281,11 +346,6 @@
 
 @media (max-width: 768px) {
   .estoque-table .col-acoes {
-    white-space: normal;
-  }
-
-  .estoque-acoes-grupo {
-    flex-direction: column;
-    align-items: stretch;
+    min-width: 7rem;
   }
 }

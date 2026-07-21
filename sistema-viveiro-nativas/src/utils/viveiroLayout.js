@@ -1,7 +1,8 @@
 import { TIPOS_COMPONENTE } from '@/constants/viveiroComponentes'
 import { METROS_PADRAO_PRODUTIVO, PX_POR_METRO, metrosParaPx } from '@/constants/viveiroDimensoes'
+import { VIVEIRO_MAP_TIPO, VIVEIRO_PALETTES } from '@/constants/viveiroMapColors'
 
-const CORES_ESPACO = ['#ffe135', '#ffc42e', '#ffab28', '#ff9321', '#ff7c1c']
+const CORES_ESPACO = VIVEIRO_PALETTES.espaco
 
 /** Gera círculos (mudas) em grade dentro do retângulo do canteiro */
 export function gerarEspacosGrade({ linhas, colunas, largura, altura, especieId = null, especieNome = null }) {
@@ -72,7 +73,7 @@ export function criarComponenteNoMapa(payload, index = 0) {
       largura,
       altura,
       metros,
-      cor: '#6ca234',
+      cor: VIVEIRO_MAP_TIPO.canteiro,
       config: {
         linhas,
         colunas,
@@ -99,7 +100,7 @@ export function criarComponenteNoMapa(payload, index = 0) {
       largura,
       altura,
       metros,
-      cor: '#ff9600',
+      cor: VIVEIRO_MAP_TIPO.sementeira,
       config: { capacidade: payload.capacidade || 20 }
     }
   }
@@ -120,16 +121,16 @@ export function criarComponenteNoMapa(payload, index = 0) {
       largura,
       altura,
       metros,
-      cor: '#ffe135',
+      cor: VIVEIRO_MAP_TIPO.rustificacao,
       config: { capacidade: payload.capacidade || 20 }
     }
   }
 
   const visuais = {
-    [TIPOS_COMPONENTE.SEDE]: { cor: '#6b8cae', fallback: [100, 60] },
-    [TIPOS_COMPONENTE.LAGO]: { cor: '#4a9fd4', fallback: [80, 80] },
-    [TIPOS_COMPONENTE.GARAGEM]: { cor: '#8E9089', fallback: [90, 50] },
-    [TIPOS_COMPONENTE.AREA_TRABALHO]: { cor: '#A4B39A', fallback: [110, 70] },
+    [TIPOS_COMPONENTE.SEDE]: { cor: VIVEIRO_MAP_TIPO.sede, fallback: [100, 60] },
+    [TIPOS_COMPONENTE.LAGO]: { cor: VIVEIRO_MAP_TIPO.lago, fallback: [80, 80] },
+    [TIPOS_COMPONENTE.GARAGEM]: { cor: VIVEIRO_MAP_TIPO.garagem, fallback: [90, 50] },
+    [TIPOS_COMPONENTE.AREA_TRABALHO]: { cor: VIVEIRO_MAP_TIPO['area-trabalho'], fallback: [110, 70] },
   }
   const visual = visuais[payload.tipo]
   if (visual) {

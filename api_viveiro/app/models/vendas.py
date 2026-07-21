@@ -8,9 +8,11 @@ class Venda(Base):
     __tablename__ = "vendas"
 
     id = Column(Integer, primary_key=True, index=True)
+    id_viveiro = Column(Integer, ForeignKey("viveiros.id"), nullable=False, index=True)
     id_comprador = Column(Integer, ForeignKey("compradores.id"), nullable=False)
     id_funcionario = Column(Integer, ForeignKey("funcionarios.id"), nullable=False)
     data_venda = Column(DateTime, nullable=False)
+    data_pagamento = Column(DateTime, nullable=True)
     valor_total = Column(Numeric(10, 2), nullable=False)
     forma_pagamento = Column(String(20))
     status = Column(String(20))

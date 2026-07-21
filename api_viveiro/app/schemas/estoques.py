@@ -190,6 +190,80 @@ class MudasPipelineResumo(BaseModel):
     prontas_para_venda: int = 0
 
 
+class CmvDetalheEstagioItem(BaseModel):
+    estagio: str
+    estagio_label: str
+    quantidade: int
+    valor_total: float
+    custo_medio: float
+
+
+class CmvDetalheComposicaoUnitario(BaseModel):
+    sementes: float = 0
+    insumos: float = 0
+    indireto: float = 0
+
+
+class CmvDetalheItemCusteio(BaseModel):
+    origem: str
+    chave: str
+    descricao: str
+    valor_total: float
+    valor_unitario: float = 0
+
+
+class CmvDetalheSemeaduraItem(BaseModel):
+    id_semeadura: int
+    data_semeadura: Optional[str] = None
+    codigo_lote: Optional[str] = None
+    quantidade_no_escopo: int
+    quantidade_semeadura: int
+    custo_unitario_muda: float = 0
+    valor_total: float = 0
+    composicao_unitario: CmvDetalheComposicaoUnitario
+    composicao_total_escopo: CmvDetalheComposicaoUnitario
+    mudas_base_rateio: Optional[int] = None
+    itens_custeio: List[CmvDetalheItemCusteio] = []
+
+
+class CmvDetalheComposicaoAgregada(BaseModel):
+    chave: str
+    origem: str
+    descricao: str
+    valor_total: float
+    valor_unitario_medio: float = 0
+
+
+class CmvDetalheResumoCalculo(BaseModel):
+    custo_base_semeadura: float = 0
+    ajustes_pos_semeadura: float = 0
+    valor_total: float = 0
+
+
+class CmvDetalheAjustes(BaseModel):
+    atividades: float = 0
+    outros: float = 0
+    total: float = 0
+
+
+class EstoqueCmvDetalheOut(BaseModel):
+    id_especie: int
+    nome_popular: Optional[str] = None
+    nome_cientifico: str
+    escopo: str
+    escopo_label: str
+    quantidade: int
+    valor_total: float
+    custo_medio: float
+    formula: str
+    resumo_calculo: CmvDetalheResumoCalculo
+    por_estagio: List[CmvDetalheEstagioItem] = []
+    por_semeadura: List[CmvDetalheSemeaduraItem] = []
+    composicao_agregada: List[CmvDetalheComposicaoAgregada] = []
+    ajustes_pos_semeadura: CmvDetalheAjustes
+    observacoes: List[str] = []
+
+
 class EstoqueResumoGeral(BaseModel):
     total_lotes_sementes_ativos: int
     total_sementes_disponiveis: int
@@ -202,6 +276,7 @@ class EstoqueResumoGeral(BaseModel):
     valor_total_mudas: float = 0
     valor_mudas_comercial: float = 0
     mudas_pipeline: MudasPipelineResumo
+    capacidades_viveiro: dict = {}
     estoque_comercial: List[EstoqueComercialItem] = []
     analitico_mudas: EstoqueAnaliticoMudas
     analitico_mudas_rustificacao: EstoqueAnaliticoMudas

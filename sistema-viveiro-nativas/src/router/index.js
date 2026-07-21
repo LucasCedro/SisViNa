@@ -1,6 +1,8 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
 import { useAuthStore } from '../store/auth'
+import { useViveiroContextStore } from '../store/viveiroContext'
+import { clearPageTabStorage } from '../composables/usePageTab'
 
 const routes = [
     {
@@ -25,7 +27,13 @@ const routes = [
         path: '/producao',
         name: 'producao',
         component: () => import('../views/viveiro/ProducaoView.vue'),
-        meta: { permission: 'producao.view' }
+        meta: { permission: 'producao.view', moduleKey: 'producao' }
+    },
+    {
+        path: '/florestal',
+        name: 'florestal',
+        component: () => import('../views/florestal/FlorestalView.vue'),
+        meta: { permission: 'florestal.view', moduleKey: 'florestal' }
     },
     {
         path: '/estoques',
@@ -143,9 +151,22 @@ router.beforeEach(async (to) => {
         if (to.meta.adminOnly && !auth.user?.perfis?.includes('admin')) {
             return { path: '/', query: { acesso: 'negado', de: to.fullPath } }
         }
+        const moduleKey = to.meta.moduleKey
+        if (moduleKey) {
+            const viveiro = useViveiroContextStore()
+            if (viveiro.navModuleDisabled(moduleKey)) {
+                return { path: '/', query: { acesso: 'negado', de: to.fullPath } }
+            }
+        }
     }
 
     return true
+})
+
+router.afterEach((to, from) => {
+    if (from.name && to.name !== from.name) {
+        clearPageTabStorage(from.name)
+    }
 })
 
 export default router

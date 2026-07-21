@@ -22,3 +22,8 @@ from app.models.viveiro_layout import ViveiroLayout
 from app.models.emitente_fiscal import EmitenteFiscal
 from app.models.regra_fiscal import RegraFiscal
 from app.models.nota_fiscal import NotaFiscal, NotaFiscalItem
+from app.models.viveiros import Viveiro
+from app.models.funcionario_viveiro import FuncionarioViveiro
+from app.models.genotipos import Genotipo
+from app.models.lotes_producao import LoteProducao
+from app.models.movimentacoes_lote import MovimentacaoLote

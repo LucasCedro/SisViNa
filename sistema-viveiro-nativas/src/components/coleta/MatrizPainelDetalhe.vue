@@ -40,16 +40,16 @@
         <p v-if="matriz.observacoes_legais" class="legal">
           <strong>Legal:</strong> {{ matriz.observacoes_legais }}
         </p>
-        <div class="painel-acoes">
-          <button type="button" class="btn-coletar" @click="emit('coletar', matriz)">Registrar coleta</button>
-          <button type="button" class="btn-editar" @click="emit('editar', matriz)">Editar matriz</button>
+        <div v-if="podeColetar || podeEditar" class="painel-acoes">
+          <button v-if="podeColetar" type="button" class="btn-coletar" @click="emit('coletar', matriz)">Registrar coleta</button>
+          <button v-if="podeEditar" type="button" class="btn-editar" @click="emit('editar', matriz)">Editar matriz</button>
         </div>
       </div>
 
       <div v-show="aba === 'coletas'" class="tab-pane">
         <div class="tab-head">
           <span>{{ coletas.length }} coleta(s)</span>
-          <button type="button" class="link" @click="emit('coletar', matriz)">+ Nova</button>
+          <button v-if="podeColetar" type="button" class="link" @click="emit('coletar', matriz)">+ Nova</button>
         </div>
         <ul v-if="coletas.length" class="lista">
           <li v-for="c in coletas" :key="c.id">
@@ -58,9 +58,9 @@
               <span>{{ c.quantidade_sementes }} sementes</span>
               <span class="muted">{{ c.funcionario_nome }}</span>
             </div>
-            <div class="li-acoes">
-              <button type="button" class="link" @click="editarColeta(c)">Editar</button>
-              <button type="button" class="link danger" @click="excluirColeta(c)">Excluir</button>
+            <div v-if="podeEditar || podeExcluir" class="li-acoes">
+              <button v-if="podeEditar" type="button" class="link" @click="editarColeta(c)">Editar</button>
+              <button v-if="podeExcluir" type="button" class="link danger" @click="excluirColeta(c)">Excluir</button>
             </div>
           </li>
         </ul>
@@ -78,8 +78,8 @@
                 Germ. {{ l.ultimo_teste_germinacao }}%
               </span>
             </div>
-            <button type="button" class="link" @click="emit('teste', l)">Teste</button>
-            <button type="button" class="link" @click="emit('semeadura', l)">Semear</button>
+            <button v-if="podeCriar" type="button" class="link" @click="emit('teste', l)">Teste</button>
+            <button v-if="podeSemear" type="button" class="link" @click="emit('semeadura', l)">Semear</button>
           </li>
         </ul>
         <p v-else class="vazio-tab">Coletas geram lotes automaticamente.</p>
@@ -113,6 +113,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useColetaStore } from '@/store/coleta'
+import { usePermissions } from '@/composables/usePermissions'
 import {
   labelTipoOrigem,
   labelEstagio,
@@ -122,7 +123,14 @@ import {
 const emit = defineEmits(['editar', 'coletar', 'editar-coleta', 'teste', 'semeadura'])
 
 const store = useColetaStore()
+const { can, canAny } = usePermissions()
 const aba = ref('resumo')
+
+const podeColetar = computed(() => can('coleta.create'))
+const podeEditar = computed(() => can('coleta.edit'))
+const podeExcluir = computed(() => can('coleta.delete'))
+const podeCriar = computed(() => can('coleta.create'))
+const podeSemear = computed(() => canAny('producao.create', 'producao.transfer'))
 
 const tabs = [
   { id: 'resumo', label: 'Resumo' },

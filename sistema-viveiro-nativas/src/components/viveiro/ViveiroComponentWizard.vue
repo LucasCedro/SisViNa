@@ -1,12 +1,10 @@
 <template>
-  <div
-    v-if="aberto"
-    class="wizard-overlay"
-    @pointerdown.self="onOverlayPointerDown"
-    @pointerup.self="onOverlayPointerUp"
-    @pointercancel.self="cancelarFechamentoOverlay"
+  <AppModalOverlay
+    :aberto="aberto"
+    :handlers="modalClose"
+    panel-class="app-modal-panel--md"
+    aria-labelledby="wizard-titulo"
   >
-    <div class="wizard-card" role="dialog" aria-labelledby="wizard-titulo" @pointerdown="onModalPointerDown">
       <header class="wizard-header">
         <h2 id="wizard-titulo">{{ tituloEtapa }}</h2>
         <button type="button" class="btn-fechar" @click="fechar" aria-label="Fechar">×</button>
@@ -169,19 +167,26 @@
           <button type="button" class="btn-prim" @click="confirmar">Adicionar ao mapa</button>
         </footer>
       </div>
-    </div>
-  </div>
+  </AppModalOverlay>
+  <ConfirmSaidaModal
+    :aberto="confirmAberto"
+    @confirmar="confirmarSaida"
+    @cancelar="cancelarSaida"
+  />
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
+import AppModalOverlay from '@/components/shared/AppModalOverlay.vue'
+import ConfirmSaidaModal from '@/components/shared/ConfirmSaidaModal.vue'
+import { useModalFormClose } from '@/composables/useModalFormClose'
+import { useFormDirty } from '@/utils/formDirty'
 import {
   CATALOGO_PRODUTIVO,
   CATALOGO_VISUAL,
   TIPOS_COMPONENTE,
 } from '@/constants/viveiroComponentes'
 import { listEspecies } from '@/services/especies'
-import { useModalOverlayClose } from '@/composables/useModalOverlayClose'
 import PresetDimensoes from './PresetDimensoes.vue'
 import { METROS_PADRAO_PRODUTIVO, PRESETS_DIMENSAO } from '@/constants/viveiroDimensoes'
 
@@ -197,6 +202,8 @@ const carregandoEspecies = ref(false)
 
 const form = ref(criarFormPadrao())
 const presetAtivo = ref(null)
+
+const { isDirty, rebase } = useFormDirty(form, () => props.aberto && etapa.value !== 'tipo')
 
 const presetsRustificacao = PRESETS_DIMENSAO.filter((p) =>
   ['quad-10x8', 'quad-6x6', 'faixa-4x20'].includes(p.id)
@@ -251,7 +258,11 @@ watch(
     etapa.value = 'tipo'
     form.value = criarFormPadrao()
     presetAtivo.value = null
-    if (especies.value.length) return
+    if (especies.value.length) {
+      await nextTick()
+      rebase()
+      return
+    }
     carregandoEspecies.value = true
     try {
       especies.value = await listEspecies()
@@ -259,6 +270,8 @@ watch(
       especies.value = []
     } finally {
       carregandoEspecies.value = false
+      await nextTick()
+      rebase()
     }
   }
 )
@@ -307,17 +320,18 @@ function fecharInterno() {
   emit('fechar')
 }
 
+const modalClose = useModalFormClose(fecharInterno, () => isDirty.value, () => props.aberto)
 const {
-  onModalPointerDown,
-  onOverlayPointerDown,
-  onOverlayPointerUp,
-  cancelarFechamentoOverlay,
   resetOverlayPress,
-} = useModalOverlayClose(fecharInterno)
+  confirmAberto,
+  confirmarSaida,
+  cancelarSaida,
+  requestClose,
+} = modalClose
 
 function fechar() {
   resetOverlayPress()
-  fecharInterno()
+  requestClose()
 }
 
 function confirmar() {
@@ -351,27 +365,6 @@ function confirmar() {
 </script>
 
 <style scoped>
-.wizard-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 2000;
-  background: rgba(0, 0, 0, 0.45);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1rem;
-}
-
-.wizard-card {
-  background: #fff;
-  border-radius: 12px;
-  width: 100%;
-  max-width: 520px;
-  max-height: 90vh;
-  overflow: auto;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
-}
-
 .wizard-header {
   display: flex;
   align-items: center;

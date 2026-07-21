@@ -51,8 +51,78 @@
   @apply flex flex-wrap items-baseline gap-x-3 gap-y-1 py-2 px-3 rounded-lg bg-primary-50/50;
 }
 
-.dre-linha--receita { @apply bg-emerald-50/80; }
-.dre-linha--custo { @apply bg-amber-50/60; }
+.dre-linha--clicavel {
+  @apply flex-col items-stretch;
+}
+
+.dre-linha--aberta {
+  @apply ring-1 ring-primary-200;
+}
+
+.dre-linha__btn {
+  @apply flex flex-wrap items-baseline gap-x-3 gap-y-1 w-full text-left bg-transparent border-0 p-0 cursor-pointer;
+  font: inherit;
+}
+
+.dre-linha__btn:hover .dre-linha__label {
+  @apply text-primary;
+}
+
+.dre-linha__chev {
+  @apply text-xs text-text-muted w-4 shrink-0;
+}
+
+.kpi-card__btn {
+  @apply w-full text-left bg-transparent border-0 p-0 cursor-pointer;
+  font: inherit;
+}
+
+.kpi-card__btn:hover .kpi-card__label,
+.kpi-card__btn:hover .kpi-card__hint {
+  @apply text-primary;
+}
+
+.kpi-card__hint {
+  @apply block text-[10px] font-semibold uppercase tracking-wide text-text-muted mt-2;
+}
+
+/* Modal KPI — conteúdo interno (shell em AppModalOverlay) */
+.fin-modal-header {
+  @apply flex justify-between items-start gap-4 px-5 py-4 border-b border-primary-100 shrink-0;
+}
+
+.fin-modal-eyebrow {
+  @apply m-0 mb-0.5 text-[0.6875rem] font-bold uppercase tracking-widest text-primary;
+}
+
+.fin-modal-header h2 {
+  @apply m-0 text-lg font-bold text-text-primary;
+}
+
+.fin-modal-valor {
+  @apply mt-1.5 text-xl font-bold text-text-primary tabular-nums;
+}
+
+.fin-modal-fechar {
+  @apply border-0 bg-transparent text-2xl leading-none text-text-muted cursor-pointer p-0;
+}
+
+.fin-modal-body {
+  @apply px-5 py-4 overflow-y-auto flex-1;
+}
+
+.fin-modal-footer {
+  @apply flex justify-end gap-2 px-5 py-3 border-t border-primary-100 shrink-0;
+}
+
+.dre-linha--receita {
+  background: color-mix(in srgb, var(--color-success-bg) 85%, var(--color-surface));
+}
+
+.dre-linha--custo {
+  background: color-mix(in srgb, var(--color-attention-bg) 70%, var(--color-surface));
+}
+
 .dre-linha--destaque { @apply bg-primary-50 border border-primary-100; }
 .dre-linha--resultado { @apply bg-surface border-2 border-primary font-medium; }
 
@@ -68,8 +138,10 @@
   @apply w-full text-xs text-text-muted pl-0 sm:pl-[calc(12rem+0.75rem)];
 }
 
-.positivo { @apply text-emerald-700; }
-.negativo { @apply text-red-700; }
+.positivo { color: var(--color-success); }
+.negativo { color: var(--color-error); }
+
+.fin-kpi-alerta { color: var(--color-attention); font-weight: 600; }
 
 /* KPIs */
 .kpi-grid {
@@ -78,6 +150,20 @@
 
 .kpi-grid--4 {
   @apply sm:grid-cols-2 lg:grid-cols-4;
+}
+
+.kpi-grid--5 {
+  @apply sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5;
+}
+
+.kpi-card--comercial {
+  border-color: var(--color-primary-100);
+  background: color-mix(in srgb, var(--color-success-bg) 45%, var(--color-surface));
+}
+
+.kpi-card--alerta {
+  border-color: var(--color-attention);
+  background: color-mix(in srgb, var(--color-attention-bg) 55%, var(--color-surface));
 }
 
 .kpi-card {
@@ -117,9 +203,6 @@
   @apply w-full max-w-[1.25rem] rounded-t min-h-[2px];
 }
 
-.evolucao-bar--fat { @apply bg-emerald-500; }
-.evolucao-bar--cmv { @apply bg-amber-400 opacity-80; }
-
 .evolucao-label {
   @apply text-[10px] text-text-muted mt-1;
 }
@@ -132,9 +215,6 @@
   @apply inline-block w-2 h-2 rounded-full mr-1 align-middle;
 }
 
-.dot--fat { @apply bg-emerald-500; }
-.dot--cmv { @apply bg-amber-400; }
-
 /* Avisos */
 .avisos-list {
   @apply list-none p-0 m-0 mb-4 space-y-2;
@@ -144,9 +224,52 @@
   @apply text-sm py-2 px-3 rounded-md border;
 }
 
-.aviso--venda_abaixo_custo { @apply bg-amber-50 border-amber-200 text-amber-900; }
-.aviso--especie_prejuizo { @apply bg-red-50 border-red-200 text-red-900; }
-.aviso--resultado_negativo { @apply bg-orange-50 border-orange-200 text-orange-900; }
+.aviso--venda_abaixo_custo,
+.aviso--sementes_sem_custo,
+.aviso--coletas_sem_horas,
+.aviso--mudas_sem_custo {
+  background: var(--color-attention-bg);
+  border-color: var(--color-primary-100);
+  color: var(--color-text-secondary);
+}
+
+.aviso--especie_prejuizo,
+.aviso--resultado_negativo {
+  background: var(--color-error-bg);
+  border-color: color-mix(in srgb, var(--color-error) 25%, var(--color-border));
+  color: var(--color-error);
+}
+
+/* Integridade */
+.fin-sec--integridade {
+  background: color-mix(in srgb, var(--color-attention-bg) 35%, var(--color-surface));
+  border: 1px solid var(--color-primary-100);
+  @apply rounded-lg p-4 mb-6;
+}
+
+.integridade-list {
+  @apply list-none p-0 m-0 space-y-2;
+}
+
+.integridade-item {
+  @apply text-sm py-2 px-3 rounded-md;
+}
+
+.integridade-item--alerta {
+  background: var(--color-attention-bg);
+  border: 1px solid var(--color-primary-100);
+  color: var(--color-text-secondary);
+}
+
+.integridade-item--alerta a {
+  @apply text-primary font-medium hover:underline;
+}
+
+.integridade-item--ok {
+  background: var(--color-success-bg);
+  border: 1px solid var(--color-primary-100);
+  color: var(--color-success);
+}
 
 /* Tabelas */
 .tabela-wrap {
@@ -170,7 +293,7 @@
 }
 
 .linha-alerta {
-  @apply bg-red-50/50;
+  background: color-mix(in srgb, var(--color-error-bg) 55%, var(--color-surface));
 }
 
 /* Gestão — abas */
@@ -272,15 +395,11 @@
 }
 
 .btn-icon--danger {
-  @apply text-red-600 hover:bg-red-50;
+  color: var(--color-error);
 }
 
-.modal-overlay {
-  @apply fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4;
-}
-
-.modal-box {
-  @apply bg-surface rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto;
+.btn-icon--danger:hover {
+  background: var(--color-error-bg);
 }
 
 .modal-head {
@@ -307,4 +426,134 @@
 
 .receita-link {
   @apply text-primary hover:underline text-sm;
+}
+
+/* ── DFC (Financeiro — regime de caixa) ── */
+
+.fin-sec--dfc .fin-sec__titulo--dfc {
+  @apply text-text-primary;
+}
+
+.dfc-wrap {
+  @apply flex flex-col gap-4 mb-6 max-w-2xl;
+}
+
+.dfc-bloco {
+  @apply rounded-xl border p-4;
+}
+
+.dfc-bloco--op {
+  @apply border-primary-100 bg-primary-50/40;
+}
+
+.dfc-bloco--inv {
+  @apply border-primary-100 bg-primary-50/60;
+}
+
+.dfc-bloco__titulo {
+  @apply text-xs font-bold uppercase tracking-widest text-text-muted mb-3 m-0;
+}
+
+.dfc-linha {
+  @apply py-2 border-b border-black/5 last:border-0;
+}
+
+.dfc-linha__btn {
+  @apply flex flex-wrap items-baseline gap-x-3 w-full text-left bg-transparent border-0 p-0 cursor-pointer text-sm;
+  font: inherit;
+}
+
+.dfc-linha__chev {
+  @apply text-xs text-text-muted w-4 shrink-0;
+}
+
+.dfc-linha--entrada strong {
+  color: var(--color-success);
+  @apply font-bold;
+}
+
+.dfc-linha--saida strong {
+  color: var(--color-error);
+  @apply font-bold;
+}
+
+.dfc-linha--subtotal {
+  @apply pt-2 mt-1;
+}
+
+.dfc-linha--subtotal .dfc-linha__btn {
+  @apply font-semibold text-sm justify-between;
+}
+
+.dfc-linha--total {
+  background: var(--color-surface-muted);
+  border: 2px solid var(--color-border);
+  @apply py-3 px-4 rounded-lg mt-2;
+}
+
+.dfc-linha--total .dfc-linha__btn {
+  @apply text-base font-bold justify-between w-full;
+}
+
+.dfc-linha--clicavel .dfc-linha__btn:hover {
+  @apply text-primary-700;
+}
+
+.dfc-linha__meta {
+  @apply block text-xs text-text-muted pl-4 mt-0.5;
+}
+
+.dfc-detalhe {
+  @apply mt-2 pl-4 border-l border-primary-100;
+}
+
+.tabela-fin--compact {
+  @apply text-xs;
+}
+
+.kpi-grid--dfc {
+  @apply sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5;
+}
+
+.kpi-card--dfc-entrada {
+  border-color: var(--color-primary-200);
+  background: color-mix(in srgb, var(--color-success-bg) 65%, var(--color-surface));
+}
+
+.kpi-card--dfc-saida {
+  border-color: color-mix(in srgb, var(--color-error) 30%, var(--color-border));
+  background: color-mix(in srgb, var(--color-error-bg) 45%, var(--color-surface));
+}
+
+.kpi-card--dfc-saldo-pos {
+  @apply border-primary-100 bg-primary-50/40;
+}
+
+.kpi-card--dfc-saldo-neg {
+  border-color: color-mix(in srgb, var(--color-error) 35%, var(--color-border));
+  background: color-mix(in srgb, var(--color-error-bg) 55%, var(--color-surface));
+}
+
+.kpi-card--dfc-pendente {
+  border-color: var(--color-attention);
+  background: color-mix(in srgb, var(--color-attention-bg) 65%, var(--color-surface));
+}
+
+.kpi-card--dfc-aberto {
+  border: 1px dashed var(--color-attention);
+  background: color-mix(in srgb, var(--color-attention-bg) 35%, var(--color-surface));
+}
+
+.fin-sec--comparativo {
+  background: color-mix(in srgb, var(--color-attention-bg) 45%, var(--color-surface));
+  border: 1px solid var(--color-primary-100);
+  @apply rounded-xl p-4;
+}
+
+.dfc-comparativo {
+  @apply text-sm m-0 leading-relaxed;
+}
+
+.dfc-modal-texto {
+  @apply text-sm text-text-secondary mb-4;
 }

@@ -1,12 +1,10 @@
 <template>
-  <div
-    v-if="aberto"
-    class="modal-overlay"
-    @pointerdown.self="onOverlayPointerDown"
-    @pointerup.self="onOverlayPointerUp"
-    @pointercancel.self="cancelarFechamentoOverlay"
+  <AppModalOverlay
+    :aberto="aberto"
+    :handlers="modalClose"
+    panel-class="app-modal-panel--md"
+    aria-labelledby="coleta-modal-title"
   >
-    <div class="modal-card" role="dialog" aria-labelledby="coleta-modal-title" @pointerdown="onModalPointerDown">
       <!-- Sucesso pós-coleta -->
       <template v-if="etapa === 'sucesso'">
         <header class="modal-header modal-header--ok">
@@ -26,10 +24,6 @@
               <template v-if="form.sementes_reservadas_teste > 0">
                 ({{ form.sementes_reservadas_teste.toLocaleString('pt-BR') }} reservadas p/ teste)
               </template>
-            </p>
-            <p v-if="custoCampoTotal > 0" class="lote-card__custo">
-              CMV coleta: <strong>{{ fmtMoeda(custoCampoTotal) }}</strong>
-              <span v-if="custoPorSemente"> · {{ fmtMoeda(custoPorSemente) }}/semente</span>
             </p>
           </div>
 
@@ -133,28 +127,7 @@
             </label>
 
             <label class="field">
-              Observações de campo
-              <textarea
-                v-model="form.observacoes"
-                rows="3"
-                placeholder="Clima, acesso, maturidade dos frutos, equipe..."
-              />
-            </label>
-          </section>
-
-          <section v-if="form.gerar_lote" class="form-secao form-secao--custo">
-            <h3 class="form-secao__title">Custo de campo (CMV)</h3>
-            <p v-if="!refCusto.premissa_ativa" class="custo-aviso">
-              Valor homem-hora ainda não configurado.
-              <router-link v-if="auth.can('financeiro.view')" to="/financeiro">Financeiro → Premissas</router-link>
-              <template v-else>Peça ao gestor para configurar em Financeiro → Premissas.</template>
-            </p>
-            <div v-else class="custo-ref">
-              <span>Homem-hora</span>
-              <strong>{{ fmtMoeda(refCusto.valor_hora) }}/h</strong>
-            </div>
-            <label class="field">
-              Horas de trabalho nesta coleta
+              Horas em campo
               <input
                 v-model.number="form.horas_campo"
                 type="number"
@@ -162,21 +135,17 @@
                 step="0.25"
                 placeholder="Ex.: 4"
               />
-              <small class="field-hint">Deslocamento, coleta, beneficiamento e retorno.</small>
+              <small class="field-hint">Tempo total da equipe: deslocamento, coleta, beneficiamento e retorno.</small>
             </label>
-            <div v-if="custoCampoTotal > 0 && quantidadeLote > 0" class="custo-preview">
-              <div class="custo-preview__linha">
-                <span>{{ fmtHoras(form.horas_campo) }} × {{ fmtMoeda(refCusto.valor_hora) }}/h</span>
-                <strong>{{ fmtMoeda(custoCampoTotal) }}</strong>
-              </div>
-              <p class="custo-preview__rateio">
-                Rateado em <strong>{{ quantidadeLote.toLocaleString('pt-BR') }}</strong> sementes do lote →
-                <strong>{{ fmtMoeda(custoPorSemente) }}</strong>/semente no estoque
-              </p>
-            </div>
-            <p v-else-if="refCusto.premissa_ativa" class="custo-opcional">
-              Opcional — deixe em branco se ainda não quiser lançar custo.
-            </p>
+
+            <label class="field">
+              Observações de campo
+              <textarea
+                v-model="form.observacoes"
+                rows="3"
+                placeholder="Clima, acesso, maturidade dos frutos, equipe..."
+              />
+            </label>
           </section>
 
           <section class="form-secao form-secao--muted">
@@ -208,16 +177,22 @@
           </footer>
         </form>
       </template>
-    </div>
-  </div>
+  </AppModalOverlay>
+  <ConfirmSaidaModal
+    :aberto="confirmAberto"
+    @confirmar="confirmarSaida"
+    @cancelar="cancelarSaida"
+  />
 </template>
 
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { useColetaStore } from '@/store/coleta'
 import { useAuthStore } from '@/store/auth'
-import { useModalOverlayClose } from '@/composables/useModalOverlayClose'
-import { getCustoCampoReferencia } from '@/services/coletasSementes'
+import AppModalOverlay from '@/components/shared/AppModalOverlay.vue'
+import ConfirmSaidaModal from '@/components/shared/ConfirmSaidaModal.vue'
+import { useModalFormClose } from '@/composables/useModalFormClose'
+import { useFormDirty } from '@/utils/formDirty'
 
 const props = defineProps({
   aberto: { type: Boolean, default: false },
@@ -233,7 +208,6 @@ const erro = ref('')
 const etapa = ref('form')
 const loteGerado = ref(null)
 const coletaSalva = ref(null)
-const refCusto = ref({ valor_hora: 0, premissa_ativa: false, nome: 'Mão de obra de coleta' })
 
 const matrizesOpcoes = computed(() =>
   [...store.arvoresMatriz].sort((a, b) => (a.nome || '').localeCompare(b.nome || ''))
@@ -269,36 +243,9 @@ const quantidadeLote = computed(() => {
   return Math.max(0, total - reserva)
 })
 
-const custoCampoTotal = computed(() => {
-  const h = Number(form.value.horas_campo) || 0
-  const vh = Number(refCusto.value.valor_hora) || 0
-  if (h <= 0 || vh <= 0) return 0
-  return Math.round(h * vh * 100) / 100
-})
-
-const custoPorSemente = computed(() => {
-  if (!custoCampoTotal.value || !quantidadeLote.value) return 0
-  return Math.round((custoCampoTotal.value / quantidadeLote.value) * 10000) / 10000
-})
-
-function fmtMoeda(v) {
-  return Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-}
-
-function fmtHoras(h) {
-  const n = Number(h) || 0
-  return n.toLocaleString('pt-BR', { maximumFractionDigits: 2 })
-}
-
-async function carregarRefCusto() {
-  try {
-    refCusto.value = await getCustoCampoReferencia()
-  } catch {
-    refCusto.value = { valor_hora: 0, premissa_ativa: false, nome: 'Mão de obra de coleta' }
-  }
-}
-
 const form = ref(formPadrao())
+
+const { isDirty } = useFormDirty(form, () => props.aberto && etapa.value === 'form')
 
 watch(
   () => [props.aberto, props.matriz],
@@ -312,7 +259,6 @@ watch(
     if (props.matriz?.id) {
       form.value.id_arvore_matriz = props.matriz.id
     }
-    carregarRefCusto()
   }
 )
 
@@ -320,24 +266,26 @@ function fecharInterno() {
   emit('fechar')
 }
 
+const modalClose = useModalFormClose(fecharInterno, () => isDirty.value, () => props.aberto)
 const {
-  onModalPointerDown,
-  onOverlayPointerDown,
-  onOverlayPointerUp,
-  cancelarFechamentoOverlay,
   resetOverlayPress,
-} = useModalOverlayClose(fecharInterno)
+  confirmAberto,
+  confirmarSaida,
+  cancelarSaida,
+  requestClose,
+  sairSemConfirmar,
+} = modalClose
 
 function fechar() {
   resetOverlayPress()
-  fecharInterno()
+  requestClose()
 }
 
 function irParaTeste() {
   if (loteGerado.value) {
     emit('registrar-teste', loteGerado.value)
   }
-  fechar()
+  sairSemConfirmar()
 }
 
 async function salvar() {
@@ -381,7 +329,7 @@ async function salvar() {
       loteGerado.value = resultado.lotes[0]
       etapa.value = 'sucesso'
     } else {
-      fechar()
+      sairSemConfirmar()
     }
   } catch (e) {
     const detail = e.response?.data?.detail
@@ -395,27 +343,6 @@ async function salvar() {
 </script>
 
 <style scoped>
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 1500;
-  background: rgba(34, 42, 28, 0.48);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1rem;
-}
-
-.modal-card {
-  background: var(--color-surface);
-  border-radius: var(--radius-xl);
-  width: 100%;
-  max-width: 520px;
-  max-height: 92vh;
-  overflow: auto;
-  box-shadow: var(--shadow-lg);
-}
-
 .modal-header {
   display: flex;
   justify-content: space-between;
@@ -588,73 +515,6 @@ async function salvar() {
   font-size: 0.8125rem;
   color: var(--color-text-muted);
   margin: 0 0 1rem;
-}
-
-.form-secao--custo {
-  background: var(--color-success-bg);
-  border: 1px solid var(--color-primary-100);
-  border-radius: var(--radius-md);
-  padding: 0.875rem 1rem;
-}
-
-.custo-aviso {
-  margin: 0 0 0.75rem;
-  font-size: 0.8125rem;
-  color: var(--color-analog-2);
-  line-height: 1.45;
-}
-
-.custo-aviso a {
-  color: var(--color-primary);
-  font-weight: 600;
-}
-
-.custo-ref {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  margin-bottom: 0.65rem;
-  font-size: 0.8125rem;
-  color: var(--color-text-secondary);
-}
-
-.custo-ref strong {
-  font-size: 1rem;
-  color: var(--color-success);
-}
-
-.custo-preview {
-  margin-top: 0.35rem;
-  padding: 0.65rem 0.75rem;
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-}
-
-.custo-preview__linha {
-  display: flex;
-  justify-content: space-between;
-  gap: 0.5rem;
-  font-size: 0.875rem;
-}
-
-.custo-preview__rateio {
-  margin: 0.35rem 0 0;
-  font-size: 0.75rem;
-  color: var(--color-text-muted);
-  line-height: 1.45;
-}
-
-.custo-opcional {
-  margin: 0;
-  font-size: 0.75rem;
-  color: var(--color-text-muted);
-}
-
-.lote-card__custo {
-  margin: 0.5rem 0 0;
-  font-size: 0.8125rem;
-  color: var(--color-text-secondary);
 }
 
 .lote-card {

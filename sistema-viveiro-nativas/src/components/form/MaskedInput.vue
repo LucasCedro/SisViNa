@@ -1,5 +1,5 @@
 <template>
-  <label class="module-field">
+  <label v-if="!bare" class="module-field">
     <span v-if="label">{{ label }}</span>
     <input
       :value="display"
@@ -15,6 +15,19 @@
     />
     <span v-if="hint" class="field-hint">{{ hint }}</span>
   </label>
+  <input
+    v-else
+    :value="display"
+    type="text"
+    :inputmode="cfg.inputmode"
+    :maxlength="cfg.maxlength"
+    :placeholder="placeholder || cfg.placeholder"
+    :required="required"
+    :disabled="disabled"
+    :autocomplete="autocomplete"
+    @input="onInput"
+    @blur="onBlur"
+  />
 </template>
 
 <script setup>
@@ -34,6 +47,8 @@ const props = defineProps({
   required: { type: Boolean, default: false },
   disabled: { type: Boolean, default: false },
   autocomplete: { type: String, default: 'off' },
+  /** Sem wrapper label — use dentro de label customizado (God Mode, Configurações). */
+  bare: { type: Boolean, default: false },
 })
 
 const emit = defineEmits(['update:modelValue'])

@@ -1,4 +1,6 @@
-# SisViNa — rodar tudo com Docker
+# Brotare Viveiros — rodar tudo com Docker
+
+Monorepo Git: **SisViNa** · Produto: **Brotare Viveiros**
 
 ## Git (monorepo na raiz)
 
@@ -126,8 +128,30 @@ VITE_APP_URL=https://app.seudominio.com.br
 
 ### Login do sistema
 
-- **Usuário:** `admin`
-- **Senha:** `Admin@123`
+Primeiro deploy (banco vazio): `admin` / `Admin@123`.
+
+Em ambiente já configurado, use o usuário que você definiu (ex.: `Super_Brotare`).
+
+### Smoke test (pós-start-all)
+
+Validação read-only via API — login → home → coleta → venda (~10–30 s com poll).
+
+```powershell
+# Stack já no ar:
+$env:SMOKE_USER = 'Super_Brotare'
+$env:SMOKE_PASS = 'sua_senha'   # não commitar
+.\scripts\smoke.ps1
+
+# Ou:
+.\scripts\dev.ps1 smoke
+
+# Subir tudo e validar:
+.\scripts\dev.ps1 start-all -Smoke
+```
+
+Sem `SMOKE_PASS`, o script usa `demo.admin` / `Senha!@#` (só dev).
+
+Variáveis: `SMOKE_TIMEOUT_SEC` (default 120), `SMOKE_SKIP_FRONT=1` (pula :5173).
 
 ### PgAdmin (opcional)
 
@@ -236,3 +260,10 @@ docker compose down -v
 ## Referência Docker
 
 Ver [docs/DEV_DOCKER.md](./docs/DEV_DOCKER.md) — único compose na raiz, `scripts/dev.ps1`.
+
+
+## #########################################
+
+PS C:\Projetos\SisViNa> $env:SMOKE_USER = 'Super Usuário aqui'     
+PS C:\Projetos\SisViNa> $env:SMOKE_PASS = 'Super Senha aqui'
+PS C:\Projetos\SisViNa> powershell -ExecutionPolicy Bypass -File .\scripts\smoke.ps1

@@ -54,6 +54,19 @@ export function formatUf(value) {
   return parseUf(value)
 }
 
+/** RG — formato comum (varia por UF; até 9 dígitos). */
+export function parseRg(value) {
+  return onlyDigits(value).slice(0, 9)
+}
+
+export function formatRg(value) {
+  const d = parseRg(value)
+  if (d.length <= 2) return d
+  if (d.length <= 5) return `${d.slice(0, 2)}.${d.slice(2)}`
+  if (d.length <= 8) return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5)}`
+  return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}-${d.slice(8)}`
+}
+
 export const MASK_CONFIG = {
   cnpj: {
     parse: (v) => onlyDigits(v).slice(0, 14),
@@ -96,6 +109,13 @@ export const MASK_CONFIG = {
     placeholder: 'UF',
     inputmode: 'text',
     maxlength: 2,
+  },
+  rg: {
+    parse: parseRg,
+    format: formatRg,
+    placeholder: '00.000.000-0',
+    inputmode: 'numeric',
+    maxlength: 12,
   },
 }
 

@@ -14,7 +14,7 @@
           <th>Código</th>
           <th>Espécie</th>
           <th>Local</th>
-          <th>Dias</th>
+          <th>{{ rotuloDias }}</th>
         </tr>
       </thead>
       <tbody>
@@ -33,7 +33,9 @@
           <td><code>{{ p.codigo_rastreio }}</code></td>
           <td>{{ p.especie_nome }}</td>
           <td>{{ p.nome_canteiro }}</td>
-          <td>{{ dias(p.data_germinacao || p.data_plantio) }}</td>
+          <td :class="{ 'td--alerta': destacarAbaixoPrazo && p.rustificacao_ok === false }">
+            {{ diasExibir(p) }}
+          </td>
         </tr>
       </tbody>
     </table>
@@ -48,6 +50,8 @@ const props = defineProps({
   selecionados: { type: Array, default: () => [] },
   podeOperar: { type: Boolean, default: true },
   empty: { type: String, default: 'Nenhum registro.' },
+  rotuloDias: { type: String, default: 'Dias' },
+  destacarAbaixoPrazo: { type: Boolean, default: false },
 })
 const emit = defineEmits(['update:selecionados'])
 
@@ -69,6 +73,11 @@ function toggleTodos(e) {
   )
 }
 
+function diasExibir(p) {
+  if (p.dias_rustificacao != null) return `${p.dias_rustificacao}d`
+  return dias(p.data_germinacao || p.data_plantio)
+}
+
 function dias(d) {
   if (!d) return '—'
   const dt = new Date(String(d).includes('T') ? d : `${d}T12:00:00`)
@@ -79,4 +88,5 @@ function dias(d) {
 
 <style scoped>
 @import './producao-panel-shared.css';
+@import './producao-panel-blocks.css';
 </style>

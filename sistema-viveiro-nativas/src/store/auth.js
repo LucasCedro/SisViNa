@@ -38,6 +38,8 @@ export const useAuthStore = defineStore('auth', {
       const data = await fetchMe()
       this.user = data
       this.permissions = Array.isArray(data.permissions) ? data.permissions : []
+      const { useViveiroContextStore } = await import('./viveiroContext')
+      useViveiroContextStore().applyFromAuthMe(data)
     },
     async updateProfile(payload) {
       const data = await updateMe(payload)
@@ -62,6 +64,7 @@ export const useAuthStore = defineStore('auth', {
       this.user = null
       this.permissions = []
       localStorage.removeItem('token')
+      localStorage.removeItem('brotare_admin_viveiro_id')
     },
   },
 })

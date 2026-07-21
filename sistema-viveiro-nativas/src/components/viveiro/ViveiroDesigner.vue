@@ -41,17 +41,17 @@
                     preserveAspectRatio="xMinYMin meet">
                     <!-- Grade de fundo com evento de arraste -->
                     <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
-                        <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#eaeaea" stroke-width="0.5" />
+                        <path d="M 20 0 L 0 0 0 20" fill="none" :stroke="VIVEIRO_MAP_GRID.fine" stroke-width="0.5" />
                     </pattern>
                     <rect width="100%" height="100%" fill="url(#grid)" @mousedown="iniciarDragFundo"
                         class="fundo-mapa" />
 
                     <!-- Marcadores de tamanho -->
                     <g v-if="mostrarMarcadores">
-                        <line x1="0" y1="20" x2="100" y2="20" stroke="#999" stroke-width="1" />
+                        <line x1="0" y1="20" x2="100" y2="20" :stroke="VIVEIRO_MAP_GRID.marker" stroke-width="1" />
                         <text x="50" y="18" text-anchor="middle" class="marcador-texto">100 px</text>
 
-                        <line x1="20" y1="0" x2="20" y2="100" stroke="#999" stroke-width="1" />
+                        <line x1="20" y1="0" x2="20" y2="100" :stroke="VIVEIRO_MAP_GRID.marker" stroke-width="1" />
                         <text x="22" y="50" dominant-baseline="middle" class="marcador-texto">100 px</text>
                     </g>
 
@@ -317,6 +317,14 @@ import {
     textoBadgeOcupacao,
     podeExcluirArea,
 } from '@/utils/viveiroOcupacao';
+import {
+    VIVEIRO_MAP_GRID,
+    VIVEIRO_MAP_TIPO,
+    VIVEIRO_MAP_TEXT,
+    VIVEIRO_MAP_SURFACE,
+    VIVEIRO_PALETTES,
+    paletaTipo,
+} from '@/constants/viveiroMapColors';
 
 const LAYOUT_STORAGE_KEY = 'sisvina-planta-viveiro';
 const wizardAberto = ref(false);
@@ -379,9 +387,9 @@ const alertaExclusao = reactive({
 
 // Cores disponíveis para personalização
 const cores = reactive({
-    campo: ['#8cc63f', '#6bc473', '#4aba9c', '#39b0c4', '#4793e0'],
-    canteiro: ['#6ca234', '#5d9b4c', '#4e9364', '#3f8b7c', '#2f8294'],
-    espaco: ['#ffe135', '#ffc42e', '#ffab28', '#ff9321', '#ff7c1c']
+    campo: [...VIVEIRO_PALETTES.campo],
+    canteiro: [...VIVEIRO_PALETTES.canteiro],
+    espaco: [...VIVEIRO_PALETTES.espaco],
 });
 
 // Cores disponíveis para o elemento selecionado
@@ -395,14 +403,7 @@ const coresDisponiveis = computed(() => {
     }
 
     // Cores padrão para outros tipos
-    const corPadrao = {
-        'sementeira': ['#ff9600', '#ffb347', '#ffc168', '#ffd084', '#ffe0a8'],
-        'rustificacao': ['#ffe135', '#ffe94f', '#fff066', '#fff588', '#fff8aa'],
-        'area-trabalho': ['#ffe135', '#ffe94f', '#fff066', '#fff588', '#fff8aa'],
-        'estoque': ['#b4b4b4', '#c8c8c8', '#d4d4d4', '#e0e0e0', '#ebebeb']
-    };
-
-    return corPadrao[elementoSelecionado.value.tipo] || [];
+    return paletaTipo(elementoSelecionado.value.tipo);
 });
 
 // ViewBox responsivo
@@ -736,7 +737,7 @@ const adicionarSementeira = () => {
         y: 10,   // Ainda mais próximo da origem
         largura: 130,
         altura: 70,
-        cor: '#ff9600'
+        cor: VIVEIRO_MAP_TIPO.sementeira
     };
     planta.campos.push(novaSementeira);
     ajustarViewBox();
@@ -757,7 +758,7 @@ const adicionarAreaTrabalho = () => {
         y: 160,  // Mais próximo para evitar espaço em branco
         largura: 130,
         altura: 70,
-        cor: '#ffe135'
+        cor: VIVEIRO_MAP_TIPO['area-trabalho']
     };
     planta.campos.push(novaAreaTrabalho);
     ajustarViewBox();
@@ -778,7 +779,7 @@ const adicionarEstoque = () => {
         y: 160,  // Mais próximo para evitar espaço em branco
         largura: 130,
         altura: 70,
-        cor: '#b4b4b4'
+        cor: VIVEIRO_MAP_TIPO.estoque
     };
     planta.campos.push(novoEstoque);
     ajustarViewBox();
@@ -1088,7 +1089,7 @@ const criarLayoutInicial = () => {
         y: 10,   // Ainda mais próximo da origem
         largura: 130,
         altura: 70,
-        cor: '#ff9600'
+        cor: VIVEIRO_MAP_TIPO.sementeira
     };
 
     // Adicionar uma área de trabalho
@@ -1100,7 +1101,7 @@ const criarLayoutInicial = () => {
         y: 160,  // Mais próximo para evitar espaço em branco
         largura: 130,
         altura: 70,
-        cor: '#ffe135'
+        cor: VIVEIRO_MAP_TIPO['area-trabalho']
     };
 
     // Adicionar um estoque
@@ -1112,7 +1113,7 @@ const criarLayoutInicial = () => {
         y: 160,  // Mais próximo para evitar espaço em branco
         largura: 130,
         altura: 70,
-        cor: '#b4b4b4'
+        cor: VIVEIRO_MAP_TIPO.estoque
     };
 
     // Adicionar todos os elementos à planta
@@ -1839,7 +1840,7 @@ const exportarImagem = () => {
             text-shadow: 0px 1px 2px rgba(0, 0, 0, 0.5);
         }
         .texto-escuro {
-            fill: #333;
+            fill: ${VIVEIRO_MAP_TEXT};
             text-shadow: 0px 1px 2px rgba(255, 255, 255, 0.5);
         }
         .texto-pequeno {
@@ -1852,7 +1853,7 @@ const exportarImagem = () => {
     const background = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
     background.setAttribute('width', viewBox.width);
     background.setAttribute('height', viewBox.height);
-    background.setAttribute('fill', 'white');
+    background.setAttribute('fill', VIVEIRO_MAP_SURFACE);
     svgTemp.appendChild(background);
 
     // Adicionar grade de fundo
@@ -1866,7 +1867,7 @@ const exportarImagem = () => {
     const gridPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     gridPath.setAttribute('d', 'M 20 0 L 0 0 0 20');
     gridPath.setAttribute('fill', 'none');
-    gridPath.setAttribute('stroke', '#eaeaea');
+    gridPath.setAttribute('stroke', VIVEIRO_MAP_GRID.fine);
     gridPath.setAttribute('stroke-width', '0.5');
 
     patternElement.appendChild(gridPath);
@@ -1895,7 +1896,7 @@ const exportarImagem = () => {
     titulo.setAttribute('font-family', 'sans-serif');
     titulo.setAttribute('font-size', '20');
     titulo.setAttribute('font-weight', 'bold');
-    titulo.setAttribute('fill', '#333');
+    titulo.setAttribute('fill', VIVEIRO_MAP_TEXT);
     titulo.textContent = planta.nome;
     svgTemp.appendChild(titulo);
 
@@ -2254,7 +2255,7 @@ const dicasFadeOut = ref(false);
     height: 100%;
     min-height: 0;
     overflow: hidden;
-    background: var(--color-surface-muted, #f0f0ec);
+    background: var(--color-surface-muted);
 }
 
 .designer-header {
@@ -2304,7 +2305,7 @@ const dicasFadeOut = ref(false);
 }
 
 .btn-back:hover {
-    background: rgba(74, 124, 42, 0.08);
+    background: color-mix(in srgb, var(--color-primary) 8%, transparent);
 }
 
 .btn-add {
@@ -2312,7 +2313,7 @@ const dicasFadeOut = ref(false);
     border: none;
     border-radius: var(--radius-md);
     background: var(--color-primary);
-    color: #fff;
+    color: var(--color-text-inverse);
     font-weight: 600;
     font-size: 0.875rem;
     cursor: pointer;
@@ -2328,7 +2329,7 @@ const dicasFadeOut = ref(false);
     align-items: center;
     gap: 0.25rem;
     padding: 0.2rem;
-    background: var(--color-surface-muted, #f4f4f2);
+    background: var(--color-surface-muted);
     border-radius: var(--radius-md);
     border: 1px solid var(--color-border-subtle);
 }
@@ -2337,7 +2338,7 @@ const dicasFadeOut = ref(false);
     width: 32px;
     height: 32px;
     border: none;
-    background: #fff;
+    background: var(--color-surface);
     border-radius: 6px;
     cursor: pointer;
     font-size: 1.1rem;
@@ -2346,7 +2347,7 @@ const dicasFadeOut = ref(false);
 }
 
 .btn-icon:hover {
-    background: #eee;
+    background: var(--color-surface-muted);
 }
 
 .btn-icon-text {
@@ -2371,7 +2372,7 @@ const dicasFadeOut = ref(false);
     padding: 0.45rem 0.75rem;
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
-    background: #fff;
+    background: var(--color-surface);
     font-size: 0.8125rem;
     cursor: pointer;
     font-family: inherit;
@@ -2387,7 +2388,7 @@ const dicasFadeOut = ref(false);
     right: 0;
     top: 100%;
     margin-top: 4px;
-    background: #fff;
+    background: var(--color-surface);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
@@ -2418,7 +2419,7 @@ const dicasFadeOut = ref(false);
     border: none;
     border-radius: var(--radius-md);
     background: var(--color-primary);
-    color: #fff;
+    color: var(--color-text-inverse);
     font-weight: 600;
     font-size: 0.875rem;
     cursor: pointer;
@@ -2434,9 +2435,9 @@ const dicasFadeOut = ref(false);
     margin: 0;
     padding: 0.5rem 1rem;
     font-size: 0.8125rem;
-    color: #b42318;
-    background: #fef3f2;
-    border-bottom: 1px solid #fecaca;
+    color: var(--color-error);
+    background: var(--color-error-bg);
+    border-bottom: 1px solid var(--color-error-bg);
     flex-shrink: 0;
 }
 
@@ -2488,9 +2489,9 @@ const dicasFadeOut = ref(false);
     margin: 0.35rem 0 0;
     padding: 0.5rem 0.75rem;
     font-size: 0.8125rem;
-    color: #b42318;
-    background: #fef3f2;
-    border-radius: 6px;
+    color: var(--color-error);
+    background: var(--color-error-bg);
+    border-radius: var(--radius-md);
 }
 
 .zoom-info {
@@ -2502,7 +2503,7 @@ const dicasFadeOut = ref(false);
     min-height: 0;
     overflow: hidden;
     position: relative;
-    background: #fff;
+    background: var(--color-surface);
     margin: 0.5rem;
     border: 1px solid var(--color-border-subtle);
     border-radius: var(--radius-lg);
@@ -2563,8 +2564,9 @@ const dicasFadeOut = ref(false);
 }
 
 .elemento-grupo.selecionado .elemento {
-    @apply stroke-blue-600 stroke-[3px];
-    filter: drop-shadow(0px 0px 4px rgba(37, 99, 235, 0.5));
+    stroke: var(--viveiro-selecao);
+    stroke-width: 3px;
+    filter: drop-shadow(0px 0px 4px color-mix(in srgb, var(--viveiro-selecao) 50%, transparent));
 }
 
 .elemento-grupo.selecionado text {
@@ -2597,48 +2599,55 @@ const dicasFadeOut = ref(false);
 }
 
 .campo {
-    @apply stroke-[#8cc63f] fill-[#8cc63f];
+    stroke: var(--viveiro-tipo-campo);
+    fill: var(--viveiro-tipo-campo);
     fill-opacity: 0.8;
 }
 
 .canteiro {
-    @apply stroke-[#6ca234] fill-[#6ca234];
+    stroke: var(--viveiro-tipo-canteiro);
+    fill: var(--viveiro-tipo-canteiro);
     fill-opacity: 0.8;
 }
 
 .espaco {
-    @apply stroke-[#ffe135] fill-[#ffe135];
+    stroke: var(--viveiro-tipo-espaco);
+    fill: var(--viveiro-tipo-espaco);
     fill-opacity: 0.9;
     filter: drop-shadow(0px 1px 2px rgba(0, 0, 0, 0.2));
 }
 
 .sementeira {
-    @apply stroke-[#ff9600] fill-[#ff9600];
+    stroke: var(--viveiro-tipo-sementeira);
+    fill: var(--viveiro-tipo-sementeira);
     fill-opacity: 0.8;
 }
 
 .area-trabalho {
-    @apply stroke-[#ffe135] fill-[#ffe135];
+    stroke: var(--viveiro-tipo-area-trabalho);
+    fill: var(--viveiro-tipo-area-trabalho);
     fill-opacity: 0.8;
 }
 
 .estoque {
-    @apply stroke-[#b4b4b4] fill-[#b4b4b4];
+    stroke: var(--viveiro-tipo-estoque);
+    fill: var(--viveiro-tipo-estoque);
     fill-opacity: 0.8;
 }
 
 .rustificacao {
-    @apply stroke-[#e6c200] fill-[#ffe135];
+    stroke: var(--viveiro-tipo-rustificacao);
+    fill: var(--viveiro-tipo-rustificacao);
     fill-opacity: 0.85;
 }
 
 .tool-btn-lego {
     @apply flex items-center gap-2 px-4 py-2.5 rounded-lg font-semibold text-sm;
-    background: linear-gradient(135deg, #6ca234 0%, #5d9130 100%);
-    color: white;
+    background: linear-gradient(135deg, var(--viveiro-tipo-canteiro) 0%, var(--color-primary-dark) 100%);
+    color: var(--color-text-inverse);
     border: none;
     cursor: pointer;
-    box-shadow: 0 2px 8px rgba(108, 162, 52, 0.35);
+    box-shadow: 0 2px 8px color-mix(in srgb, var(--viveiro-tipo-canteiro) 35%, transparent);
 }
 
 .tool-btn-lego:hover {
@@ -2646,11 +2655,13 @@ const dicasFadeOut = ref(false);
 }
 
 .toolbar-section-destaque .toolbar-title {
-    @apply text-[#6ca234];
+    color: var(--viveiro-tipo-canteiro);
 }
 
 .selecionado .elemento {
-    @apply stroke-blue-600 stroke-[3px] filter drop-shadow;
+    stroke: var(--viveiro-selecao);
+    stroke-width: 3px;
+    filter: drop-shadow(0px 0px 4px color-mix(in srgb, var(--viveiro-selecao) 40%, transparent));
 }
 
 .elemento-texto {
@@ -2674,12 +2685,12 @@ const dicasFadeOut = ref(false);
 
 .hint-exclusao {
     font-size: 0.8125rem;
-    color: #b42318;
+    color: var(--color-error);
     margin: 0 0 0.5rem;
 }
 
 .alerta-erro {
-    color: #b42318;
+    color: var(--color-error);
     font-size: 0.875rem;
     margin: 0.5rem 0;
 }
@@ -2871,7 +2882,7 @@ const dicasFadeOut = ref(false);
     @apply fixed bottom-20 left-4 bg-white p-4 rounded-lg shadow-lg text-xs text-gray-600;
     z-index: 40;
     max-width: 250px;
-    border: 1px solid #ddd;
+    border: 1px solid var(--color-border);
     line-height: 1.5;
     transition: opacity 1s ease-out;
 }
@@ -2913,7 +2924,7 @@ const dicasFadeOut = ref(false);
 .botao-ajuda {
     @apply fixed bottom-4 left-4 bg-white rounded-full w-10 h-10 shadow-lg flex items-center justify-center;
     z-index: 40;
-    border: 1px solid #ddd;
+    border: 1px solid var(--color-border);
 }
 
 .botao-ajuda:hover {

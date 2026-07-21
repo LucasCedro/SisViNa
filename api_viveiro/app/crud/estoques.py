@@ -9,9 +9,50 @@ from app.crud.estoques_analytics import montar_analitico_mudas, verificar_integr
 from app.crud.estoques_timeline import montar_timeline_especies
 from app.crud.lotes_sementes import get_lotes
 from app.crud.plantas_estoque import contar_mudas_pipeline
+from app.crud.viveiro_layout import get_layout
 from app.models.insumo_movimentacao import InsumoMovimentacao
 from app.models.insumos import Insumo
 from app.models.plantas import Planta
+
+_TIPO_CAMPO_CAPACIDADE = {
+    "estoque": "armazem",
+    "sementeira": "sementeira",
+    "canteiro": "canteiro",
+    "campo": "canteiro",
+    "rustificacao": "rustificacao",
+}
+
+
+def _capacidade_campo_layout(campo: Dict[str, Any]) -> int:
+    config = campo.get("config") or {}
+    raw = config.get("capacidade")
+    if raw is not None:
+        try:
+            return max(0, int(raw))
+        except (TypeError, ValueError):
+            pass
+    if campo.get("tipo") in ("canteiro", "campo"):
+        linhas = config.get("linhas")
+        colunas = config.get("colunas")
+        if linhas and colunas:
+            try:
+                return max(0, int(linhas) * int(colunas))
+            except (TypeError, ValueError):
+                pass
+    return 0
+
+
+async def capacidades_viveiro_layout(db: AsyncSession) -> Dict[str, int]:
+    """Soma capacidades cadastradas no Viveiro Designer (planta baixa)."""
+    layout = await get_layout(db)
+    caps = {"armazem": 0, "sementeira": 0, "canteiro": 0, "rustificacao": 0}
+    for campo in layout.get("campos") or []:
+        seg = _TIPO_CAMPO_CAPACIDADE.get(campo.get("tipo") or "")
+        if not seg:
+            continue
+        caps[seg] += _capacidade_campo_layout(campo)
+    caps["desenvolvimento"] = caps["sementeira"] + caps["canteiro"]
+    return caps
 
 
 def _alerta_insumo(insumo: Insumo) -> Optional[str]:
@@ -116,6 +157,7 @@ async def get_resumo_estoques(db: AsyncSession) -> Dict[str, Any]:
     valor_total_insumos = sum(i["valor_estoque"] for i in insumos)
 
     pipeline = await contar_mudas_pipeline(db)
+    capacidades_viveiro = await capacidades_viveiro_layout(db)
     analitico_viveiro = await montar_analitico_mudas(db, metrica_idade="viveiro")
     analitico_rust = await montar_analitico_mudas(db, metrica_idade="rustificacao")
     cmv_integridade = await verificar_integridade_cmv(db)
@@ -165,6 +207,7 @@ async def get_resumo_estoques(db: AsyncSession) -> Dict[str, Any]:
         "valor_total_mudas": valor_mudas_vivas,
         "valor_mudas_comercial": round(valor_mudas_comercial, 2),
         "mudas_pipeline": pipeline,
+        "capacidades_viveiro": capacidades_viveiro,
         "estoque_comercial": estoque_comercial,
         "analitico_mudas": analitico_viveiro,
         "analitico_mudas_rustificacao": analitico_rust,

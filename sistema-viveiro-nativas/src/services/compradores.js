@@ -27,6 +27,11 @@ export async function updateComprador(id, payload) {
   return data
 }
 
+export async function getCompradoresAnalitico(meses = 12) {
+  const { data } = await api.get(`${API_V1}/compradores/analitico`, { params: { meses } })
+  return data
+}
+
 export async function getCompradorNfeReadiness(id) {
   const { data } = await api.get(`${API_V1}/compradores/${id}/nfe-readiness`)
   return data

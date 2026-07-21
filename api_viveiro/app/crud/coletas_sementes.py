@@ -11,8 +11,8 @@ from app.models.coletas_sementes import ColetaSementes
 from app.models.lotes_sementes import LoteSementes
 from app.schemas.coletas_sementes import ColetaSementesCreate, ColetaSementesUpdate
 from app.services.custeio import (
+    aplicar_custo_campo_no_lote,
     calcular_custo_coleta_campo,
-    definir_valor_lote_entrada,
     obter_valor_hora_coleta_campo,
 )
 from app.utils.especies_display import formatar_nome_popular
@@ -87,6 +87,30 @@ async def _atualizar_agregados_matriz(db: AsyncSession, id_arvore_matriz: int) -
         await db.commit()
 
 
+async def sanear_custos_coleta_campo_pendentes(db: AsyncSession) -> int:
+    """Recalcula lotes quando a coleta já tem horas mas o valor não foi propagado ao lote."""
+    result = await db.execute(
+        select(ColetaSementes)
+        .join(LoteSementes, LoteSementes.id_coleta_sementes == ColetaSementes.id)
+        .options(joinedload(ColetaSementes.lotes))
+        .where(
+            LoteSementes.status == "ativo",
+            LoteSementes.quantidade_disponivel > 0,
+            ColetaSementes.horas_campo.isnot(None),
+            ColetaSementes.horas_campo > 0,
+            func.coalesce(LoteSementes.valor_total, 0) <= 0,
+        )
+        .distinct()
+    )
+    coletas = result.scalars().unique().all()
+    if not coletas:
+        return 0
+    for coleta in coletas:
+        await _recalcular_custo_lotes_coleta(db, coleta)
+    await db.commit()
+    return len(coletas)
+
+
 async def get_coleta(db: AsyncSession, coleta_id: int) -> Optional[ColetaSementes]:
     result = await db.execute(
         select(ColetaSementes)
@@ -155,7 +179,7 @@ async def _aplicar_custo_campo_coleta(
     total, _ = calcular_custo_coleta_campo(coleta.horas_campo, valor_hora, qtd_lote)
     coleta.custo_campo_total = total if total > 0 else None
     if lote is not None:
-        definir_valor_lote_entrada(lote, total if total > 0 else None)
+        aplicar_custo_campo_no_lote(lote, total, qtd_lote)
 
 
 async def _recalcular_custo_lotes_coleta(db: AsyncSession, coleta: ColetaSementes) -> None:
@@ -166,10 +190,9 @@ async def _recalcular_custo_lotes_coleta(db: AsyncSession, coleta: ColetaSemente
     for lote in coleta.lotes or []:
         if lote.id_coleta_sementes != coleta.id:
             continue
-        disp = int(lote.quantidade_disponivel or 0)
-        inicial = int(lote.quantidade_inicial or 0)
-        if disp == inicial:
-            definir_valor_lote_entrada(lote, total if total > 0 else None)
+        if (lote.status or "ativo") != "ativo":
+            continue
+        aplicar_custo_campo_no_lote(lote, total, qtd_lote)
 
 
 async def get_custo_campo_referencia(db: AsyncSession) -> dict:

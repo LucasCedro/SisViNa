@@ -3,151 +3,218 @@
     <header class="panel-intro">
       <h2 class="panel-title">Transferir para o canteiro</h2>
       <p class="panel-lead">
-        Transfira apenas plântulas já marcadas como <strong>aptas p/ transferência</strong>.
-        Plantas em desenvolvimento precisam ser liberadas antes na aba
-        <button type="button" class="link-btn" @click="$emit('ir-estagios')">Liberar estágios</button>.
+        Mova mudas <strong>aptas</strong> da sementeira para o canteiro de destino — passo físico
+        após liberar o estágio.
       </p>
     </header>
+
+    <details class="info-box">
+      <summary>Fluxo da sementeira ao canteiro</summary>
+      <p>
+        Primeiro use <strong>Liberar para canteiro</strong> para marcar mudas aptas; depois volte
+        aqui para a transferência física com baixa automática de substrato.
+      </p>
+    </details>
 
     <div v-if="!podeTransferir" class="alert alert-error">
       Seu perfil só permite visualização. Transferências exigem permissão de operação de produção.
     </div>
 
-    <div class="toolbar">
-      <label class="field field--sm">
-        Sementeira
-        <select v-model="filtroCanteiro" @change="carregar">
-          <option value="">Todas</option>
-          <option v-for="c in sementeiras" :key="c.id" :value="c.id">{{ c.nome }}</option>
-        </select>
-      </label>
-      <label class="field field--sm">
-        Espécie
-        <select v-model="filtroEspecie" @change="carregar">
-          <option value="">Todas</option>
-          <option v-for="e in especies" :key="e.id" :value="e.id">
-            {{ e.nome_popular || e.nome_cientifico }}
-          </option>
-        </select>
-      </label>
-      <button type="button" class="btn btn-outline btn-sm" @click="carregar">Atualizar</button>
+    <div class="prod-kpis prod-kpis--2" aria-label="Resumo transferência">
+      <article class="prod-kpi prod-kpi--principal">
+        <span class="prod-kpi__valor">{{ totais.aptas.toLocaleString('pt-BR') }}</span>
+        <span class="prod-kpi__label">Aptas aguardando transferência</span>
+      </article>
+      <article class="prod-kpi prod-kpi--muted">
+        <span class="prod-kpi__valor">{{ canteirosDestino.length }}</span>
+        <span class="prod-kpi__label">Canteiros de destino</span>
+      </article>
     </div>
 
-    <div class="transfer-bar">
-      <label class="field field--sm">
-        Canteiro de destino
-        <select v-model="idDestino" :disabled="!podeTransferir">
-          <option value="">Selecione</option>
-          <option v-for="c in canteirosDestino" :key="c.id" :value="c.id">{{ c.nome }}</option>
-        </select>
-      </label>
-      <label class="field field--sm">
-        Data germinação
-        <input v-model="dataGerminacao" type="date" :disabled="!podeTransferir" />
-      </label>
-      <button
-        type="button"
-        class="btn btn-primary"
-        :disabled="!podeTransferir || !selecionados.length || !idDestino || transferindo"
-        @click="confirmarTransferencia"
-      >
-        Transferir {{ selecionados.length || 0 }} muda(s)
-      </button>
-    </div>
+    <ProducaoModoOperacao v-model:modo="modo">
+      <template #default="{ modo: m }">
+        <section class="prod-bloco prod-bloco--principal">
+          <header class="prod-bloco__header">
+            <span class="prod-badge prod-badge--principal">Fluxo usual</span>
+            <h3 class="prod-bloco__titulo">Transferir para o canteiro</h3>
+            <p class="prod-bloco__desc">
+              Selecione mudas aptas na sementeira e informe o canteiro de destino.
+            </p>
+          </header>
 
-    <p v-if="carregando" class="status-msg">Carregando…</p>
-    <p v-else-if="erro" class="alert alert-error">{{ erro }}</p>
-    <p v-else-if="sucesso" class="alert alert-success">{{ sucesso }}</p>
+          <ProducaoPainelLote
+            v-if="m === PRODUCAO_MODO.MASSA"
+            ref="painelLoteRef"
+            etapa="sementeira_apta_transferencia"
+            titulo-botao="Transferir para canteiro"
+            :pode-operar="podeTransferir"
+            :filtro-locais="sementeiras"
+            filtro-local-label="Sementeira"
+            campos-extras
+            vazio="Nenhuma muda apta para transferência."
+            mensagem-loading="Transferindo mudas…"
+            :on-executar="executarLote"
+            @concluido="aoConcluir"
+          >
+            <template #campos>
+              <div class="campos-transfer">
+                <label class="field field--sm">
+                  Canteiro de destino
+                  <select v-model="idDestino" required :disabled="!podeTransferir">
+                    <option value="">Selecione</option>
+                    <option v-for="c in canteirosDestino" :key="c.id" :value="c.id">{{ c.nome }}</option>
+                  </select>
+                </label>
+                <label class="field field--sm">
+                  Data germinação
+                  <input v-model="dataGerminacao" type="date" :disabled="!podeTransferir" />
+                </label>
+              </div>
+            </template>
+          </ProducaoPainelLote>
 
-    <div class="table-card">
-      <table class="data-table">
-        <thead>
-          <tr>
-            <th class="col-check">
-              <input
-                type="checkbox"
-                :checked="todosSelecionados"
-                :disabled="!podeTransferir || !pendentes.length"
-                @change="toggleTodos"
-              />
-            </th>
-            <th>Código</th>
-            <th>Espécie</th>
-            <th>Matriz</th>
-            <th>Lote</th>
-            <th>Sementeira</th>
-            <th>Plantio</th>
-            <th>Dias</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-if="!carregando && !pendentes.length">
-            <td colspan="8" class="empty-cell">
-              Nenhuma planta apta para transferência.
-              <button type="button" class="link-btn" @click="$emit('ir-estagios')">
-                Liberar estágios
+          <template v-else>
+            <div class="toolbar">
+              <label class="field field--sm">
+                Sementeira
+                <select v-model="filtroCanteiro" @change="carregar">
+                  <option value="">Todas</option>
+                  <option v-for="c in sementeiras" :key="c.id" :value="c.id">{{ c.nome }}</option>
+                </select>
+              </label>
+              <label class="field field--sm">
+                Espécie
+                <select v-model="filtroEspecie" @change="carregar">
+                  <option value="">Todas</option>
+                  <option v-for="e in especies" :key="e.id" :value="e.id">
+                    {{ e.nome_popular || e.nome_cientifico }}
+                  </option>
+                </select>
+              </label>
+              <button type="button" class="btn btn-outline btn-sm" @click="carregar">Atualizar</button>
+            </div>
+
+            <div class="transfer-bar">
+              <label class="field field--sm">
+                Canteiro de destino
+                <select v-model="idDestino" :disabled="!podeTransferir">
+                  <option value="">Selecione</option>
+                  <option v-for="c in canteirosDestino" :key="c.id" :value="c.id">{{ c.nome }}</option>
+                </select>
+              </label>
+              <label class="field field--sm">
+                Data germinação
+                <input v-model="dataGerminacao" type="date" :disabled="!podeTransferir" />
+              </label>
+              <button
+                type="button"
+                class="btn btn-primary"
+                :disabled="!podeTransferir || !selecionados.length || !idDestino || transferindo"
+                @click="confirmarTransferencia"
+              >
+                Transferir {{ selecionados.length || 0 }} muda(s)
               </button>
-              ou
-              <button type="button" class="link-btn" @click="$emit('ir-semeadura')">
-                registrar semeadura
-              </button>
-            </td>
-          </tr>
-          <tr v-for="p in pendentes" :key="p.id">
-            <td>
-              <input
-                v-model="selecionados"
-                type="checkbox"
-                :value="p.id"
-                :disabled="!podeTransferir"
-              />
-            </td>
-            <td><code>{{ p.codigo_rastreio }}</code></td>
-            <td>{{ p.especie_nome }}</td>
-            <td>{{ p.matriz_nome || '—' }}</td>
-            <td>{{ p.codigo_lote || '—' }}</td>
-            <td>{{ p.nome_canteiro }}</td>
-            <td>{{ formatarData(p.data_plantio) }}</td>
-            <td>{{ diasDesde(p.data_plantio) }}</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+            </div>
 
-    <dialog ref="dialogConfirm" class="app-dialog">
-      <form class="dialog-panel" @submit.prevent="transferir">
-        <header class="dialog-panel__header">
-          <h3>Confirmar transferência</h3>
-        </header>
-        <div class="dialog-panel__body">
-          <p>
-            Mover <strong>{{ selecionados.length }}</strong> planta(s) para o canteiro selecionado?
-          </p>
-        </div>
-        <footer class="dialog-panel__footer">
-          <button type="button" class="btn btn-secondary" @click="fecharDialog">Cancelar</button>
-          <button type="submit" class="btn btn-primary">Confirmar</button>
-        </footer>
-      </form>
-    </dialog>
+            <p v-if="carregando" class="status-msg">Carregando…</p>
+            <p v-else-if="erro" class="alert alert-error">{{ erro }}</p>
+            <p v-else-if="sucesso" class="alert alert-success">{{ sucesso }}</p>
+
+            <div class="table-card">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th class="col-check">
+                      <input
+                        type="checkbox"
+                        :checked="todosSelecionados"
+                        :disabled="!podeTransferir || !pendentes.length"
+                        @change="toggleTodos"
+                      />
+                    </th>
+                    <th>Código</th>
+                    <th>Espécie</th>
+                    <th>Matriz</th>
+                    <th>Lote</th>
+                    <th>Sementeira</th>
+                    <th>Plantio</th>
+                    <th>Dias</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-if="!carregando && !pendentes.length">
+                    <td colspan="8" class="empty-cell">
+                      Nenhuma muda apta para transferência.
+                      <button type="button" class="link-btn" @click="$emit('ir-estagios')">Liberar estágios</button>
+                      ou
+                      <button type="button" class="link-btn" @click="$emit('ir-semeadura')">registrar semeadura</button>
+                    </td>
+                  </tr>
+                  <tr v-for="p in pendentes" :key="p.id">
+                    <td>
+                      <input v-model="selecionados" type="checkbox" :value="p.id" :disabled="!podeTransferir" />
+                    </td>
+                    <td><code>{{ p.codigo_rastreio }}</code></td>
+                    <td>{{ p.especie_nome }}</td>
+                    <td>{{ p.matriz_nome || '—' }}</td>
+                    <td>{{ p.codigo_lote || '—' }}</td>
+                    <td>{{ p.nome_canteiro }}</td>
+                    <td>{{ formatarData(p.data_plantio) }}</td>
+                    <td>{{ diasDesde(p.data_plantio) }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <dialog ref="dialogConfirm" class="app-dialog" @cancel.prevent="fecharDialog">
+              <form class="dialog-panel" @submit.prevent="transferirDetalhe">
+                <header class="dialog-panel__header">
+                  <h3>Confirmar transferência</h3>
+                </header>
+                <div class="dialog-panel__body">
+                  <p>Mover <strong>{{ selecionados.length }}</strong> muda(s) para o canteiro selecionado?</p>
+                </div>
+                <footer class="dialog-panel__footer">
+                  <button type="button" class="btn btn-secondary" @click="fecharDialog">Cancelar</button>
+                  <button type="submit" class="btn btn-primary">Confirmar</button>
+                </footer>
+              </form>
+            </dialog>
+          </template>
+        </section>
+      </template>
+    </ProducaoModoOperacao>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { listCanteiros } from '@/services/canteiros'
 import { listEspecies } from '@/services/especies'
-import { listPendentesTransferencia, promoverMudas } from '@/services/plantas'
+import {
+  listPendentesTransferencia,
+  getResumoOperacaoLote,
+  promoverMudas,
+  promoverMudasLote,
+} from '@/services/plantas'
+import { useDialogClose } from '@/composables/useDialogClose'
+import { useGlobalLoading } from '@/composables/useGlobalLoading'
 import { usePermissions } from '@/composables/usePermissions'
+import { PRODUCAO_MODO } from '@/constants/producaoUi'
+import ProducaoModoOperacao from './ProducaoModoOperacao.vue'
+import ProducaoPainelLote from './ProducaoPainelLote.vue'
 
 const emit = defineEmits(['atualizado', 'ir-semeadura', 'ir-estagios'])
+const { runWithLoading } = useGlobalLoading()
 const { can } = usePermissions()
 const podeTransferir = computed(() => can('producao.transfer'))
 
+const modo = ref(PRODUCAO_MODO.MASSA)
 const pendentes = ref([])
 const sementeiras = ref([])
 const canteirosDestino = ref([])
 const especies = ref([])
+const totais = ref({ aptas: 0 })
 const filtroCanteiro = ref('')
 const filtroEspecie = ref('')
 const selecionados = ref([])
@@ -158,20 +225,51 @@ const carregando = ref(false)
 const erro = ref('')
 const sucesso = ref('')
 const dialogConfirm = ref(null)
+const painelLoteRef = ref(null)
 
 const todosSelecionados = computed(
   () => pendentes.value.length > 0 && selecionados.value.length === pendentes.value.length
 )
 
+function somarResumo(rows) {
+  return (rows || []).reduce((s, r) => s + (r.disponivel || 0), 0)
+}
+
+async function carregarTotais() {
+  const aptas = await getResumoOperacaoLote('sementeira_apta_transferencia')
+  totais.value.aptas = somarResumo(aptas)
+}
+
+async function executarLote(grupos) {
+  if (!idDestino.value) throw new Error('Selecione o canteiro de destino.')
+  return promoverMudasLote({
+    id_canteiro_destino: Number(idDestino.value),
+    data_germinacao: dataGerminacao.value || null,
+    grupos,
+  })
+}
+
+function aoConcluir() {
+  carregar()
+  emit('atualizado')
+}
+
 async function carregar() {
+  await carregarTotais()
+  if (modo.value === PRODUCAO_MODO.MASSA) {
+    await nextTick()
+    painelLoteRef.value?.carregarResumo?.()
+    return
+  }
   carregando.value = true
   erro.value = ''
   try {
-    const params = {}
+    const params = { limit: 2000 }
     if (filtroCanteiro.value) params.id_canteiro = Number(filtroCanteiro.value)
     if (filtroEspecie.value) params.id_especie = Number(filtroEspecie.value)
     pendentes.value = await listPendentesTransferencia(params)
     selecionados.value = []
+    totais.value.aptas = pendentes.value.length
   } catch (e) {
     erro.value = e.response?.data?.detail || 'Erro ao carregar pendências.'
     pendentes.value = []
@@ -182,10 +280,7 @@ async function carregar() {
 
 onMounted(async () => {
   try {
-    const [cant, esp] = await Promise.all([
-      listCanteiros({ ativo: true }),
-      listEspecies(),
-    ])
+    const [cant, esp] = await Promise.all([listCanteiros({ ativo: true }), listEspecies()])
     sementeiras.value = cant.filter((c) => c.tipo_local === 'sementeira')
     canteirosDestino.value = cant.filter((c) => c.tipo_local === 'canteiro')
     especies.value = esp
@@ -195,40 +290,40 @@ onMounted(async () => {
   await carregar()
 })
 
+watch(modo, carregar)
+
 function toggleTodos(e) {
   selecionados.value = e.target.checked ? pendentes.value.map((p) => p.id) : []
 }
+
+const { fecharDialog } = useDialogClose(dialogConfirm)
 
 function confirmarTransferencia() {
   dialogConfirm.value?.showModal()
 }
 
-function fecharDialog() {
-  dialogConfirm.value?.close()
-}
-
-async function transferir() {
+async function transferirDetalhe() {
   fecharDialog()
   erro.value = ''
   sucesso.value = ''
   transferindo.value = true
   try {
-    const res = await promoverMudas({
-      ids_plantas: selecionados.value.map(Number),
-      id_canteiro_destino: Number(idDestino.value),
-      data_germinacao: dataGerminacao.value || null,
-    })
-    let msg = `${res.transferidas} muda(s) transferida(s) para o canteiro.`
-    if (res.baixa_substrato) {
-      const b = res.baixa_substrato
-      msg += ` Baixa de substrato: ${b.quantidade} ${b.unidade} (${b.insumo_nome}).`
-    }
-    if (res.avisos?.length) {
-      msg += ` ${res.avisos.join(' ')}`
-    }
-    sucesso.value = msg
-    await carregar()
-    emit('atualizado')
+    await runWithLoading(async () => {
+      const res = await promoverMudas({
+        ids_plantas: selecionados.value.map(Number),
+        id_canteiro_destino: Number(idDestino.value),
+        data_germinacao: dataGerminacao.value || null,
+      })
+      let msg = `${res.transferidas} muda(s) transferida(s) para o canteiro.`
+      if (res.baixa_substrato) {
+        const b = res.baixa_substrato
+        msg += ` Baixa de substrato: ${b.quantidade} ${b.unidade}.`
+      }
+      if (res.avisos?.length) msg += ` ${res.avisos.join(' ')}`
+      sucesso.value = msg
+      await carregar()
+      emit('atualizado')
+    }, 'Transferindo mudas…')
   } catch (e) {
     erro.value = e.response?.data?.detail || 'Erro na transferência.'
   } finally {
@@ -252,107 +347,17 @@ defineExpose({ carregar })
 </script>
 
 <style scoped>
-.panel-intro {
-  margin-bottom: var(--spacing-md);
-}
+@import './producao-panel-shared.css';
+@import './producao-panel-blocks.css';
 
-.panel-title {
-  margin: 0 0 0.35rem;
-  font-size: 1.125rem;
-  font-weight: 600;
+.toolbar, .transfer-bar {
+  display: flex; flex-wrap: wrap; gap: var(--spacing-md); align-items: flex-end;
+  padding: var(--spacing-md); background: var(--color-surface);
+  border: 1px solid var(--color-border-subtle); border-radius: var(--radius-lg); margin-bottom: var(--spacing-md);
 }
-
-.panel-lead {
-  margin: 0;
-  font-size: 0.875rem;
-  color: var(--color-text-secondary);
-  line-height: 1.45;
-}
-
-.toolbar,
-.transfer-bar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--spacing-md);
-  align-items: flex-end;
-  padding: var(--spacing-md);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-lg);
-  margin-bottom: var(--spacing-md);
-}
-
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--color-text-secondary);
-}
-
-.field select,
-.field input {
-  padding: 0.45rem 0.5rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  font-family: inherit;
-  font-size: 0.875rem;
-  min-width: 160px;
-}
-
-.table-card {
-  overflow-x: auto;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
-}
-
-.data-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.875rem;
-}
-
-.data-table th,
-.data-table td {
-  padding: 0.65rem 0.85rem;
-  border-bottom: 1px solid var(--color-border-subtle);
-  text-align: left;
-}
-
-.data-table th {
-  background: var(--color-surface-muted);
-  font-weight: 600;
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  color: var(--color-text-secondary);
-}
-
-.col-check {
-  width: 2.5rem;
-}
-
-.empty-cell {
-  text-align: center;
-  padding: 2rem;
-  color: var(--color-text-muted);
-}
-
+.campos-transfer { display: flex; flex-wrap: wrap; gap: var(--spacing-md); }
 .link-btn {
-  border: none;
-  background: none;
-  color: var(--color-primary);
-  font-weight: 600;
-  cursor: pointer;
-  margin-left: 0.35rem;
-  font-family: inherit;
-}
-
-code {
-  font-size: 0.8125rem;
-  color: var(--color-primary-700);
+  border: none; background: none; color: var(--color-primary); font-weight: 600;
+  cursor: pointer; margin-left: 0.35rem; font-family: inherit;
 }
 </style>

@@ -20,11 +20,18 @@ from app.schemas.producao import (
     PlantaEmCrescimento,
     AtualizarEstagioRequest,
     AtualizarEstagioResponse,
+    AtualizarEstagioLoteRequest,
+    PromoverMudasLoteRequest,
+    TransferirRustificacaoLoteRequest,
     TransferirRustificacaoRequest,
     TransferirRustificacaoResponse,
     CadastroLotePlantasRequest,
     CadastroLotePlantasResponse,
+    ResumoGrupoOperacao,
+    OperacaoLoteResponse,
+    ETAPAS_OPERACAO_LOTE,
 )
+from app.services import producao_operacao_lote as svc_lote
 from app.crud import plantas as crud_plantas
 from app.auth.jwt import get_current_user
 from app.security.rbac import require_permission
@@ -84,7 +91,7 @@ async def read_plantas_with_relations(
 async def read_pendentes_transferencia(
     id_canteiro: Optional[int] = None,
     id_especie: Optional[int] = None,
-    limit: int = Query(500, le=1000),
+    limit: int = Query(2000, le=5000),
     db: AsyncSession = Depends(get_db),
     current_user: FuncionarioOut = Depends(require_permission("producao.view")),
 ):
@@ -97,7 +104,7 @@ async def read_pendentes_transferencia(
 async def read_em_desenvolvimento_sementeira(
     id_canteiro: Optional[int] = None,
     id_especie: Optional[int] = None,
-    limit: int = Query(500, le=1000),
+    limit: int = Query(2000, le=5000),
     db: AsyncSession = Depends(get_db),
     current_user: FuncionarioOut = Depends(require_permission("producao.view")),
 ):
@@ -110,7 +117,7 @@ async def read_em_desenvolvimento_sementeira(
 async def read_em_crescimento_canteiro(
     id_canteiro: Optional[int] = None,
     id_especie: Optional[int] = None,
-    limit: int = Query(500, le=1000),
+    limit: int = Query(2000, le=5000),
     db: AsyncSession = Depends(get_db),
     current_user: FuncionarioOut = Depends(require_permission("producao.view")),
 ):
@@ -123,13 +130,85 @@ async def read_em_crescimento_canteiro(
 async def read_aptas_rustificacao_canteiro(
     id_canteiro: Optional[int] = None,
     id_especie: Optional[int] = None,
-    limit: int = Query(500, le=1000),
+    limit: int = Query(2000, le=5000),
     db: AsyncSession = Depends(get_db),
     current_user: FuncionarioOut = Depends(require_permission("producao.view")),
 ):
     return await crud_plantas.get_plantas_aptas_rustificacao_canteiro(
         db, id_canteiro=id_canteiro, id_especie=id_especie, limit=limit
     )
+
+
+@router.get("/resumo-operacao-lote", response_model=List[ResumoGrupoOperacao])
+async def read_resumo_operacao_lote(
+    etapa: str = Query(..., description=f"Uma de: {', '.join(ETAPAS_OPERACAO_LOTE)}"),
+    id_canteiro: Optional[int] = None,
+    db: AsyncSession = Depends(get_db),
+    current_user: FuncionarioOut = Depends(require_permission("producao.view")),
+):
+    try:
+        return await svc_lote.get_resumo_operacao_lote(db, etapa, id_canteiro=id_canteiro)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+
+@router.post("/atualizar-estagio-lote", response_model=OperacaoLoteResponse)
+async def atualizar_estagio_lote(
+    body: AtualizarEstagioLoteRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: FuncionarioOut = Depends(require_permission("producao.transfer")),
+):
+    etapa_map = {
+        "apta_transferencia": "sementeira_desenvolvimento",
+        "apta_rustificacao": "canteiro_crescimento",
+        "apta_venda": "rustificacao",
+    }
+    etapa_origem = body.etapa_origem or etapa_map.get(body.estagio_producao)
+    if not etapa_origem:
+        raise HTTPException(status_code=400, detail="Estágio de destino inválido")
+    try:
+        return await svc_lote.atualizar_estagio_lote(
+            db,
+            body,
+            etapa_origem=etapa_origem,
+            atualizar_fn=crud_plantas.atualizar_estagio_producao,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+
+@router.post("/promover-mudas-lote", response_model=OperacaoLoteResponse)
+async def promover_mudas_lote(
+    body: PromoverMudasLoteRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: FuncionarioOut = Depends(require_permission("producao.transfer")),
+):
+    try:
+        return await svc_lote.promover_mudas_lote(
+            db,
+            body,
+            id_funcionario=current_user.id,
+            promover_fn=crud_plantas.promover_mudas,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+
+@router.post("/transferir-rustificacao-lote", response_model=OperacaoLoteResponse)
+async def transferir_rustificacao_lote(
+    body: TransferirRustificacaoLoteRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: FuncionarioOut = Depends(require_permission("producao.transfer")),
+):
+    try:
+        return await svc_lote.transferir_rustificacao_lote(
+            db,
+            body,
+            id_funcionario=current_user.id,
+            transferir_fn=crud_plantas.transferir_para_rustificacao,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
 
 @router.post("/atualizar-estagio", response_model=AtualizarEstagioResponse)
@@ -148,7 +227,7 @@ async def atualizar_estagio(
 async def read_em_rustificacao(
     id_canteiro: Optional[int] = None,
     id_especie: Optional[int] = None,
-    limit: int = Query(500, le=1000),
+    limit: int = Query(2000, le=5000),
     db: AsyncSession = Depends(get_db),
     current_user: FuncionarioOut = Depends(require_permission("producao.view")),
 ):

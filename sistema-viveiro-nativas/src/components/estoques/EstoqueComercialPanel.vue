@@ -32,7 +32,7 @@
       </p>
       <div class="estoque-empty__acoes">
         <router-link to="/producao" class="btn btn-primary">Ir para Produção</router-link>
-        <router-link to="/vendas" class="btn btn-outline">Registrar venda</router-link>
+        <router-link v-if="podeVender" to="/vendas" class="btn btn-outline">Registrar venda</router-link>
       </div>
       <p v-if="pipeline?.aptas_venda_aguardando_tempo" class="alert alert-warning" style="margin-top: 1rem">
         {{ pipeline.aptas_venda_aguardando_tempo }} muda(s) aptas com menos de {{ diasRust }} dias na rustificação (venda permitida, não recomendada).
@@ -50,7 +50,7 @@
             <th class="col-num">Valor estoque</th>
             <th>Local</th>
             <th>Status</th>
-            <th class="col-acoes"></th>
+            <th class="col-acoes">Ações</th>
           </tr>
         </thead>
         <tbody>
@@ -72,55 +72,87 @@
             <td>{{ item.localizacao }}</td>
             <td><span class="estoque-tag estoque-tag--ok">{{ item.tamanho }}</span></td>
             <td class="col-acoes">
-              <button type="button" class="btn btn-outline btn-sm" @click="editarPreco(item)">
-                Editar preço
-              </button>
+              <div class="estoque-acoes-grupo">
+                <button type="button" class="btn btn-outline btn-sm" @click="abrirDetalhes(item)">
+                  Detalhes
+                </button>
+                <button v-if="podeEditarPreco" type="button" class="btn btn-ghost btn-sm" @click="editarPreco(item)">
+                  Preço
+                </button>
+              </div>
             </td>
           </tr>
         </tbody>
       </table>
     </div>
 
-    <dialog ref="dialogPreco" class="app-dialog estoque-dialog">
-      <form class="dialog-panel" @submit.prevent="salvarPreco">
-        <header class="dialog-panel__header">
-          <h3>Preço de venda</h3>
+    <AppModalOverlay
+      :aberto="dialogPrecoAberto"
+      :handlers="overlayPreco"
+      panel-class="app-modal-panel--sm"
+      aria-labelledby="preco-venda-titulo"
+    >
+      <header class="estoque-modal__header estoque-modal__header--split">
+        <div>
+          <h3 id="preco-venda-titulo">Preço de venda</h3>
           <p>{{ formPreco.nomePopular || formPreco.nomeCientifico }} — {{ formPreco.quantidade }} un.</p>
-        </header>
-        <div class="dialog-panel__body">
-          <label class="module-field">
-            Preço unitário (R$)
-            <input
-              v-model.number="formPreco.valorUnitario"
-              type="number"
-              step="0.01"
-              min="0.01"
-              required
-            />
-          </label>
         </div>
-        <footer class="dialog-panel__footer">
-          <button type="button" class="btn btn-secondary" @click="fecharDialog">Cancelar</button>
-          <button type="submit" class="btn btn-primary">Salvar</button>
-        </footer>
+        <button type="button" class="app-modal-fechar" aria-label="Fechar" @click="fecharPreco">×</button>
+      </header>
+      <form class="estoque-modal__body" @submit.prevent="salvarPreco">
+        <label class="form-label">
+          Preço unitário (R$)
+          <input
+            v-model.number="formPreco.valorUnitario"
+            class="form-input"
+            type="number"
+            step="0.01"
+            min="0.01"
+            required
+          />
+        </label>
       </form>
-    </dialog>
+      <footer class="estoque-modal__footer">
+        <button type="button" class="btn btn-secondary" @click="fecharPreco">Cancelar</button>
+        <button type="submit" class="btn btn-primary" @click="salvarPreco">Salvar</button>
+      </footer>
+    </AppModalOverlay>
+
+    <ConfirmSaidaModal
+      :aberto="confirmAberto"
+      @confirmar="confirmarSaida"
+      @cancelar="cancelarSaida"
+    />
+
+    <EstoqueCmvDetalheDialog ref="dialogCmv" :item="itemDetalhe" />
   </div>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, nextTick } from 'vue'
+import AppModalOverlay from '@/components/shared/AppModalOverlay.vue'
+import ConfirmSaidaModal from '@/components/shared/ConfirmSaidaModal.vue'
+import { useModalFormClose } from '@/composables/useModalFormClose'
+import { useFormDirty } from '@/utils/formDirty'
+import { usePermissions } from '@/composables/usePermissions'
 import { atualizarPrecoEspecie } from '@/services/plantas'
+import EstoqueCmvDetalheDialog from '@/components/estoques/EstoqueCmvDetalheDialog.vue'
 import './estoques-shared.css'
 
 const emit = defineEmits(['atualizado'])
+
+const { can } = usePermissions()
+const podeEditarPreco = computed(() => can('vendas.edit'))
+const podeVender = computed(() => can('vendas.create'))
 
 const props = defineProps({
   items: { type: Array, default: () => [] },
   pipeline: { type: Object, default: null },
 })
 
-const dialogPreco = ref(null)
+const dialogPrecoAberto = ref(false)
+const dialogCmv = ref(null)
+const itemDetalhe = ref(null)
 const formPreco = ref({
   id_especie: null,
   nomePopular: '',
@@ -128,6 +160,30 @@ const formPreco = ref({
   quantidade: 0,
   valorUnitario: 0,
 })
+
+const { isDirty, rebase } = useFormDirty(formPreco, () => dialogPrecoAberto.value)
+
+function fecharPrecoInterno() {
+  dialogPrecoAberto.value = false
+}
+
+const overlayPreco = useModalFormClose(
+  fecharPrecoInterno,
+  () => isDirty.value,
+  () => dialogPrecoAberto.value
+)
+
+const {
+  confirmAberto,
+  confirmarSaida,
+  cancelarSaida,
+  sairSemConfirmar,
+} = overlayPreco
+
+function fecharPreco() {
+  overlayPreco.resetOverlayPress()
+  overlayPreco.requestClose()
+}
 
 const diasRust = computed(() => props.pipeline?.dias_minimos_rustificacao ?? 30)
 
@@ -179,17 +235,20 @@ const etapas = computed(() => {
 })
 
 function editarPreco(item) {
+  if (!podeEditarPreco.value) return
   formPreco.value = { ...item }
-  dialogPreco.value?.showModal()
+  dialogPrecoAberto.value = true
+  nextTick().then(rebase)
 }
 
-function fecharDialog() {
-  dialogPreco.value?.close()
+function abrirDetalhes(item) {
+  itemDetalhe.value = { ...item }
+  dialogCmv.value?.abrir()
 }
 
 async function salvarPreco() {
   await atualizarPrecoEspecie(formPreco.value.id_especie, formPreco.value.valorUnitario)
-  fecharDialog()
+  sairSemConfirmar()
   emit('atualizado')
 }
 </script>
@@ -269,5 +328,12 @@ async function salvarPreco() {
   .pipeline-seta {
     display: none;
   }
+}
+
+.estoque-modal__header--split {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
 }
 </style>

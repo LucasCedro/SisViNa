@@ -323,6 +323,7 @@ async def aprovar_venda(db: AsyncSession, venda_id: int) -> Optional[Venda]:
         return None
     assert_pode_aprovar(db_venda)
     db_venda.status = "PAGO"
+    db_venda.data_pagamento = datetime.utcnow()
     await db.commit()
     await db.refresh(db_venda)
     return db_venda

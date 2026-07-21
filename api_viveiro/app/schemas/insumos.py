@@ -36,9 +36,24 @@ class InsumoUpdate(BaseModel):
 class InsumoMovimentacaoCreate(BaseModel):
     tipo: str = Field(..., description="entrada | saida | ajuste")
     quantidade: float = Field(..., gt=0)
-    valor_total: Optional[float] = Field(None, ge=0, description="Valor pago na entrada (CMV)")
+    valor_total: Optional[float] = Field(None, ge=0, description="Valor pago na entrada (NF)")
     data_movimento: Optional[date] = None
+    status_pagamento: Optional[str] = Field(
+        "PAGO", description="PAGO (à vista) | PENDENTE (a prazo) — só entradas"
+    )
+    data_pagamento: Optional[date] = Field(
+        None, description="Data do pagamento; padrão = data_movimento se PAGO"
+    )
     observacao: Optional[str] = None
+
+    @validator("status_pagamento")
+    def validar_status(cls, v):
+        if v is None:
+            return "PAGO"
+        s = v.strip().upper()
+        if s not in ("PAGO", "PENDENTE"):
+            raise ValueError("status_pagamento deve ser PAGO ou PENDENTE")
+        return s
 
 
 class InsumoMovimentacaoOut(BaseModel):
@@ -50,6 +65,8 @@ class InsumoMovimentacaoOut(BaseModel):
     preco_unitario: Optional[float] = None
     saldo_quantidade: float
     data_movimento: date
+    status_pagamento: Optional[str] = None
+    data_pagamento: Optional[date] = None
     observacao: Optional[str] = None
 
     class Config:

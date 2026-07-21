@@ -19,6 +19,13 @@ export async function getAnaliticoDetalhe(params = {}) {
   return data
 }
 
+export async function getCmvDetalheEspecie(idEspecie, escopo = 'comercial') {
+  const { data } = await api.get(`${API_V1}/estoques/especie/${idEspecie}/cmv-detalhe`, {
+    params: { escopo },
+  })
+  return data
+}
+
 export async function entradaSementesArmazem(payload) {
   const { data } = await api.post(`${API_V1}/estoques/entrada-sementes`, payload)
   return data

@@ -47,11 +47,11 @@
             >
               <defs>
                 <pattern id="editor-grid-minor" width="24" height="24" patternUnits="userSpaceOnUse">
-                  <path d="M 24 0 L 0 0 0 24" fill="none" stroke="#d8d6d0" stroke-width="0.5" />
+                  <path d="M 24 0 L 0 0 0 24" fill="none" :stroke="VIVEIRO_MAP_GRID.fine" stroke-width="0.5" />
                 </pattern>
                 <pattern id="editor-grid-major" width="96" height="96" patternUnits="userSpaceOnUse">
                   <rect width="96" height="96" fill="url(#editor-grid-minor)" />
-                  <path d="M 96 0 L 0 0 0 96" fill="none" stroke="#c5c2ba" stroke-width="1" />
+                  <path d="M 96 0 L 0 0 0 96" fill="none" :stroke="VIVEIRO_MAP_GRID.marker" stroke-width="1" />
                 </pattern>
               </defs>
               <rect
@@ -81,7 +81,7 @@
                 :width="campo.largura"
                 :height="campo.altura"
                 :fill="corArea(campo)"
-                :stroke="estaSelecionado(campo) ? '#2d5016' : 'rgba(0,0,0,0.15)'"
+                :stroke="estaSelecionado(campo) ? VIVEIRO_MAP_TIPO.canteiro : 'rgba(0,0,0,0.15)'"
                 :stroke-width="estaSelecionado(campo) ? (selecionado?.id === campo.id ? 3 : 2) : 1"
                 rx="6"
               />
@@ -372,6 +372,7 @@ import ViveiroComponentWizard from './ViveiroComponentWizard.vue'
 import PresetDimensoes from './PresetDimensoes.vue'
 import { criarComponenteNoMapa, duplicarCampoNoMapa, nomeDuplicado } from '@/utils/viveiroLayout'
 import { sanitizarCamposLayout } from '@/utils/viveiroLayoutSanitize'
+import { elementosParaCamposEditor } from '@/utils/viveiroApiMapper'
 import { getViveiroLayout, saveViveiroLayout } from '@/services/viveiroLayout'
 import {
   sincronizarCamposComCanteiros,
@@ -388,6 +389,8 @@ import {
   podeExcluirArea,
 } from '@/utils/viveiroOcupacao'
 import { CATALOGO_PRODUTIVO, CATALOGO_VISUAL } from '@/constants/viveiroComponentes'
+import { CHART_NEUTRAL } from '@/constants/chartColors'
+import { VIVEIRO_MAP_GRID, VIVEIRO_MAP_TIPO } from '@/constants/viveiroMapColors'
 import { layoutRotulosArea } from '@/utils/viveiroAreaRotulos'
 import {
   PX_POR_METRO,
@@ -499,7 +502,7 @@ function rotuloTipo(tipo) {
 }
 
 function corArea(campo) {
-  return campo.cor || CORES[campo.tipo] || '#9ca3af'
+  return campo.cor || CORES[campo.tipo] || CHART_NEUTRAL
 }
 
 function isProdutivo(tipo) {
@@ -1051,19 +1054,30 @@ async function salvarEVoltar() {
 
 async function carregarLayout() {
   await carregarOcupacao()
+  if (!viveiroStore.hidratado) {
+    await viveiroStore.carregar()
+  }
+
   let data = {}
   try {
     data = await getViveiroLayout()
   } catch {
-    /* layout vazio */
+    /* layout vazio na API */
   }
+
   if (data?.campos?.length) {
     planta.campos = sanitizarCamposLayout(data.campos)
     planta.nome = data.nome || planta.nome
     if (data.viewBox?.width) viewBox.w = data.viewBox.width
     if (data.viewBox?.height) viewBox.h = data.viewBox.height
     layoutAoAbrir.value = data
+  } else if (viveiroStore.layout.elementos?.length) {
+    planta.campos = elementosParaCamposEditor(viveiroStore.layout.elementos)
+    planta.nome = viveiroStore.layout.nome || planta.nome
+    if (viveiroStore.layout.dimensoes?.largura) viewBox.w = viveiroStore.layout.dimensoes.largura
+    if (viveiroStore.layout.dimensoes?.altura) viewBox.h = viveiroStore.layout.dimensoes.altura
   }
+
   ajustarViewBox()
   setTimeout(enquadrarTudo, 100)
 }
@@ -1199,7 +1213,7 @@ watch(
   border: none;
   border-radius: var(--radius-md);
   background: var(--color-analog-1);
-  color: #fff;
+  color: var(--color-text-inverse);
   font-weight: 600;
   font-size: 0.875rem;
   cursor: pointer;
@@ -1217,7 +1231,7 @@ watch(
   background: var(--color-error-bg);
   color: var(--color-error);
   font-size: 0.875rem;
-  border-bottom: 1px solid #fecaca;
+  border-bottom: 1px solid var(--color-error-bg);
   flex-shrink: 0;
 }
 
@@ -1254,7 +1268,7 @@ watch(
 
 .mapa-svg {
   display: block;
-  background: #fafaf8;
+  background: var(--color-background);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   box-shadow: 0 12px 40px rgba(44, 45, 42, 0.14);
@@ -1285,13 +1299,13 @@ watch(
 .lbl-nome {
   font-size: 13px;
   font-weight: 700;
-  fill: #141414;
+  fill: var(--color-text-primary);
 }
 
 .lbl-badge {
   font-size: 11px;
   font-weight: 700;
-  fill: #1a1a1a;
+  fill: var(--color-text-primary);
 }
 
 .canvas-hint {
@@ -1578,13 +1592,13 @@ watch(
 .inspector-multi-hint {
   margin: 0.35rem 0 0;
   font-size: 0.75rem;
-  color: #888;
+  color: var(--color-text-muted);
   line-height: 1.35;
 }
 
 .inspector-secao--alinhar {
-  background: #f4f7f0;
-  border-color: #d4e4c8;
+  background: var(--color-primary-subtle);
+  border-color: var(--color-primary-light);
 }
 
 .alinhar-grid {
@@ -1600,12 +1614,12 @@ watch(
 
 .btn-alinhar {
   padding: 0.5rem 0.375rem;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  background: #fff;
+  background: var(--color-surface);
   font-size: 0.75rem;
   font-weight: 600;
-  color: #374151;
+  color: var(--color-text-secondary);
   cursor: pointer;
   font-family: inherit;
   text-align: center;
@@ -1613,9 +1627,9 @@ watch(
 }
 
 .btn-alinhar:hover {
-  border-color: #4a7c2a;
-  background: #eef4e8;
-  color: #2d5016;
+  border-color: var(--color-primary);
+  background: var(--color-primary-subtle);
+  color: var(--color-primary-dark);
 }
 
 .btn-alinhar--wide {
@@ -1631,7 +1645,7 @@ watch(
   margin: 0;
   padding: 2rem;
   text-align: center;
-  color: #666;
+  color: var(--color-text-muted);
   font-size: 0.9375rem;
   pointer-events: none;
 }
@@ -1639,10 +1653,10 @@ watch(
 .btn-duplicate {
   width: 100%;
   padding: 0.6rem 0.75rem;
-  border: 1px solid #4a7c2a;
+  border: 1px solid var(--color-primary);
   border-radius: 8px;
-  background: #fff;
-  color: #2d5016;
+  background: var(--color-surface);
+  color: var(--color-primary-dark);
   font-weight: 600;
   font-size: 0.875rem;
   cursor: pointer;
@@ -1651,18 +1665,18 @@ watch(
 }
 
 .btn-duplicate:hover {
-  background: #eef4e8;
-  border-color: #2d5016;
+  background: var(--color-primary-subtle);
+  border-color: var(--color-primary-dark);
 }
 
 .btn-inverter {
   width: 100%;
   margin-top: 0.35rem;
   padding: 0.45rem 0.65rem;
-  border: 1px dashed #c5c5c0;
+  border: 1px dashed var(--color-border);
   border-radius: 8px;
-  background: #fafaf8;
-  color: #555;
+  background: var(--color-background);
+  color: var(--color-text-secondary);
   font-size: 0.8125rem;
   font-weight: 500;
   cursor: pointer;
@@ -1670,9 +1684,9 @@ watch(
 }
 
 .btn-inverter:hover {
-  border-color: #4a7c2a;
-  color: #2d5016;
-  background: #f4f7f0;
+  border-color: var(--color-primary);
+  color: var(--color-primary-dark);
+  background: var(--color-primary-subtle);
 }
 
 :deep(.lbl-metros) {
@@ -1687,8 +1701,8 @@ watch(
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: #4a7c2a;
-  background: #eef4e8;
+  color: var(--color-primary);
+  background: var(--color-primary-subtle);
   padding: var(--v-s1) var(--v-s2);
   border-radius: var(--radius-md);
   margin-bottom: var(--v-s2);
@@ -1701,14 +1715,14 @@ watch(
   line-height: 1.35;
   word-break: break-word;
   overflow-wrap: anywhere;
-  color: #1a1a1a;
+  color: var(--color-text-primary);
 }
 
 .inspector-secao {
   margin-bottom: var(--v-s3);
   padding: var(--v-s3);
-  background: #fff;
-  border: 1px solid #ebebe8;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-xl);
 }
 
@@ -1718,12 +1732,12 @@ watch(
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #888;
+  color: var(--color-text-muted);
 }
 
 .ocupacao-card {
-  background: linear-gradient(180deg, #f4f7f0 0%, #eef4e8 100%);
-  border: 1px solid #d4e4c8;
+  background: linear-gradient(180deg, var(--color-primary-subtle) 0%, var(--color-surface-muted) 100%);
+  border: 1px solid var(--color-primary-light);
   border-radius: var(--radius-xl);
   padding: var(--v-s3);
   margin-bottom: var(--v-s3);
@@ -1734,7 +1748,7 @@ watch(
   display: block;
   font-size: 1.375rem;
   font-weight: 700;
-  color: #2d5016;
+  color: var(--color-primary-dark);
   line-height: 1.15;
 }
 
@@ -1742,7 +1756,7 @@ watch(
   display: block;
   margin-top: var(--v-s2);
   font-size: 0.8125rem;
-  color: #666;
+  color: var(--color-text-muted);
   line-height: var(--v-line);
 }
 
@@ -1753,7 +1767,7 @@ watch(
   margin-bottom: var(--v-s3);
   font-size: 0.8125rem;
   font-weight: 600;
-  color: #555;
+  color: var(--color-text-secondary);
   min-width: 0;
 }
 
@@ -1766,17 +1780,17 @@ watch(
   box-sizing: border-box;
   min-width: 0;
   padding: var(--v-s2) var(--v-s3);
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   font-size: 0.9375rem;
   font-family: inherit;
-  background: #fff;
+  background: var(--color-surface);
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .field input:focus {
   outline: none;
-  border-color: #4a7c2a;
+  border-color: var(--color-primary);
   box-shadow: 0 0 0 3px rgba(74, 124, 42, 0.15);
 }
 
@@ -1793,7 +1807,7 @@ watch(
 .hint {
   margin: 0.5rem 0 0;
   font-size: 0.8125rem;
-  color: #666;
+  color: var(--color-text-muted);
   line-height: 1.4;
 }
 
@@ -1806,9 +1820,9 @@ watch(
 }
 
 .aviso--block {
-  background: #fef3f2;
-  color: #b42318;
-  border: 1px solid #fecaca;
+  background: var(--color-error-bg);
+  color: var(--color-error);
+  border: 1px solid var(--color-error-bg);
 }
 
 .btn-danger {
@@ -1816,8 +1830,8 @@ watch(
   padding: 0.6rem 0.75rem;
   border: none;
   border-radius: 8px;
-  background: #dc2626;
-  color: #fff;
+  background: var(--color-error);
+  color: var(--color-text-inverse);
   font-weight: 600;
   font-size: 0.875rem;
   cursor: pointer;
@@ -1826,7 +1840,7 @@ watch(
 }
 
 .btn-danger:hover:not(:disabled) {
-  background: #b91c1c;
+  background: var(--color-error-dark);
 }
 
 .btn-danger:disabled {
@@ -1846,7 +1860,7 @@ watch(
 }
 
 .dialog {
-  background: #fff;
+  background: var(--color-surface);
   border-radius: 12px;
   padding: 1.25rem;
   max-width: 400px;
@@ -1863,11 +1877,11 @@ watch(
 .dialog-erro {
   margin: 0 0 1rem;
   font-size: 0.875rem;
-  color: #555;
+  color: var(--color-text-secondary);
 }
 
 .dialog-erro {
-  color: #b42318;
+  color: var(--color-error);
 }
 
 .dialog-acoes {

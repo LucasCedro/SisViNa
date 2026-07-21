@@ -60,6 +60,34 @@
               </dl>
             </div>
           </div>
+
+          <div class="gm-block gm-block--wide">
+            <h3>Unidades viveiro (cross-tenant)</h3>
+            <table class="gm-table gm-table--compact">
+              <thead>
+                <tr>
+                  <th>Nome</th>
+                  <th>Modo</th>
+                  <th>Usuários</th>
+                  <th>Lotes ativos</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="v in overview.viveiros || []" :key="v.id">
+                  <td>{{ v.nome }}</td>
+                  <td><span class="gm-tag">{{ v.modo_label }}</span></td>
+                  <td>{{ v.funcionarios_vinculados }}</td>
+                  <td>{{ v.lotes_producao_ativos }}</td>
+                  <td>
+                    <span :class="v.ativo ? 'gm-badge gm-badge--ok' : 'gm-badge gm-badge--off'">
+                      {{ v.ativo ? 'Ativo' : 'Inativo' }}
+                    </span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </template>
       </section>
 
@@ -74,7 +102,7 @@
               <option :value="false">Inativos</option>
             </select>
           </label>
-          <button type="button" class="gm-btn gm-btn--primary" @click="abrirNovoUsuario">
+          <button v-if="podeGerenciar" type="button" class="gm-btn gm-btn--primary" @click="abrirNovoUsuario">
             + Novo usuário
           </button>
         </div>
@@ -106,7 +134,7 @@
                     {{ u.ativo ? 'Ativo' : 'Inativo' }}
                   </span>
                 </td>
-                <td class="gm-actions">
+                <td v-if="podeGerenciar" class="gm-actions">
                   <button type="button" class="gm-btn gm-btn--ghost gm-btn--sm" @click="editarUsuario(u)">Editar</button>
                   <button
                     v-if="u.ativo && u.id !== auth.user?.id"
@@ -117,6 +145,7 @@
                     Desativar
                   </button>
                 </td>
+                <td v-else />
               </tr>
             </tbody>
           </table>
@@ -138,9 +167,22 @@
     </PageSection>
 
     <!-- Modal usuário -->
-    <dialog ref="modalRef" class="gm-modal" @close="fecharModal">
-      <form class="gm-modal__body" @submit.prevent="salvarUsuario">
-        <h3>{{ formUsuario.id ? 'Editar usuário' : 'Novo usuário' }}</h3>
+    <AppModalOverlay
+      :aberto="modalUsuarioAberto"
+      :handlers="overlayUsuario"
+      panel-class="app-modal-panel--wide"
+      :aria-labelledby="formUsuario.id ? 'gm-editar-titulo' : 'gm-novo-titulo'"
+    >
+      <form @submit.prevent="salvarUsuario">
+        <header class="app-modal-header">
+          <div>
+            <h3 :id="formUsuario.id ? 'gm-editar-titulo' : 'gm-novo-titulo'">
+              {{ formUsuario.id ? 'Editar usuário' : 'Novo usuário' }}
+            </h3>
+          </div>
+          <button type="button" class="app-modal-fechar" aria-label="Fechar" @click="fecharUsuario">×</button>
+        </header>
+        <div class="gm-modal__body">
         <div class="gm-form-grid">
           <label class="gm-field gm-field--full">
             <span>Nome</span>
@@ -152,7 +194,7 @@
           </label>
           <label class="gm-field">
             <span>CPF</span>
-            <input v-model="formUsuario.cpf" required maxlength="14" placeholder="000.000.000-00" />
+            <MaskedInput v-model="formUsuario.cpf" mask="cpf" bare required />
           </label>
           <label class="gm-field">
             <span>E-mail</span>
@@ -238,23 +280,37 @@
           </label>
         </div>
         <p v-if="msgModal" class="gm-erro">{{ msgModal }}</p>
-        <div class="gm-modal__actions">
-          <button type="button" class="gm-btn gm-btn--ghost" @click="fecharModal">Cancelar</button>
+        </div>
+        <footer class="app-modal-footer">
+          <button type="button" class="gm-btn gm-btn--ghost" @click="fecharUsuario">Cancelar</button>
           <button type="submit" class="gm-btn gm-btn--primary" :disabled="salvandoUsuario">
             {{ salvandoUsuario ? 'Salvando…' : 'Salvar' }}
           </button>
-        </div>
+        </footer>
       </form>
-    </dialog>
+    </AppModalOverlay>
+
+    <ConfirmSaidaModal
+      :aberto="confirmAberto"
+      @confirmar="confirmarSaida"
+      @cancelar="cancelarSaida"
+    />
   </PageLayout>
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref, watch, nextTick } from 'vue'
+import AppModalOverlay from '@/components/shared/AppModalOverlay.vue'
+import ConfirmSaidaModal from '@/components/shared/ConfirmSaidaModal.vue'
+import { useModalFormClose } from '@/composables/useModalFormClose'
+import { useFormDirty } from '@/utils/formDirty'
 import PageLayout from '@/components/layout/PageLayout.vue'
 import PageSection from '@/components/layout/PageSection.vue'
+import MaskedInput from '@/components/form/MaskedInput.vue'
 import { ROLES_LABELS } from '@/constants/roles'
 import { useAuthStore } from '@/store/auth'
+import { usePermissions } from '@/composables/usePermissions'
+import { usePageTab } from '@/composables/usePageTab'
 import {
   fetchAdminOverview,
   fetchAdminRbac,
@@ -263,15 +319,18 @@ import {
   updateAdminFuncionario,
   deactivateAdminFuncionario,
 } from '@/services/adminCockpit'
+import { onlyDigits } from '@/utils/inputMasks'
 
 const auth = useAuthStore()
+const { can } = usePermissions()
+const podeGerenciar = computed(() => can('admin.godmode.manage'))
 
 const tabs = [
   { id: 'overview', label: 'Visão geral' },
   { id: 'usuarios', label: 'Usuários' },
   { id: 'rbac', label: 'Matriz RBAC' },
 ]
-const aba = ref('overview')
+const aba = usePageTab('admin-god-mode', 'overview', { valid: ['overview', 'usuarios', 'rbac'] })
 const erro = ref('')
 
 const overview = ref(null)
@@ -284,7 +343,7 @@ const usuariosTotal = ref(0)
 const carregandoUsuarios = ref(false)
 const filtroAtivo = ref(null)
 
-const modalRef = ref(null)
+const modalUsuarioAberto = ref(false)
 const salvandoUsuario = ref(false)
 const msgModal = ref('')
 const mostrarSenha = ref(false)
@@ -300,15 +359,40 @@ const formUsuario = reactive({
   ativo: true,
 })
 
+const { isDirty, rebase } = useFormDirty(formUsuario, () => modalUsuarioAberto.value)
+
+function fecharUsuarioInterno() {
+  modalUsuarioAberto.value = false
+  mostrarSenha.value = false
+}
+
+const overlayUsuario = useModalFormClose(
+  fecharUsuarioInterno,
+  () => isDirty.value,
+  () => modalUsuarioAberto.value
+)
+
+const {
+  confirmAberto,
+  confirmarSaida,
+  cancelarSaida,
+  sairSemConfirmar,
+} = overlayUsuario
+
+function fecharUsuario() {
+  overlayUsuario.resetOverlayPress()
+  overlayUsuario.requestClose()
+}
+
 const cardsOverview = computed(() => {
   if (!overview.value) return []
   const o = overview.value
   return [
     { label: 'Usuários ativos', value: o.funcionarios_ativos },
-    { label: 'Usuários inativos', value: o.funcionarios_inativos },
+    { label: 'Unidades viveiro', value: o.viveiros_total },
+    { label: 'Florestal', value: o.viveiros_florestal },
     { label: 'Plantas', value: o.plantas_total },
     { label: 'Vendas', value: o.vendas_total },
-    { label: 'Espécies', value: o.especies_total },
     { label: 'Permissões', value: o.permissoes_catalogo },
   ]
 })
@@ -372,30 +456,31 @@ function resetForm() {
   mostrarSenha.value = false
 }
 
-function abrirNovoUsuario() {
+async function abrirNovoUsuario() {
+  if (!podeGerenciar.value) return
   resetForm()
-  modalRef.value?.showModal()
+  modalUsuarioAberto.value = true
+  await nextTick()
+  rebase()
 }
 
-function editarUsuario(u) {
+async function editarUsuario(u) {
+  if (!podeGerenciar.value) return
   resetForm()
   Object.assign(formUsuario, {
     id: u.id,
     nome: u.nome,
     usuario: u.usuario,
-    cpf: u.cpf,
+    cpf: onlyDigits(u.cpf).slice(0, 11),
     email: u.email || '',
     cargo: u.cargo || '',
     senha: '',
     perfis: [...(u.perfis || [])],
     ativo: u.ativo !== false,
   })
-  modalRef.value?.showModal()
-}
-
-function fecharModal() {
-  mostrarSenha.value = false
-  modalRef.value?.close()
+  modalUsuarioAberto.value = true
+  await nextTick()
+  rebase()
 }
 
 async function salvarUsuario() {
@@ -406,7 +491,7 @@ async function salvarUsuario() {
       const payload = {
         nome: formUsuario.nome.trim(),
         usuario: formUsuario.usuario.trim(),
-        cpf: formUsuario.cpf.trim(),
+        cpf: onlyDigits(formUsuario.cpf).slice(0, 11),
         email: formUsuario.email?.trim() || null,
         cargo: formUsuario.cargo?.trim() || null,
         perfis: formUsuario.perfis,
@@ -418,7 +503,7 @@ async function salvarUsuario() {
       await createAdminFuncionario({
         nome: formUsuario.nome.trim(),
         usuario: formUsuario.usuario.trim(),
-        cpf: formUsuario.cpf.trim(),
+        cpf: onlyDigits(formUsuario.cpf).slice(0, 11),
         email: formUsuario.email?.trim() || null,
         cargo: formUsuario.cargo?.trim() || null,
         senha: formUsuario.senha,
@@ -426,7 +511,7 @@ async function salvarUsuario() {
         ativo: true,
       })
     }
-    fecharModal()
+    sairSemConfirmar()
     await carregarUsuarios()
     if (aba.value === 'overview') await carregarOverview()
   } catch (e) {
@@ -437,6 +522,7 @@ async function salvarUsuario() {
 }
 
 async function desativarUsuario(u) {
+  if (!podeGerenciar.value) return
   if (!confirm(`Desativar ${u.nome}?`)) return
   try {
     await deactivateAdminFuncionario(u.id)
@@ -568,6 +654,16 @@ onMounted(async () => {
 .gm-block h3 {
   font-size: 0.95rem;
   margin-bottom: var(--spacing-md);
+}
+
+.gm-block--wide {
+  margin-top: var(--spacing-lg);
+}
+
+.gm-table--compact th,
+.gm-table--compact td {
+  font-size: 0.8125rem;
+  padding: 0.4rem 0.5rem;
 }
 
 .gm-list {
@@ -745,25 +841,8 @@ onMounted(async () => {
   margin-bottom: var(--spacing-md);
 }
 
-.gm-modal {
-  border: none;
-  border-radius: var(--radius-lg);
-  padding: 0;
-  max-width: 32rem;
-  width: calc(100% - 2rem);
-  box-shadow: var(--shadow-lg, 0 8px 32px rgba(0, 0, 0, 0.15));
-}
-
-.gm-modal::backdrop {
-  background: rgba(0, 0, 0, 0.45);
-}
-
 .gm-modal__body {
-  padding: var(--spacing-lg);
-}
-
-.gm-modal__body h3 {
-  margin-bottom: var(--spacing-md);
+  padding: 0 1.5rem 1.25rem;
 }
 
 .gm-form-grid {
@@ -843,10 +922,4 @@ onMounted(async () => {
   color: var(--color-text-primary);
 }
 
-.gm-modal__actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.5rem;
-  margin-top: var(--spacing-lg);
-}
 </style>

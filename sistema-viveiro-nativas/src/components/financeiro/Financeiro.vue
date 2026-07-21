@@ -13,7 +13,7 @@
       </button>
     </nav>
 
-    <FinanceiroPainel
+    <FinanceiroFluxoCaixa
       v-show="aba === 'resultado'"
       :painel="painel"
       :lancamentos="lancamentos"
@@ -38,7 +38,8 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import FinanceiroPainel from './FinanceiroPainel.vue'
+import { usePageTab } from '@/composables/usePageTab'
+import FinanceiroFluxoCaixa from './FinanceiroFluxoCaixa.vue'
 import FinanceiroPremissas from './FinanceiroPremissas.vue'
 import { getPainelFinanceiro } from '@/services/financeiro'
 import { listLancamentos } from '@/services/lancamentosFinanceiros'
@@ -47,9 +48,9 @@ import { usePermissions } from '@/composables/usePermissions'
 const { can } = usePermissions()
 const podeEditar = computed(() => can('financeiro.edit'))
 
-const aba = ref('resultado')
+const aba = usePageTab('financeiro', 'resultado', { valid: ['resultado', 'premissas'] })
 const abas = [
-  { id: 'resultado', label: 'Resultado' },
+  { id: 'resultado', label: 'Fluxo de caixa' },
   { id: 'premissas', label: 'Premissas' },
 ]
 
@@ -80,7 +81,7 @@ async function carregar() {
   erro.value = null
   try {
     const [p, lanc] = await Promise.all([
-      getPainelFinanceiro({ mes: mes.value, ano: ano.value }),
+      getPainelFinanceiro({ mes: mes.value, ano: ano.value, regime: 'caixa' }),
       listLancamentos(),
     ])
     painel.value = p

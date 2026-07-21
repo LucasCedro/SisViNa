@@ -7,7 +7,8 @@
 | `components/layout/PageLayout.vue` | Padding/gap padrão da página |
 | `components/layout/PageSection.vue` | Card/seção com slots |
 | Título da página | Apenas no `Header.vue` (via `App.vue` + rota) |
-| `store/viveiro.js` | Planta baixa e mudas via API (`viveiroApiMapper.js`) |
+| `store/viveiro.js` | Planta baixa, mudas no mapa, KPIs (`carregar`, `hidratado`) |
+| `store/viveiroContext.js` | Contexto multi-unidade (nativo/florestal), nav por pipeline |
 | `AnaliseRecorrencia.vue` | Gráficos/alertas derivados de pragas + atividades (sem mock) |
 
 Views migradas para `PageLayout`: Viveiro, Fertilização, Fitossanidade, Prescrição, Financeiro, Vendas, Estoques, Produção, Planta baixa editor, Biblioteca, Coleta.
@@ -22,7 +23,7 @@ Home redesenhada como cockpit operacional; perfis e RBAC — ver [HOME_E_PERFIS.
 src/views/{modulo}/{Modulo}View.vue   → rota + PageLayout
 src/components/{modulo}/              → lógica de tela 
 src/services/                         → API
-src/store/                            → Pinia
+src/store/                            → Pinia (auth, viveiroContext, viveiro, coleta)
 src/constants/                        → domínio + chartColors
 src/assets/main.css                   → design tokens
 docs/DESIGN_SYSTEM.md                 → paleta e UI

@@ -1,5 +1,7 @@
 import axios from 'axios'
 
+const ADMIN_VIVEIRO_KEY = 'brotare_admin_viveiro_id'
+
 const api = axios.create({
     baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000',
     headers: {
@@ -7,11 +9,26 @@ const api = axios.create({
     }
 })
 
-// Interceptor para adicionar token de autenticação
+function adminViveiroHeader() {
+    try {
+        const raw = localStorage.getItem(ADMIN_VIVEIRO_KEY)
+        if (!raw) return null
+        const id = Number(raw)
+        return Number.isFinite(id) && id > 0 ? id : null
+    } catch {
+        return null
+    }
+}
+
+// Interceptor para autenticação + contexto viveiro (admin)
 api.interceptors.request.use(config => {
     const token = localStorage.getItem('token')
     if (token) {
         config.headers.Authorization = `Bearer ${token}`
+    }
+    const viveiroId = adminViveiroHeader()
+    if (viveiroId) {
+        config.headers['X-Viveiro-Id'] = String(viveiroId)
     }
     return config
 })

@@ -64,15 +64,12 @@
     </div>
 
     <!-- Modal de prescrição -->
-    <div
-      v-if="modalAberto"
-      class="modal-overlay"
-      @pointerdown.self="onOverlayPointerDown"
-      @pointerup.self="onOverlayPointerUp"
-      @pointercancel.self="cancelarFechamentoOverlay"
+    <AppModalOverlay
+      :aberto="modalAberto"
+      :handlers="modalClose"
+      panel-class="app-modal-panel--xl"
     >
-      <div class="modal-content" @pointerdown="onModalPointerDown">
-        <div class="modal-header">
+      <div class="modal-header">
           <h2 class="modal-title">Prescrição Técnica: {{ especieSelecionada?.nome }}</h2>
           <button class="btn-fechar" @click="fecharModal">×</button>
         </div>
@@ -126,16 +123,16 @@
             Exportar PDF
           </button>
         </div>
-      </div>
-    </div>
+    </AppModalOverlay>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import html2pdf from 'html2pdf.js'
+import AppModalOverlay from '@/components/shared/AppModalOverlay.vue'
 import { listEspecies } from '@/services/especies'
-import { useModalOverlayClose } from '@/composables/useModalOverlayClose'
+import { useSimpleModalClose } from '@/composables/useSimpleModalClose'
 
 // Estado do componente
 const filtro = ref('');
@@ -190,16 +187,10 @@ const fecharModalInterno = () => {
   modalAberto.value = false
 }
 
-const {
-  onModalPointerDown,
-  onOverlayPointerDown,
-  onOverlayPointerUp,
-  cancelarFechamentoOverlay,
-  resetOverlayPress,
-} = useModalOverlayClose(fecharModalInterno)
+const modalClose = useSimpleModalClose(fecharModalInterno, () => modalAberto.value)
 
 const fecharModal = () => {
-  resetOverlayPress()
+  modalClose.resetOverlayPress()
   fecharModalInterno()
 }
 
@@ -383,29 +374,6 @@ const exportarPDF = () => {
 }
 
 /* Modal */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.modal-content {
-  background-color: var(--color-text-inverse);
-  border-radius: 0.5rem;
-  width: 100%;
-  max-width: 800px;
-  max-height: 90vh;
-  overflow-y: auto;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-}
-
 .modal-header {
   display: flex;
   justify-content: space-between;

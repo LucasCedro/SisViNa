@@ -9,7 +9,13 @@ from app.security.rbac import require_permission
 from app.crud import semeaduras as crud
 from app.database import get_db
 from app.schemas.funcionarios import FuncionarioOut
-from app.schemas.semeaduras import RastreabilidadePlantaOut, SemeaduraCreate, SemeaduraOut
+from app.schemas.semeaduras import (
+    RastreabilidadePlantaOut,
+    SemeaduraCreate,
+    SemeaduraLoteCreate,
+    SemeaduraLoteOut,
+    SemeaduraOut,
+)
 
 router = APIRouter()
 
@@ -40,6 +46,23 @@ async def criar_semeadura(
 ):
     try:
         return await crud.create_semeadura(db, payload, current_user.id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except IntegrityError as e:
+        raise HTTPException(
+            status_code=409,
+            detail="Conflito ao criar plantas (código de rastreio duplicado). Tente novamente.",
+        ) from e
+
+
+@router.post("/lote", response_model=SemeaduraLoteOut, status_code=201)
+async def criar_semeaduras_lote(
+    payload: SemeaduraLoteCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: FuncionarioOut = Depends(require_permission("producao.create")),
+):
+    try:
+        return await crud.create_semeaduras_lote(db, payload, current_user.id)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
     except IntegrityError as e:

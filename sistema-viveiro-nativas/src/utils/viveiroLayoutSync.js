@@ -64,11 +64,13 @@ export async function sincronizarCamposComCanteiros(campos) {
 }
 
 export function plantaParaLayoutPersistido(planta, viewBox) {
+  const width = viewBox?.width ?? viewBox?.w ?? 900
+  const height = viewBox?.height ?? viewBox?.h ?? 600
   return {
     version: 1,
     nome: planta.nome,
     data: planta.data,
-    viewBox: { width: viewBox.width, height: viewBox.height },
+    viewBox: { width, height },
     campos: planta.campos,
   }
 }

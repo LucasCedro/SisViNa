@@ -9,7 +9,13 @@ from app.models.arvores_matriz import ArvoreMatriz
 from app.models.lotes_sementes import LoteSementes
 from app.models.plantas import Planta
 from app.models.semeaduras import Semeadura
-from app.schemas.semeaduras import SemeaduraCreate, SemeaduraUpdate
+from app.schemas.semeaduras import (
+    SemeaduraCreate,
+    SemeaduraLoteCreate,
+    SemeaduraUpdate,
+)
+
+_PLANTAS_CHUNK = 500
 
 
 def _codigo_rastreio_semeadura(semeadura_id: int, indice: int) -> str:
@@ -108,50 +114,111 @@ async def get_semeaduras(
     return saida
 
 
-async def create_semeadura(db: AsyncSession, payload: SemeaduraCreate, id_funcionario: int) -> dict:
+async def _validar_canteiro_sementeira(db: AsyncSession, id_canteiro: Optional[int]) -> None:
     from app.models.canteiros import Canteiro
 
-    lote = await db.get(LoteSementes, payload.id_lote_sementes)
-    if not lote:
-        raise ValueError("Lote não encontrado")
-    if payload.id_canteiro:
-        cant = await db.get(Canteiro, payload.id_canteiro)
-        if not cant:
-            raise ValueError("Canteiro não encontrado")
-        if cant.tipo_local != "sementeira":
-            raise ValueError("Semeadura deve ser registrada em local tipo sementeira")
-    if lote.status == "descartado":
-        raise ValueError("Lote descartado não pode ser semeado")
-    if payload.quantidade_sementes_usadas > lote.quantidade_disponivel:
-        raise ValueError("Quantidade usada excede o disponível no lote")
+    if not id_canteiro:
+        return
+    cant = await db.get(Canteiro, id_canteiro)
+    if not cant:
+        raise ValueError("Canteiro não encontrado")
+    if cant.tipo_local != "sementeira":
+        raise ValueError("Semeadura deve ser registrada em local tipo sementeira")
 
-    dados = payload.dict()
-    qtd_plantas = 0
-    if dados.get("registrar_plantas") and dados.get("quantidade_plantas_registrar", 0) > 0:
-        qtd_plantas = dados["quantidade_plantas_registrar"]
-    elif dados.get("quantidade_mudas_obtidas"):
-        qtd_plantas = dados["quantidade_mudas_obtidas"]
 
+def _qtd_plantas_semeadura(dados: dict) -> int:
+    qtd_sem = int(dados["quantidade_sementes_usadas"])
+    registrar = bool(dados.get("registrar_plantas"))
+    if registrar:
+        qtd_plantas_informada = int(dados.get("quantidade_plantas_registrar") or 0)
+        if qtd_plantas_informada != qtd_sem:
+            raise ValueError(
+                f"Quantidade de plantas ({qtd_plantas_informada}) deve ser igual às "
+                f"sementes usadas ({qtd_sem})."
+            )
+        return qtd_sem
+    if dados.get("quantidade_mudas_obtidas"):
+        return int(dados["quantidade_mudas_obtidas"])
+    return 0
+
+
+async def _criar_plantas_semeadura(
+    db: AsyncSession,
+    *,
+    semeadura_id: int,
+    lote: LoteSementes,
+    id_canteiro: int,
+    data_semeadura,
+    quantidade: int,
+    custo_unitario: float,
+) -> int:
+    if quantidade <= 0:
+        return 0
+    cu = float(custo_unitario or 0)
+    codigo_lote = lote.codigo_lote
+    criadas = 0
+    for offset in range(0, quantidade, _PLANTAS_CHUNK):
+        batch_qtd = min(_PLANTAS_CHUNK, quantidade - offset)
+        batch = []
+        for j in range(batch_qtd):
+            indice = offset + j + 1
+            batch.append(
+                Planta(
+                    id_especie=lote.id_especie,
+                    id_canteiro=id_canteiro,
+                    id_lote_sementes=lote.id,
+                    id_semeadura=semeadura_id,
+                    codigo_rastreio=_codigo_rastreio_semeadura(semeadura_id, indice),
+                    data_plantio=data_semeadura,
+                    data_inicio_estagio_atual=data_semeadura,
+                    status="SEMENTE",
+                    estagio_producao="em_desenvolvimento",
+                    origem="semeadura",
+                    custo_inicial=cu,
+                    custo_atual=cu,
+                    observacoes=f"Origem lote {codigo_lote}",
+                )
+            )
+        db.add_all(batch)
+        await db.flush()
+        criadas += batch_qtd
+    return criadas
+
+
+async def _executar_semeadura_item(
+    db: AsyncSession,
+    *,
+    lote: LoteSementes,
+    dados: dict,
+    id_funcionario: int,
+) -> tuple[Semeadura, int]:
     from app.services.custeio import (
+        aplicar_baixa_valor_lote,
         calcular_custo_lote_semeadura,
         calcular_custo_sementes_lote,
-        aplicar_baixa_valor_lote,
     )
 
-    custeio = await calcular_custo_lote_semeadura(
-        db,
-        lote,
-        dados["quantidade_sementes_usadas"],
-        qtd_plantas,
-    )
-    custo_sementes = calcular_custo_sementes_lote(lote, dados["quantidade_sementes_usadas"])
+    qtd_sem = int(dados["quantidade_sementes_usadas"])
+    if lote.status == "descartado":
+        raise ValueError(f"Lote {lote.codigo_lote} está descartado")
+    if qtd_sem > lote.quantidade_disponivel:
+        raise ValueError(
+            f"Lote {lote.codigo_lote}: quantidade ({qtd_sem}) excede disponível "
+            f"({lote.quantidade_disponivel})"
+        )
+
+    registrar = bool(dados.get("registrar_plantas"))
+    qtd_plantas_criar = _qtd_plantas_semeadura(dados)
+
+    custeio = await calcular_custo_lote_semeadura(db, lote, qtd_sem, qtd_plantas_criar)
+    custo_sementes = calcular_custo_sementes_lote(lote, qtd_sem)
 
     db_sem = Semeadura(
         id_lote_sementes=dados["id_lote_sementes"],
         id_canteiro=dados.get("id_canteiro"),
         data_semeadura=dados["data_semeadura"],
-        quantidade_sementes_usadas=dados["quantidade_sementes_usadas"],
-        quantidade_mudas_obtidas=dados.get("quantidade_mudas_obtidas"),
+        quantidade_sementes_usadas=qtd_sem,
+        quantidade_mudas_obtidas=qtd_plantas_criar or dados.get("quantidade_mudas_obtidas"),
         observacoes=dados.get("observacoes"),
         id_funcionario=id_funcionario,
         custo_sementes=custo_sementes,
@@ -160,40 +227,124 @@ async def create_semeadura(db: AsyncSession, payload: SemeaduraCreate, id_funcio
         custo_total=custeio["custo_total"],
         custo_unitario_muda=custeio["custo_unitario_muda"],
     )
-    aplicar_baixa_valor_lote(lote, dados["quantidade_sementes_usadas"], custo_sementes)
-    lote.quantidade_disponivel -= dados["quantidade_sementes_usadas"]
+    aplicar_baixa_valor_lote(lote, qtd_sem, custo_sementes)
+    lote.quantidade_disponivel -= qtd_sem
     if lote.quantidade_disponivel <= 0:
         lote.status = "esgotado"
     db.add(db_sem)
     await db.flush()
 
-    if dados.get("registrar_plantas") and dados.get("quantidade_plantas_registrar", 0) > 0:
-        qtd_plantas = dados["quantidade_plantas_registrar"]
-        cu = float(custeio["custo_unitario_muda"] or 0)
-        for i in range(qtd_plantas):
-            codigo = _codigo_rastreio_semeadura(db_sem.id, i + 1)
-            db.add(
-                Planta(
-                    id_especie=lote.id_especie,
-                    id_canteiro=dados.get("id_canteiro"),
-                    id_lote_sementes=lote.id,
-                    id_semeadura=db_sem.id,
-                    codigo_rastreio=codigo,
-                    data_plantio=dados["data_semeadura"],
-                    data_inicio_estagio_atual=dados["data_semeadura"],
-                    status="SEMENTE",
-                    estagio_producao="em_desenvolvimento",
-                    origem="semeadura",
-                    custo_inicial=cu,
-                    custo_atual=cu,
-                    observacoes=f"Origem lote {lote.codigo_lote}",
-                )
-            )
+    plantas_criadas = 0
+    if registrar and qtd_plantas_criar > 0:
+        plantas_criadas = await _criar_plantas_semeadura(
+            db,
+            semeadura_id=db_sem.id,
+            lote=lote,
+            id_canteiro=dados["id_canteiro"],
+            data_semeadura=dados["data_semeadura"],
+            quantidade=qtd_plantas_criar,
+            custo_unitario=custeio["custo_unitario_muda"],
+        )
+
+    return db_sem, plantas_criadas
+
+
+async def create_semeadura(db: AsyncSession, payload: SemeaduraCreate, id_funcionario: int) -> dict:
+    lote = await db.get(LoteSementes, payload.id_lote_sementes)
+    if not lote:
+        raise ValueError("Lote não encontrado")
+    await _validar_canteiro_sementeira(db, payload.id_canteiro)
+
+    dados = payload.dict()
+    db_sem, plantas_criadas = await _executar_semeadura_item(db, lote=lote, dados=dados, id_funcionario=id_funcionario)
+
+    from app.services.custeio import redistribuir_cif_parque
+
+    await redistribuir_cif_parque(db, commit=False)
 
     await db.commit()
     sem = await get_semeadura(db, db_sem.id)
     cnt = await _count_plantas(db, db_sem.id)
     return _para_resposta(sem, cnt)
+
+
+async def create_semeaduras_lote(
+    db: AsyncSession, payload: SemeaduraLoteCreate, id_funcionario: int
+) -> dict:
+    from app.models.canteiros import Canteiro
+    from app.models.especies import Especie
+
+    await _validar_canteiro_sementeira(db, payload.id_canteiro)
+    cant = await db.get(Canteiro, payload.id_canteiro)
+    if not cant:
+        raise ValueError("Sementeira não encontrada")
+
+    lotes_por_id: dict[int, LoteSementes] = {}
+    for item in payload.itens:
+        if item.id_lote_sementes in lotes_por_id:
+            continue
+        lote = await db.get(LoteSementes, item.id_lote_sementes)
+        if not lote:
+            raise ValueError(f"Lote id {item.id_lote_sementes} não encontrado")
+        lotes_por_id[item.id_lote_sementes] = lote
+
+    especies: dict[int, str] = {}
+    for lote in lotes_por_id.values():
+        if lote.id_especie not in especies:
+            esp = await db.get(Especie, lote.id_especie)
+            especies[lote.id_especie] = (
+                (esp.nome_popular or esp.nome_cientifico) if esp else ""
+            )
+
+    registrar = bool(payload.registrar_plantas)
+    saida_itens = []
+    total_sem = 0
+    total_plantas = 0
+
+    try:
+        for item in payload.itens:
+            lote = lotes_por_id[item.id_lote_sementes]
+            obs = item.observacoes or payload.observacoes_gerais
+            dados = {
+                "id_lote_sementes": item.id_lote_sementes,
+                "id_canteiro": payload.id_canteiro,
+                "data_semeadura": payload.data_semeadura,
+                "quantidade_sementes_usadas": item.quantidade_sementes_usadas,
+                "observacoes": obs,
+                "registrar_plantas": registrar,
+                "quantidade_plantas_registrar": item.quantidade_sementes_usadas if registrar else None,
+            }
+            db_sem, plantas_criadas = await _executar_semeadura_item(
+                db, lote=lote, dados=dados, id_funcionario=id_funcionario
+            )
+            total_sem += item.quantidade_sementes_usadas
+            total_plantas += plantas_criadas
+            saida_itens.append(
+                {
+                    "id_lote_sementes": lote.id,
+                    "codigo_lote": lote.codigo_lote,
+                    "especie_nome": especies.get(lote.id_especie),
+                    "quantidade_sementes_usadas": item.quantidade_sementes_usadas,
+                    "id_semeadura": db_sem.id,
+                    "plantas_criadas": plantas_criadas,
+                }
+            )
+        from app.services.custeio import redistribuir_cif_parque
+
+        await redistribuir_cif_parque(db, commit=False)
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        raise
+
+    return {
+        "data_semeadura": payload.data_semeadura,
+        "id_canteiro": payload.id_canteiro,
+        "canteiro_nome": cant.nome,
+        "total_sementes": total_sem,
+        "total_plantas": total_plantas,
+        "itens": saida_itens,
+    }
 
 
 async def get_rastreabilidade_planta(db: AsyncSession, planta_id: int) -> Optional[dict]:

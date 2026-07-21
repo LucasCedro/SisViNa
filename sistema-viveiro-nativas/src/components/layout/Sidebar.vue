@@ -21,7 +21,7 @@
         :to="item.path"
         class="nav-item"
       >
-        <span class="nav-icon" aria-hidden="true">{{ item.iconChar }}</span>
+        <component :is="item.iconComponent" class="nav-icon" aria-hidden="true" />
         <span>{{ item.label }}</span>
       </router-link>
     </nav>
@@ -29,33 +29,9 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
-import { NAV_ITEMS } from '@/constants/navigation'
-import { usePermissions } from '@/composables/usePermissions'
+import { useSidebarNavItems } from '@/composables/useNavItems'
 
-const ICON_CHARS = {
-  home: '⌂',
-  viveiro: '▣',
-  fitossanidade: '✿',
-  fertilizacao: 'N',
-  vendas: '¤',
-  prescricao: '≡',
-  producao: '⇄',
-  estoques: '▤',
-  coleta: '❋',
-  biblioteca: '☰',
-  financeiro: '$',
-  contabilidade: '§',
-}
-
-const { can } = usePermissions()
-
-const itensVisiveis = computed(() =>
-  NAV_ITEMS.filter((item) => !item.hiddenInMenu && can(item.permission)).map((item) => ({
-    ...item,
-    iconChar: ICON_CHARS[item.icon] || '•',
-  }))
-)
+const itensVisiveis = useSidebarNavItems()
 </script>
 
 <style>
@@ -119,14 +95,17 @@ const itensVisiveis = computed(() =>
 }
 
 .nav-icon {
-  width: 1.5rem;
+  width: 1.25rem;
+  height: 1.25rem;
+  min-width: 1.25rem;
   margin-right: var(--spacing-md);
-  text-align: center;
-  font-size: 1rem;
   opacity: 0.9;
+  stroke-width: 1.75;
+  flex-shrink: 0;
 }
 
-@media (max-width: 768px) {
+/* Tablet: sidebar compacta com ícones (768–1024px) */
+@media (min-width: 768px) and (max-width: 1024px) {
   .sidebar {
     width: 60px;
     min-width: 60px;
@@ -140,6 +119,11 @@ const itensVisiveis = computed(() =>
     display: block;
     width: 2.25rem;
     border-radius: var(--radius-full);
+  }
+
+  .nav-item {
+    justify-content: center;
+    padding: var(--spacing-md);
   }
 
   .nav-item span:not(.nav-icon) {

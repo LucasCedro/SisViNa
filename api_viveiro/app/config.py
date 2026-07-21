@@ -5,7 +5,7 @@ from typing import List, Union
 
 class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
-    PROJECT_NAME: str = "Viveiro API"
+    PROJECT_NAME: str = "Brotare Viveiros API"
     BACKEND_CORS_ORIGINS: List[str] = [
         "http://localhost:5173",
         "http://localhost:8000",

@@ -20,13 +20,13 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { usePageTab } from '@/composables/usePageTab'
 import PageLayout from '@/components/layout/PageLayout.vue'
 import PageSection from '@/components/layout/PageSection.vue'
 import Fitossanidade from '@/components/viveiro/Fitossanidade.vue'
 import AnaliseRecorrencia from '@/components/viveiro/AnaliseRecorrencia.vue'
 
-const guiaAtiva = ref('monitoramento')
+const guiaAtiva = usePageTab('fitossanidade', 'monitoramento', { valid: ['monitoramento', 'analise'] })
 </script>
 
 <style scoped>

@@ -3,11 +3,11 @@
     <div class="prem-intro">
       <p class="financeiro-lead prem-intro__lead">
         Preencha os valores abaixo e clique em <strong>Salvar premissas</strong>.
-        O sistema calcula o custo por muda e usa as despesas como referência na DRE.
+        Premissas <strong>CUSTO</strong> alimentam o CMV da muda; premissas <strong>DRE</strong> entram automaticamente no OPEX do resultado (comissão + despesas fixas).
       </p>
       <ul class="prem-intro__lista">
         <li><span class="prem-tag prem-tag--cmv">CMV</span> coleta: horas × homem-hora; água, energia e folha: valor pago no mês ÷ mudas vivas</li>
-        <li><span class="prem-tag prem-tag--dre">DRE</span> referência mensal — não compõe o custo da muda</li>
+        <li><span class="prem-tag prem-tag--dre">DRE</span> aplicado automaticamente na DRE — não precisa lançar OPEX manual</li>
         <li>
           Substrato: estoque em <strong>kg</strong> (saco), dosagem em <strong>gramas por recipiente</strong>
           — estimativa prática, sem densidade. Baixa automática na transferência para o canteiro.
@@ -143,6 +143,7 @@
 import { ref, computed, onMounted, reactive } from 'vue'
 import { listPremissas, updatePremissa } from '@/services/financeiro'
 import { listInsumos } from '@/services/insumos'
+import { useGlobalLoading } from '@/composables/useGlobalLoading'
 import {
   uiPremissa,
   secoesPremissas,
@@ -161,6 +162,7 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['atualizar'])
+const { runWithLoading } = useGlobalLoading()
 
 const lista = ref([])
 const insumos = ref([])
@@ -313,35 +315,37 @@ async function salvarTudo() {
   if (!props.podeEditar || !temAlteracoes.value) return
   salvando.value = true
   try {
-    const updates = lista.value.filter(premissaAlterada).map((p) => {
-      const local = editLocal[p.id]
-      const payload = {
-        valor: valorPremissa(local.valor),
-        quantidade: quantidadePremissa(local.quantidade),
-        id_insumo: local.id_insumo,
-      }
-      if (p.chave === CHAVE_RECIPIENTE) {
-        payload.unidade = normalizarRecipiente(local.unidade)
-      }
-      return updatePremissa(p.id, payload)
-    })
+    await runWithLoading(async () => {
+      const updates = lista.value.filter(premissaAlterada).map((p) => {
+        const local = editLocal[p.id]
+        const payload = {
+          valor: valorPremissa(local.valor),
+          quantidade: quantidadePremissa(local.quantidade),
+          id_insumo: local.id_insumo,
+        }
+        if (p.chave === CHAVE_RECIPIENTE) {
+          payload.unidade = normalizarRecipiente(local.unidade)
+        }
+        return updatePremissa(p.id, payload)
+      })
 
-    const recPrem = lista.value.find((x) => x.chave === CHAVE_RECIPIENTE)
-    const recMudou = recPrem && premissaAlterada(recPrem)
-    if (recMudou) {
-      const sub = lista.value.find((x) => x.chave === CHAVE_SUBSTRATO)
-      if (sub) {
-        updates.push(
-          updatePremissa(sub.id, {
-            unidade: unidadePremissaSubstrato(normalizarRecipiente(editLocal[recPrem.id].unidade)),
-          })
-        )
+      const recPrem = lista.value.find((x) => x.chave === CHAVE_RECIPIENTE)
+      const recMudou = recPrem && premissaAlterada(recPrem)
+      if (recMudou) {
+        const sub = lista.value.find((x) => x.chave === CHAVE_SUBSTRATO)
+        if (sub) {
+          updates.push(
+            updatePremissa(sub.id, {
+              unidade: unidadePremissaSubstrato(normalizarRecipiente(editLocal[recPrem.id].unidade)),
+            })
+          )
+        }
       }
-    }
 
-    await Promise.all(updates)
-    await carregar()
-    emit('atualizar')
+      await Promise.all(updates)
+      await carregar()
+      emit('atualizar')
+    }, 'Salvando premissas…')
   } catch (e) {
     alert(e.response?.data?.detail || 'Erro ao salvar.')
   } finally {
@@ -380,11 +384,13 @@ onMounted(carregar)
 }
 
 .prem-tag--cmv {
-  @apply bg-amber-100 text-amber-900;
+  background: var(--color-attention-bg);
+  color: var(--color-text-secondary);
 }
 
 .prem-tag--dre {
-  @apply bg-sky-100 text-sky-900;
+  background: var(--color-info-bg);
+  color: var(--color-info-dark);
 }
 
 .prem-grupo {
@@ -448,11 +454,11 @@ onMounted(carregar)
 }
 
 .prem-card--cmv {
-  @apply border-amber-200/80;
+  border-color: color-mix(in srgb, var(--color-attention) 45%, var(--color-border));
 }
 
 .prem-card--dre {
-  @apply border-sky-200/80;
+  border-color: color-mix(in srgb, var(--color-info) 35%, var(--color-border));
 }
 
 .prem-card__head {
@@ -496,7 +502,13 @@ onMounted(carregar)
 }
 
 .prem-field__aviso {
-  @apply text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded-md p-2 m-0;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  background: var(--color-attention-bg);
+  border: 1px solid var(--color-primary-100);
+  border-radius: var(--radius-md);
+  padding: 0.5rem;
+  margin: 0;
 }
 
 .prem-field__aviso a {
@@ -516,7 +528,9 @@ onMounted(carregar)
 }
 
 .prem-footer__hint {
-  @apply text-sm text-amber-700 m-0;
+  font-size: 0.875rem;
+  color: var(--color-attention);
+  margin: 0;
 }
 
 .prem-footer__hint--ok {

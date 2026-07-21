@@ -6,17 +6,24 @@ Painel de trabalho (`home.view`):
 
 - Saudação + nome do viveiro (`VITE_VIVEIRO_NOME` no `.env`)
 - Chips de perfis do usuário logado
-- Ações rápidas filtradas por `auth.can(permission)`
+- Ações rápidas filtradas por `auth.can(permission)` e pipeline da unidade (`viveiroContext.modulosNavDesabilitados`)
 - Pendências (transferência, pragas, lotes sem teste)
 - Resumo clicável, fluxo matriz → venda, onboarding, atividade recente
+
+## Contexto de unidade (nativo / florestal)
+
+- Resolvido no backend — `/auth/me` retorna `viveiro_ativo`, `modulos_nav_desabilitados`
+- Store front: `src/store/viveiroContext.js`
+- **Admin** com 2+ unidades: seletor no header (`AdminViveiroSelector.vue`)
+- Demais perfis: contexto transparente, sem seletor
 
 ## Perfis (`funcionarios.perfis` — JSON no Postgres)
 
 | ID | Uso típico |
 |----|------------|
-| `admin` | Tudo + God Mode |
-| `gestor` | Operação, vendas (sem aprovar), estoques |
-| `campo` | Coleta, produção, manejo |
+| `admin` | Tudo + God Mode + troca de unidade |
+| `gestor` | Operação, vendas (sem aprovar), estoques, florestal |
+| `campo` | Coleta, produção, manejo, florestal (operacional) |
 | `financeiro` | Financeiro, NF-e, aprovação de vendas |
 | `rh` | Ver usuários; sem editar |
 | `consulta` | Somente leitura (sem lista de funcionários) |

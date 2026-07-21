@@ -8,6 +8,7 @@ class Semeadura(Base):
     __tablename__ = "semeaduras"
 
     id = Column(Integer, primary_key=True, index=True)
+    id_viveiro = Column(Integer, ForeignKey("viveiros.id"), nullable=False, index=True)
     id_lote_sementes = Column(Integer, ForeignKey("lotes_sementes.id"), nullable=False)
     id_canteiro = Column(Integer, ForeignKey("canteiros.id"))
     data_semeadura = Column(Date, nullable=False)

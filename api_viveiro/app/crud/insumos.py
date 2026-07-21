@@ -204,6 +204,8 @@ async def registrar_movimentacao(
     data_mov = payload.data_movimento or date.today()
     valor_total_mov: Optional[float] = None
     preco_unit_mov: Optional[float] = None
+    status_pag: Optional[str] = None
+    data_pag: Optional[date] = None
 
     if tipo == "entrada":
         valor_total_mov = float(payload.valor_total or 0)
@@ -223,6 +225,13 @@ async def registrar_movimentacao(
         db_insumo.preco_unitario = preco_medio
         db_insumo.data_ultima_compra = data_mov
         saldo = nova_qtd
+        status_pag = (payload.status_pagamento or "PAGO").upper()
+        if status_pag not in ("PAGO", "PENDENTE"):
+            raise ValueError("status_pagamento deve ser PAGO ou PENDENTE")
+        if status_pag == "PAGO":
+            data_pag = payload.data_pagamento or data_mov
+        elif payload.data_pagamento:
+            data_pag = payload.data_pagamento
     elif tipo == "saida":
         if qtd_mov > qtd_atual:
             raise ValueError("Quantidade de saída maior que o estoque disponível")
@@ -253,6 +262,8 @@ async def registrar_movimentacao(
         preco_unitario=preco_unit_mov,
         saldo_quantidade=float(db_insumo.quantidade_estoque or 0),
         data_movimento=data_mov,
+        status_pagamento=status_pag,
+        data_pagamento=data_pag,
         observacao=payload.observacao,
     )
     db.add(mov)

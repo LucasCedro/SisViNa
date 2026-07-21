@@ -1,12 +1,9 @@
 <template>
-  <div
-    v-if="aberto"
-    class="modal-overlay"
-    @pointerdown.self="onOverlayPointerDown"
-    @pointerup.self="onOverlayPointerUp"
-    @pointercancel.self="cancelarFechamentoOverlay"
+  <AppModalOverlay
+    :aberto="aberto"
+    :handlers="modalClose"
+    panel-class="app-modal-panel--wide"
   >
-    <div class="modal-card" role="dialog" @pointerdown="onModalPointerDown">
       <header class="modal-header">
         <h2>{{ modoEdicao ? 'Editar árvore matriz' : 'Cadastrar árvore matriz' }}</h2>
         <button type="button" class="btn-fechar" @click="fechar">×</button>
@@ -174,19 +171,26 @@
           </button>
         </footer>
       </form>
-    </div>
-  </div>
+  </AppModalOverlay>
+  <ConfirmSaidaModal
+    :aberto="confirmAberto"
+    @confirmar="confirmarSaida"
+    @cancelar="cancelarSaida"
+  />
 </template>
 
 <script setup>
 import { ref, computed, watch, nextTick } from 'vue'
+import AppModalOverlay from '@/components/shared/AppModalOverlay.vue'
+import ConfirmSaidaModal from '@/components/shared/ConfirmSaidaModal.vue'
+import { useModalFormClose } from '@/composables/useModalFormClose'
+import { useFormDirty } from '@/utils/formDirty'
 import { listEspecies } from '@/services/especies'
 import { useColetaStore } from '@/store/coleta'
 import MapaSeletorCoordenadas from '@/components/coleta/MapaSeletorCoordenadas.vue'
 import SeletorEspecie from '@/components/coleta/SeletorEspecie.vue'
 import { utmParaLatLng, latLngParaUtm } from '@/utils/coordenadas'
 import { TIPOS_ORIGEM, ESTAGIOS_FRUTIFICACAO, MESES, UFS_BRASIL } from '@/constants/coletaDominio'
-import { useModalOverlayClose } from '@/composables/useModalOverlayClose'
 
 const props = defineProps({
   aberto: { type: Boolean, default: false },
@@ -228,6 +232,8 @@ const formPadrao = () => ({
 })
 
 const form = ref(formPadrao())
+
+const { isDirty, rebase } = useFormDirty(form, () => props.aberto)
 
 function ordenarEspecies(lista) {
   return [...lista].sort((a, b) => {
@@ -342,6 +348,7 @@ watch(
     preencherForm(props.matriz)
     await nextTick()
     mapaRef.value?.invalidate?.()
+    rebase()
   }
 )
 
@@ -349,17 +356,19 @@ function fecharInterno() {
   emit('fechar')
 }
 
+const modalClose = useModalFormClose(fecharInterno, () => isDirty.value, () => props.aberto)
 const {
-  onModalPointerDown,
-  onOverlayPointerDown,
-  onOverlayPointerUp,
-  cancelarFechamentoOverlay,
   resetOverlayPress,
-} = useModalOverlayClose(fecharInterno)
+  confirmAberto,
+  confirmarSaida,
+  cancelarSaida,
+  requestClose,
+  sairSemConfirmar,
+} = modalClose
 
 function fechar() {
   resetOverlayPress()
-  fecharInterno()
+  requestClose()
 }
 
 function montarPayload() {
@@ -435,7 +444,7 @@ async function salvar() {
       ? await store.atualizar(props.matriz.id, payload)
       : await store.cadastrar(payload)
     emit('salvo', resultado)
-    fechar()
+    sairSemConfirmar()
   } catch (e) {
     const detail = e.response?.data?.detail
     erro.value = Array.isArray(detail)
@@ -448,27 +457,6 @@ async function salvar() {
 </script>
 
 <style scoped>
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 1500;
-  background: rgba(0, 0, 0, 0.45);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1rem;
-}
-
-.modal-card {
-  background: var(--color-surface);
-  border-radius: 12px;
-  width: 100%;
-  max-width: 640px;
-  max-height: 92vh;
-  overflow: auto;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
-}
-
 .modal-header {
   display: flex;
   justify-content: space-between;

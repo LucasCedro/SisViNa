@@ -5,6 +5,9 @@ from app.database import AsyncSessionLocal
 from app.models.especies import Especie
 from app.models.funcionarios import Funcionario
 from app.models.compradores import Comprador
+from app.models.viveiros import Viveiro
+from app.models.funcionario_viveiro import FuncionarioViveiro
+from app.constants.viveiro_modo import MODO_FLORESTAL, MODO_NATIVO
 
 ALL_PERFIS = ["admin", "gestor", "campo", "financeiro", "rh", "consulta"]
 
@@ -17,6 +20,60 @@ DEFAULT_ADMIN = {
     "email": "admin@viveiro.com",
     "perfis": ALL_PERFIS,
 }
+
+# Usuários de demonstração RBAC — senha comum para testes de perfil
+RBAC_DEMO_PASSWORD = "Senha!@#"
+
+RBAC_DEMO_USERS = [
+    {
+        "usuario": "demo.admin",
+        "nome": "Demo Administrador",
+        "cpf": "529.982.247-25",
+        "cargo": "Administrador",
+        "email": "demo.admin@viveiro.local",
+        "perfis": ["admin"],
+    },
+    {
+        "usuario": "demo.gestor",
+        "nome": "Demo Gestor",
+        "cpf": "390.533.447-05",
+        "cargo": "Gestor do Viveiro",
+        "email": "demo.gestor@viveiro.local",
+        "perfis": ["gestor"],
+    },
+    {
+        "usuario": "demo.campo",
+        "nome": "Demo Campo",
+        "cpf": "153.509.460-56",
+        "cargo": "Operação de Campo",
+        "email": "demo.campo@viveiro.local",
+        "perfis": ["campo"],
+    },
+    {
+        "usuario": "demo.financeiro",
+        "nome": "Demo Financeiro",
+        "cpf": "231.002.999-00",
+        "cargo": "Financeiro",
+        "email": "demo.financeiro@viveiro.local",
+        "perfis": ["financeiro"],
+    },
+    {
+        "usuario": "demo.consulta",
+        "nome": "Demo Consulta",
+        "cpf": "111.444.777-35",
+        "cargo": "Consulta",
+        "email": "demo.consulta@viveiro.local",
+        "perfis": ["consulta"],
+    },
+    {
+        "usuario": "demo.rh",
+        "nome": "Demo RH",
+        "cpf": "886.415.779-47",
+        "cargo": "Recursos Humanos",
+        "email": "demo.rh@viveiro.local",
+        "perfis": ["rh"],
+    },
+]
 
 
 async def ensure_default_admin() -> None:
@@ -38,6 +95,72 @@ async def ensure_default_admin() -> None:
                 ativo=True,
             )
         )
+        await db.commit()
+
+
+async def ensure_rbac_demo_users() -> None:
+    """Garante um usuário de cada perfil RBAC para testes (upsert por login)."""
+    senha_hash = gerar_senha_hash(RBAC_DEMO_PASSWORD)
+    async with AsyncSessionLocal() as db:
+        for spec in RBAC_DEMO_USERS:
+            result = await db.execute(
+                select(Funcionario).where(Funcionario.usuario == spec["usuario"])
+            )
+            row = result.scalars().first()
+            if row:
+                row.nome = spec["nome"]
+                row.cpf = spec["cpf"]
+                row.cargo = spec["cargo"]
+                row.email = spec["email"]
+                row.perfis = list(spec["perfis"])
+                row.senha = senha_hash
+                row.ativo = True
+            else:
+                db.add(
+                    Funcionario(
+                        nome=spec["nome"],
+                        cpf=spec["cpf"],
+                        usuario=spec["usuario"],
+                        senha=senha_hash,
+                        cargo=spec["cargo"],
+                        email=spec["email"],
+                        perfis=list(spec["perfis"]),
+                        ativo=True,
+                    )
+                )
+        await db.commit()
+
+
+async def ensure_default_viveiros() -> None:
+    """Garante unidades padrão e vínculo de funcionários (pós-migration 38)."""
+    async with AsyncSessionLocal() as db:
+        try:
+            result = await db.execute(select(Viveiro).limit(1))
+        except Exception:
+            # Migration 38 ainda não aplicada — não derrubar a API no startup
+            await db.rollback()
+            return
+
+        if not result.scalars().first():
+            db.add_all(
+                [
+                    Viveiro(id=1, nome="Viveiro Principal", slug="principal", modo_operacao=MODO_NATIVO, ativo=True),
+                    Viveiro(
+                        id=2,
+                        nome="Demo Florestal",
+                        slug="demo-florestal",
+                        modo_operacao=MODO_FLORESTAL,
+                        ativo=True,
+                    ),
+                ]
+            )
+            await db.flush()
+
+        funcionarios = (await db.execute(select(Funcionario))).scalars().all()
+        for f in funcionarios:
+            await db.merge(FuncionarioViveiro(id_funcionario=f.id, id_viveiro=1))
+            if f.usuario in ("admin", "demo.admin"):
+                await db.merge(FuncionarioViveiro(id_funcionario=f.id, id_viveiro=2))
         await db.commit()
 
 

@@ -301,8 +301,8 @@ export const PREMISSA_UI = {
       const litrosMes = Number(p.quantidade) || 0
       if (!mensal) return 'Informe quanto pagou de água da produção neste mês (ex.: R$ 1.000).'
       const base = !mv
-        ? `${fmt(mensal)}/mês — rateio por muda quando houver mudas vivas`
-        : `${fmt(mensal)}/mês ÷ ${mv} mudas ≈ ${fmt(mensal / mv)}/muda`
+        ? `${fmt(mensal)}/mês — dividido pelo total de mudas vivas no parque`
+        : `${fmt(mensal)}/mês ÷ ${mv} mudas vivas ≈ ${fmt(mensal / mv)}/muda`
       if (litrosMes > 0) {
         return `${base} · ref. ${litrosMes} L/muda/mês`
       }
@@ -323,9 +323,9 @@ export const PREMISSA_UI = {
       const mensal = Number(p.valor) || 0
       const mv = ctx?.mudasVivas || 0
       if (!mensal) return 'Informe o valor da fatura de energia da produção.'
-      if (!mv) return `${fmt(mensal)}/mês — o rateio por muda aparece quando houver mudas vivas no sistema.`
+      if (!mv) return `${fmt(mensal)}/mês — dividido pelo total de mudas vivas no parque.`
       const porMuda = mensal / mv
-      return `${fmt(mensal)}/mês ÷ ${mv} mudas ≈ ${fmt(porMuda)}/muda (automático na semeadura)`
+      return `${fmt(mensal)}/mês ÷ ${mv} mudas vivas ≈ ${fmt(porMuda)}/muda`
     },
   },
   cif_mo_producao_muda: {
@@ -342,8 +342,8 @@ export const PREMISSA_UI = {
       const mensal = Number(p.valor) || 0
       const mv = ctx?.mudasVivas || 0
       if (!mensal) return 'Informe o total da folha de produção paga no mês.'
-      if (!mv) return `${fmt(mensal)}/mês — rateio por muda quando houver mudas vivas.`
-      return `${fmt(mensal)}/mês ÷ ${mv} mudas ≈ ${fmt(mensal / mv)}/muda`
+      if (!mv) return `${fmt(mensal)}/mês — dividido pelo total de mudas vivas no parque (todas as espécies).`
+      return `${fmt(mensal)}/mês ÷ ${mv} mudas vivas ≈ ${fmt(mensal / mv)}/muda`
     },
   },
   energia_fatura_mes: {

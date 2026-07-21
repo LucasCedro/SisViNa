@@ -21,6 +21,8 @@ async def test_resumo_estoques_estrutura(client: AsyncClient, auth_headers: dict
     assert "valor_total_sementes" in data
     assert "analitico_mudas" in data
     assert "cmv_integridade" in data
+    assert "capacidades_viveiro" in data
+    assert "desenvolvimento" in data["capacidades_viveiro"]
     pipe = data["mudas_pipeline"]
     assert "prontas_para_venda" in pipe
     assert "dias_minimos_rustificacao" in pipe

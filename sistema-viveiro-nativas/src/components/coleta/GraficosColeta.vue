@@ -38,7 +38,7 @@
             </div>
             <div class="lista-acoes">
               <button
-                v-if="item.status === 'pronta'"
+                v-if="item.status === 'pronta' && podeColetar"
                 type="button"
                 class="btn-acao btn-acao--prim"
                 @click="emit('coletar', item.matriz)"
@@ -46,7 +46,7 @@
                 Coletar
               </button>
               <button
-                v-else
+                v-else-if="podeEditar"
                 type="button"
                 class="btn-acao btn-acao--prim"
                 @click="emit('editar', item.matriz)"
@@ -87,7 +87,7 @@
           </summary>
           <ul class="lista-compacta">
             <li v-for="item in janela.semFenologia" :key="item.matriz.id">
-              <button type="button" class="link-matriz" @click="emit('editar', item.matriz)">
+              <button v-if="podeEditar" type="button" class="link-matriz" @click="emit('editar', item.matriz)">
                 <span>{{ item.matriz.nome }}</span>
                 <span class="muted">Cadastrar janela</span>
               </button>
@@ -142,7 +142,7 @@
               <p class="lista-meta">{{ p.detalhe }}</p>
               <p class="lista-detalhe">{{ p.meta }}</p>
             </div>
-            <div class="lista-acoes">
+            <div v-if="podeCriar" class="lista-acoes">
               <button
                 type="button"
                 class="btn-acao btn-acao--prim"
@@ -216,6 +216,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useColetaStore } from '@/store/coleta'
+import { usePermissions } from '@/composables/usePermissions'
 import { MESES } from '@/constants/coletaDominio'
 import {
   agruparMatrizesJanelaColeta,
@@ -227,6 +228,11 @@ import {
 const emit = defineEmits(['coletar', 'editar', 'registrar-teste', 'ir-aba', 'focar-matriz'])
 
 const store = useColetaStore()
+const { can } = usePermissions()
+
+const podeColetar = computed(() => can('coleta.create'))
+const podeEditar = computed(() => can('coleta.edit'))
+const podeCriar = computed(() => can('coleta.create'))
 
 const mesAtual = computed(() => new Date().getMonth() + 1)
 const mesAtualLabel = computed(() => MESES.find((m) => m.value === mesAtual.value)?.label || '')

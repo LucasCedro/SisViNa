@@ -31,3 +31,4 @@ class Funcionario(Base):
     coletas_sementes = relationship("ColetaSementes", back_populates="funcionario")
     testes_sementes = relationship("TesteSementes", back_populates="funcionario")
     semeaduras = relationship("Semeadura", back_populates="funcionario")
+    viveiros_vinculo = relationship("FuncionarioViveiro", back_populates="funcionario", cascade="all, delete-orphan")

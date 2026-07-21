@@ -3,14 +3,9 @@
     class="analitico-panel"
     :class="metrica === 'rustificacao' ? 'analitico-panel--rust' : 'analitico-panel--viveiro'"
   >
-    <header class="analitico-panel__header">
-      <div>
-        <h3 class="analitico-panel__titulo">Visões analíticas</h3>
-        <p class="analitico-panel__sub">
-          Todas as mudas vivas · custo = <code>custo_atual</code> (CMV acumulado)
-        </p>
-      </div>
-      <div class="analitico-metrica" role="group" aria-label="Métrica de idade para faixas e detalhe">
+    <div class="analitico-toolbar">
+      <h3 class="analitico-toolbar__titulo">Estoque em detalhe</h3>
+      <div class="analitico-metrica" role="group" aria-label="Como contar a idade">
         <button
           type="button"
           class="metrica-btn metrica-btn--viveiro"
@@ -28,30 +23,6 @@
           Dias na rustificação
         </button>
       </div>
-    </header>
-
-    <!-- Banner bem visível da métrica ativa -->
-    <div
-      :key="metrica"
-      class="metrica-banner"
-      :class="metrica === 'rustificacao' ? 'metrica-banner--rust' : 'metrica-banner--viveiro'"
-    >
-      <div class="metrica-banner__icon" aria-hidden="true">{{ metrica === 'rustificacao' ? '⏳' : '🌱' }}</div>
-      <div class="metrica-banner__texto">
-        <strong>{{ metricaLabel }}</strong>
-        <span>{{ metricaDescricao }}</span>
-      </div>
-      <div class="metrica-banner__stat">
-        <span class="metrica-banner__stat-label">Média agora</span>
-        <strong class="metrica-banner__stat-valor">{{ mediaAtiva }} dias</strong>
-      </div>
-    </div>
-
-    <div v-if="cmv?.alertas?.length" class="cmv-box" :class="{ 'cmv-box--warn': cmv.plantas_sem_custo > 0 }">
-      <strong>CMV / integridade</strong>
-      <ul>
-        <li v-for="(a, i) in cmv.alertas" :key="i">{{ a }}</li>
-      </ul>
     </div>
 
     <nav class="visao-tabs" aria-label="Tipo de visão">
@@ -72,21 +43,23 @@
 
     <!-- Por espécie -->
     <Transition name="metrica-fade" mode="out-in">
-      <div v-if="visaoAtiva === 'especie'" :key="'esp-' + metrica" class="estoque-table-card analitico-table-wrap">
+      <div v-if="visaoAtiva === 'especie'" :key="'esp-' + metrica">
+        <p class="tabela-guia">{{ guiaTabelaAtiva }}</p>
+        <div class="estoque-table-card analitico-table-wrap">
         <table class="estoque-table">
           <thead>
             <tr>
               <th>Espécie</th>
-              <th class="col-num">Total</th>
-              <th class="col-num">Comercial</th>
-              <th class="col-num col-idade" :class="{ 'col-idade--ativa': metrica === 'viveiro' }">
+              <th class="col-num" title="Todas as mudas vivas desta espécie">Mudas vivas</th>
+              <th class="col-num" title="Liberadas para venda comercial">Prontas venda</th>
+              <th class="col-num col-idade" :class="{ 'col-idade--ativa': metrica === 'viveiro' }" title="Dias desde o plantio">
                 Dias no viveiro
               </th>
-              <th class="col-num col-idade" :class="{ 'col-idade--ativa': metrica === 'rustificacao' }">
+              <th class="col-num col-idade" :class="{ 'col-idade--ativa': metrica === 'rustificacao' }" title="Dias na área de rustificação">
                 Dias rustificação
               </th>
-              <th class="col-num">Custo méd.</th>
-              <th class="col-num">Valor CMV</th>
+              <th class="col-num" title="Custo acumulado médio por muda">Custo méd.</th>
+              <th class="col-num" title="Soma do custo de todas as mudas vivas">Valor total</th>
               <th class="col-acoes"></th>
             </tr>
           </thead>
@@ -114,13 +87,12 @@
             </tr>
           </tbody>
         </table>
+        </div>
       </div>
 
       <!-- Por idade -->
       <div v-else-if="visaoAtiva === 'idade'" :key="'idade-' + metrica" class="analitico-idade">
-        <p class="faixa-legenda">
-          Faixas calculadas por: <strong>{{ metricaLabel }}</strong>
-        </p>
+        <p class="tabela-guia">{{ guiaTabelaAtiva }}</p>
         <div class="faixa-grid">
           <button
             v-for="f in porIdade"
@@ -143,7 +115,9 @@
       </div>
 
       <!-- Espécie × idade -->
-      <div v-else :key="'cruz-' + metrica" class="estoque-table-card analitico-table-wrap">
+      <div v-else :key="'cruz-' + metrica">
+        <p class="tabela-guia">{{ guiaTabelaAtiva }}</p>
+        <div class="estoque-table-card analitico-table-wrap">
         <div class="filtro-especie">
           <label>
             Filtrar espécie
@@ -192,18 +166,27 @@
             </tr>
           </tbody>
         </table>
+        </div>
       </div>
     </Transition>
 
     <!-- Modal detalhe -->
-    <dialog ref="dialogDetalhe" class="app-dialog app-dialog--xl analitico-dialog">
+    <AppModalOverlay
+      :aberto="detalheAberto"
+      :handlers="overlayDetalhe"
+      panel-class="app-modal-panel--xl"
+      aria-labelledby="analitico-detalhe-titulo"
+    >
       <div class="dialog-panel">
-        <header class="dialog-panel__header">
-          <h3>Detalhe — {{ detalheTitulo }}</h3>
-          <p>
-            {{ detalhe?.total_mudas ?? 0 }} muda(s) · métrica:
-            <strong>{{ metricaLabel }}</strong>
-          </p>
+        <header class="app-modal-header">
+          <div>
+            <h3 id="analitico-detalhe-titulo">Detalhe — {{ detalheTitulo }}</h3>
+            <p class="app-modal-sub">
+              {{ detalhe?.total_mudas ?? 0 }} muda(s) · métrica:
+              <strong>{{ metricaLabel }}</strong>
+            </p>
+          </div>
+          <button type="button" class="app-modal-fechar" aria-label="Fechar" @click="fecharDetalhe">×</button>
         </header>
 
         <div class="detalhe-modos">
@@ -303,30 +286,31 @@
           </template>
         </div>
 
-        <footer class="dialog-panel__footer">
+        <footer class="app-modal-footer">
           <button type="button" class="btn btn-secondary" @click="fecharDetalhe">Fechar</button>
         </footer>
       </div>
-    </dialog>
+    </AppModalOverlay>
   </section>
 </template>
 
 <script setup>
 import { ref, computed, watch } from 'vue'
+import AppModalOverlay from '@/components/shared/AppModalOverlay.vue'
+import { useSimpleModalClose } from '@/composables/useSimpleModalClose'
 import { getAnaliticoDetalhe } from '@/services/estoques'
 import './estoques-shared.css'
 
 const props = defineProps({
   analiticoViveiro: { type: Object, default: null },
   analiticoRustificacao: { type: Object, default: null },
-  cmv: { type: Object, default: null },
 })
 
 const metrica = ref('viveiro')
 const visaoAtiva = ref('especie')
 const filtroEspecie = ref('')
 
-const dialogDetalhe = ref(null)
+const detalheAberto = ref(false)
 const detalhe = ref(null)
 const detalheTitulo = ref('')
 const detalheFiltro = ref({})
@@ -356,15 +340,24 @@ const metricaLabel = computed(() =>
 const metricaCurta = computed(() =>
   metrica.value === 'rustificacao' ? 'rust.' : 'viveiro'
 )
-const metricaDescricao = computed(() =>
-  metrica.value === 'rustificacao'
-    ? 'Contagem desde a entrada na área de rustificação. Faixas e detalhe usam só mudas nessa área.'
-    : 'Contagem desde o plantio (ou início do estágio). Todas as mudas vivas entram nas faixas.'
-)
 const mediaAtiva = computed(() => {
   const t = totais.value
   if (metrica.value === 'rustificacao') return t.dias_medio_rustificacao ?? '—'
   return t.dias_medio_viveiro ?? '—'
+})
+
+const guiaTabelaAtiva = computed(() => {
+  const media = mediaAtiva.value
+  if (visaoAtiva.value === 'especie') {
+    if (metrica.value === 'rustificacao') {
+      return `Uma linha por espécie. Coluna em destaque = dias na rustificação (média do parque: ${media} d). Custo méd. = gasto acumulado por muda.`
+    }
+    return `Uma linha por espécie. Mudas vivas = todo o parque; Prontas venda = liberadas comercialmente. Coluna em destaque = dias desde o plantio (média: ${media} d).`
+  }
+  if (visaoAtiva.value === 'idade') {
+    return `Mudas agrupadas por faixa de ${metrica.value === 'rustificacao' ? 'tempo na rustificação' : 'idade no viveiro'}. Clique em um card para abrir a lista muda a muda.`
+  }
+  return `Cada linha cruza uma espécie com uma faixa de idade. Use o filtro acima ou clique em Detalhe para ver as mudas.`
 })
 
 const cruzadaFiltrada = computed(() => {
@@ -392,7 +385,7 @@ async function abrirDetalhe(filtro = {}) {
   modoDetalhe.value = 'muda'
   loteAberto.value = null
   erroDetalhe.value = ''
-  dialogDetalhe.value?.showModal()
+  detalheAberto.value = true
   await carregarDetalhe()
 }
 
@@ -416,53 +409,61 @@ async function carregarDetalhe() {
 }
 
 watch(modoDetalhe, () => {
-  if (dialogDetalhe.value?.open) carregarDetalhe()
+  if (detalheAberto.value) carregarDetalhe()
 })
+
+function fecharDetalheInterno() {
+  detalheAberto.value = false
+}
+
+const overlayDetalhe = useSimpleModalClose(fecharDetalheInterno, () => detalheAberto.value)
+
+function fecharDetalhe() {
+  overlayDetalhe.resetOverlayPress()
+  fecharDetalheInterno()
+}
 
 function toggleLote(codigo) {
   loteAberto.value = loteAberto.value === codigo ? null : codigo
-}
-
-function fecharDetalhe() {
-  dialogDetalhe.value?.close()
 }
 </script>
 
 <style scoped>
 .analitico-panel {
   margin-top: var(--spacing-xl);
-  padding-top: var(--spacing-xl);
-  border-top: 3px solid var(--color-border-subtle);
-  transition: border-color 0.25s;
+  padding-top: var(--spacing-lg);
+  border-top: 1px solid var(--color-border-subtle);
 }
 
-.analitico-panel--viveiro {
-  border-top-color: var(--color-primary);
-}
-
-.analitico-panel--rust {
-  border-top-color: #e6a817;
-}
-
-.analitico-panel__header {
+.analitico-toolbar {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: var(--spacing-md);
   margin-bottom: var(--spacing-md);
 }
 
-.analitico-panel__titulo {
+.analitico-toolbar__titulo {
   margin: 0;
   font-size: 1rem;
   font-weight: 600;
+  color: var(--color-text-primary);
 }
 
-.analitico-panel__sub {
-  margin: 0.25rem 0 0;
+.tabela-guia {
+  margin: 0 0 var(--spacing-sm);
+  padding: 0.5rem 0.75rem;
   font-size: 0.8125rem;
+  line-height: 1.45;
   color: var(--color-text-secondary);
+  background: var(--color-surface-muted);
+  border-radius: var(--radius-md);
+  border-left: 3px solid var(--color-primary);
+}
+
+.analitico-panel--rust .tabela-guia {
+  border-left-color: #e6a817;
 }
 
 .analitico-metrica {
@@ -501,76 +502,6 @@ function fecharDetalhe() {
   box-shadow: 0 0 0 3px rgba(230, 168, 23, 0.2);
 }
 
-.metrica-banner {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-md);
-  padding: var(--spacing-md) var(--spacing-lg);
-  border-radius: var(--radius-lg);
-  margin-bottom: var(--spacing-md);
-  border: 2px solid;
-  animation: banner-pop 0.35s ease;
-}
-
-@keyframes banner-pop {
-  from {
-    opacity: 0;
-    transform: translateY(-6px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.metrica-banner--viveiro {
-  background: linear-gradient(90deg, var(--color-primary-subtle), var(--color-surface));
-  border-color: var(--color-primary);
-}
-
-.metrica-banner--rust {
-  background: linear-gradient(90deg, #fff8e6, var(--color-surface));
-  border-color: #e6a817;
-}
-
-.metrica-banner__icon {
-  font-size: 1.75rem;
-  line-height: 1;
-}
-
-.metrica-banner__texto {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-  font-size: 0.875rem;
-}
-
-.metrica-banner__texto strong {
-  font-size: 1.05rem;
-}
-
-.metrica-banner__stat {
-  text-align: right;
-}
-
-.metrica-banner__stat-label {
-  display: block;
-  font-size: 0.6875rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--color-text-muted);
-}
-
-.metrica-banner__stat-valor {
-  font-size: 1.35rem;
-  color: var(--color-primary-700);
-}
-
-.metrica-banner--rust .metrica-banner__stat-valor {
-  color: #7a5a00;
-}
-
 .metrica-fade-enter-active,
 .metrica-fade-leave-active {
   transition: opacity 0.2s, transform 0.2s;
@@ -603,11 +534,6 @@ function fecharDetalhe() {
 
 .analitico-panel--rust .analitico-table-wrap {
   border-left-color: #e6a817;
-}
-
-.faixa-legenda {
-  margin: 0 0 var(--spacing-sm);
-  font-size: 0.875rem;
 }
 
 .faixa-card--click {
@@ -666,19 +592,6 @@ function fecharDetalhe() {
   align-items: flex-end;
 }
 
-.cmv-box {
-  padding: 0.65rem 0.85rem;
-  border-radius: var(--radius-md);
-  background: var(--color-primary-subtle);
-  border: 1px solid var(--color-primary-100);
-  font-size: 0.8125rem;
-  margin-bottom: var(--spacing-md);
-}
-
-.cmv-box--warn {
-  background: #fff8e6;
-  border-color: #e6a817;
-}
 
 .visao-tab {
   border: none;

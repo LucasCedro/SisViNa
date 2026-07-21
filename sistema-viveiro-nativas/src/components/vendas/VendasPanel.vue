@@ -6,9 +6,11 @@
         Estoque disponível vem de <router-link to="/estoques">Estoques</router-link>.
       </p>
       <div class="module-header__actions">
-        <button type="button" class="btn btn-primary" @click="abrirNovaVenda">
-          + Registrar venda
-        </button>
+        <CanAccess permission="vendas.create">
+          <button type="button" class="btn btn-primary" @click="abrirNovaVenda">
+            + Registrar venda
+          </button>
+        </CanAccess>
       </div>
     </header>
 
@@ -91,7 +93,7 @@
                 {{ labelNfe(n) }}
               </span>
               <button
-                v-if="v.status !== 'CANCELADO' && podeEmitirNfe(v.id)"
+                v-if="podeEmitirNfe && v.status !== 'CANCELADO' && podeEmitirNfeVenda(v.id)"
                 type="button"
                 class="btn-nfe"
                 :disabled="emitindoNfe === v.id"
@@ -110,18 +112,26 @@
     </div>
 
     <!-- Modal nova venda -->
-    <dialog ref="dialogVenda" class="app-dialog app-dialog--xl">
+    <AppModalOverlay
+      :aberto="vendaDialogAberto"
+      :handlers="overlayVenda"
+      panel-class="app-modal-panel--xl"
+      aria-labelledby="venda-modal-titulo"
+    >
       <form class="dialog-panel" @submit.prevent="salvarVenda">
-        <header class="dialog-panel__header">
-          <h3>Registrar venda</h3>
-          <p>Pedido comercial — cliente, itens, pagamento e entrega.</p>
+        <header class="app-modal-header">
+          <div>
+            <h3 id="venda-modal-titulo">Registrar venda</h3>
+            <p class="app-modal-sub">Pedido comercial — cliente, itens, pagamento e entrega.</p>
+          </div>
+          <button type="button" class="app-modal-fechar" aria-label="Fechar" @click="fecharVenda">×</button>
         </header>
 
         <div class="dialog-panel__body venda-form-body">
           <div v-if="!estoqueItems.length" class="modal-aviso">
             <p>Não há mudas <strong>aptas p/ venda</strong> no estoque comercial.</p>
             <p>Libere mudas em Produção antes de vender.</p>
-            <router-link to="/producao" class="btn-link" @click="fecharDialog">Ir para Produção</router-link>
+            <router-link to="/producao" class="btn-link" @click="fecharVenda">Ir para Produção</router-link>
           </div>
 
           <template v-else>
@@ -148,10 +158,12 @@
               <div class="module-form-row">
                 <label class="module-field">
                   Situação do pagamento
-                  <select v-model="formVenda.statusPagamento" required>
-                    <option value="PAGO">Pago — recebimento confirmado</option>
-                    <option value="PENDENTE">Pendente — aguardando pagamento</option>
+                  <select v-model="formVenda.statusPagamento" required disabled>
+                    <option value="PENDENTE">Pendente — aguardando aprovação financeira</option>
                   </select>
+                  <span class="field-hint field-hint--info">
+                    Toda venda nasce <strong>pendente</strong>. O financeiro confirma o pagamento em Detalhes da venda.
+                  </span>
                 </label>
                 <label class="module-field">
                   Forma de pagamento
@@ -165,9 +177,6 @@
                   </select>
                 </label>
               </div>
-              <p v-if="formVenda.statusPagamento === 'PENDENTE'" class="field-hint field-hint--info">
-                Venda ficará como <strong>pendente</strong> no financeiro até baixa manual do recebimento.
-              </p>
             </section>
 
             <section class="venda-sec">
@@ -191,14 +200,14 @@
           </template>
         </div>
 
-        <footer class="dialog-panel__footer dialog-panel__footer--venda">
+        <footer class="app-modal-footer dialog-panel__footer--venda">
           <div v-if="linhasVenda.length" class="footer-resumo">
             <strong>{{ resumoPedido.totalMudas }}</strong> muda(s) ·
             <strong>R$ {{ resumoPedido.total.toFixed(2) }}</strong>
-            · {{ formVenda.statusPagamento === 'PAGO' ? 'Pago' : 'Pendente' }}
+            · Pendente
           </div>
           <div class="footer-acoes">
-            <button type="button" class="btn btn-secondary" @click="fecharDialog">Cancelar</button>
+            <button type="button" class="btn btn-secondary" @click="fecharVenda">Cancelar</button>
             <button
               v-if="estoqueItems.length"
               type="submit"
@@ -210,19 +219,33 @@
           </div>
         </footer>
       </form>
-    </dialog>
+    </AppModalOverlay>
+
+    <ConfirmSaidaModal
+      :aberto="confirmAberto"
+      @confirmar="confirmarSaida"
+      @cancelar="cancelarSaida"
+    />
 
     <!-- Detalhe venda -->
-    <dialog ref="dialogDetalhe" class="app-dialog app-dialog--wide">
+    <AppModalOverlay
+      :aberto="detalheAberto"
+      :handlers="overlayDetalhe"
+      panel-class="app-modal-panel--wide"
+      aria-labelledby="venda-detalhe-titulo"
+    >
       <div v-if="vendaDetalhe" class="dialog-panel">
-        <header class="dialog-panel__header">
-          <h3>Venda #{{ vendaDetalhe.id }}</h3>
-          <p>
-            {{ vendaDetalhe.comprador_nome }} · {{ formatarData(vendaDetalhe.data_venda) }} ·
-            <span class="tag" :class="'tag--' + (vendaDetalhe.status || '').toLowerCase()">
-              {{ labelStatus(vendaDetalhe.status) }}
-            </span>
-          </p>
+        <header class="app-modal-header">
+          <div>
+            <h3 id="venda-detalhe-titulo">Venda #{{ vendaDetalhe.id }}</h3>
+            <p class="app-modal-sub">
+              {{ vendaDetalhe.comprador_nome }} · {{ formatarData(vendaDetalhe.data_venda) }} ·
+              <span class="tag" :class="'tag--' + (vendaDetalhe.status || '').toLowerCase()">
+                {{ labelStatus(vendaDetalhe.status) }}
+              </span>
+            </p>
+          </div>
+          <button type="button" class="app-modal-fechar" aria-label="Fechar" @click="fecharDetalhe">×</button>
         </header>
         <div class="dialog-panel__body">
           <p class="detalhe-meta">
@@ -256,38 +279,59 @@
             <strong>Obs.:</strong> {{ vendaDetalhe.observacoes }}
           </p>
         </div>
-        <footer class="dialog-panel__footer">
+        <footer class="app-modal-footer">
+          <button
+            v-if="podeAprovar && vendaDetalhe.status === 'PENDENTE'"
+            type="button"
+            class="btn btn-primary"
+            :disabled="aprovandoVenda"
+            @click="aprovarVendaAtual"
+          >
+            {{ aprovandoVenda ? 'Aprovando…' : 'Confirmar pagamento' }}
+          </button>
           <button type="button" class="btn btn-secondary" @click="fecharDetalhe">Fechar</button>
         </footer>
       </div>
-    </dialog>
+    </AppModalOverlay>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
+import AppModalOverlay from '@/components/shared/AppModalOverlay.vue'
+import ConfirmSaidaModal from '@/components/shared/ConfirmSaidaModal.vue'
+import CanAccess from '@/components/shared/CanAccess.vue'
+import { useModalFormClose } from '@/composables/useModalFormClose'
+import { useSimpleModalClose } from '@/composables/useSimpleModalClose'
+import { usePermissions } from '@/composables/usePermissions'
+import { useGlobalLoading } from '@/composables/useGlobalLoading'
+import { useFormDirty } from '@/utils/formDirty'
 import { useAuthStore } from '@/store/auth'
 import { getEstoqueResumo, listPlantasDisponiveisVendaDetalhado } from '@/services/plantas'
 import { getProducaoResumo } from '@/services/producao'
-import { listVendas, createVenda, getVenda } from '@/services/vendas'
+import { listVendas, createVenda, getVenda, aprovarVenda } from '@/services/vendas'
 import { emitirNfe, listNotasVenda, getNfeAmbiente } from '@/services/nfe'
 import VendaCompradorNfe from '@/components/vendas/VendaCompradorNfe.vue'
 import VendaFormItens from '@/components/vendas/VendaFormItens.vue'
 import { criarLinhaVenda, resumoCarrinho, resolverItensVenda } from '@/utils/vendaItens'
 
 const auth = useAuthStore()
+const { can } = usePermissions()
+const { runWithLoading } = useGlobalLoading()
+const podeEmitirNfe = computed(() => can('fiscal.emit'))
+const podeAprovar = computed(() => can('vendas.approve'))
 const carregando = ref(true)
 const salvando = ref(false)
 const erro = ref(null)
 const estoqueItems = ref([])
 const historico = ref([])
 const pipeline = ref(null)
-const dialogVenda = ref(null)
-const dialogDetalhe = ref(null)
+const detalheAberto = ref(false)
 const compradorNfeRef = ref(null)
 const itensRef = ref(null)
 const avisoVenda = ref([])
 const emitindoNfe = ref(null)
+const aprovandoVenda = ref(false)
 const notasPorVenda = ref({})
 const nfeAmbiente = ref(null)
 const linhasVenda = ref([])
@@ -298,11 +342,49 @@ const formVenda = ref({
   dataEntrega: '',
   idComprador: null,
   formaPagamento: 'PIX',
-  statusPagamento: 'PAGO',
+  statusPagamento: 'PENDENTE',
   observacoes: '',
   origemImportada: false,
   tipoOperacaoFiscal: 'domestica',
 })
+
+const vendaDialogAberto = ref(false)
+
+const vendaFormSnapshot = computed(() => ({
+  ...formVenda.value,
+  linhas: linhasVenda.value,
+}))
+
+const { isDirty, rebase } = useFormDirty(vendaFormSnapshot, () => vendaDialogAberto.value)
+
+function fecharVendaInterno() {
+  vendaDialogAberto.value = false
+}
+
+const overlayVenda = useModalFormClose(
+  fecharVendaInterno,
+  () => isDirty.value,
+  () => vendaDialogAberto.value
+)
+
+const {
+  confirmAberto,
+  confirmarSaida,
+  cancelarSaida,
+  sairSemConfirmar,
+} = overlayVenda
+
+function fecharVenda() {
+  overlayVenda.resetOverlayPress()
+  overlayVenda.requestClose()
+}
+
+function fecharDetalheInterno() {
+  detalheAberto.value = false
+  vendaDetalhe.value = null
+}
+
+const overlayDetalhe = useSimpleModalClose(fecharDetalheInterno, () => detalheAberto.value)
 
 const estoqueResumo = computed(() => ({
   total: estoqueItems.value.reduce((s, i) => s + i.quantidade, 0),
@@ -353,37 +435,36 @@ defineExpose({
 })
 
 async function abrirNovaVenda() {
+  if (!can('vendas.create')) return
   await carregarEstoque()
   formVenda.value = {
     data: new Date().toISOString().split('T')[0],
     dataEntrega: '',
     idComprador: null,
     formaPagamento: 'PIX',
-    statusPagamento: 'PAGO',
+    statusPagamento: 'PENDENTE',
     observacoes: '',
     origemImportada: false,
     tipoOperacaoFiscal: 'domestica',
   }
   linhasVenda.value = [criarLinhaVenda(estoqueItems.value[0])]
-  dialogVenda.value?.showModal()
-}
-
-function fecharDialog() {
-  dialogVenda.value?.close()
+  vendaDialogAberto.value = true
+  await nextTick()
+  rebase()
 }
 
 async function verDetalhe(v) {
   try {
     vendaDetalhe.value = await getVenda(v.id)
-    dialogDetalhe.value?.showModal()
+    detalheAberto.value = true
   } catch (e) {
     alert(e.response?.data?.detail || 'Erro ao carregar detalhe.')
   }
 }
 
 function fecharDetalhe() {
-  dialogDetalhe.value?.close()
-  vendaDetalhe.value = null
+  overlayDetalhe.resetOverlayPress()
+  fecharDetalheInterno()
 }
 
 function labelStatus(st) {
@@ -411,40 +492,42 @@ async function salvarVenda() {
 
   salvando.value = true
   try {
-    const idComprador = await compradorNfeRef.value?.garantirCompradorId()
-    if (!idComprador) {
-      alert('Informe o cliente da venda.')
-      return
-    }
-
-    const itens = await resolverItensVenda(linhasVenda.value, (idEsp) =>
-      listPlantasDisponiveisVendaDetalhado(idEsp)
-    )
-
-    if (formVenda.value.dataEntrega) {
-      for (const it of itens) {
-        it.data_entrega = formVenda.value.dataEntrega
+    await runWithLoading(async () => {
+      const idComprador = await compradorNfeRef.value?.garantirCompradorId()
+      if (!idComprador) {
+        alert('Informe o cliente da venda.')
+        return
       }
-    }
 
-    let obs = formVenda.value.observacoes?.trim() || ''
-    if (formVenda.value.statusPagamento === 'PENDENTE' && !obs.toLowerCase().includes('pagamento pendente')) {
-      obs = obs ? `${obs}\nPagamento pendente.` : 'Pagamento pendente.'
-    }
+      const itens = await resolverItensVenda(linhasVenda.value, (idEsp) =>
+        listPlantasDisponiveisVendaDetalhado(idEsp)
+      )
 
-    const res = await createVenda({
-      id_comprador: Number(idComprador),
-      id_funcionario: auth.user.id,
-      data_venda: `${formVenda.value.data}T12:00:00`,
-      forma_pagamento: formVenda.value.formaPagamento,
-      status: formVenda.value.statusPagamento,
-      observacoes: obs || null,
-      tipo_operacao_fiscal: formVenda.value.tipoOperacaoFiscal,
-      itens,
-    })
-    avisoVenda.value = res.avisos?.length ? res.avisos : []
-    fecharDialog()
-    await carregar()
+      if (formVenda.value.dataEntrega) {
+        for (const it of itens) {
+          it.data_entrega = formVenda.value.dataEntrega
+        }
+      }
+
+      let obs = formVenda.value.observacoes?.trim() || ''
+      if (formVenda.value.statusPagamento === 'PENDENTE' && !obs.toLowerCase().includes('pagamento pendente')) {
+        obs = obs ? `${obs}\nPagamento pendente.` : 'Pagamento pendente.'
+      }
+
+      const res = await createVenda({
+        id_comprador: Number(idComprador),
+        id_funcionario: auth.user.id,
+        data_venda: `${formVenda.value.data}T12:00:00`,
+        forma_pagamento: formVenda.value.formaPagamento,
+        status: 'PENDENTE',
+        observacoes: obs || null,
+        tipo_operacao_fiscal: formVenda.value.tipoOperacaoFiscal,
+        itens,
+      })
+      avisoVenda.value = res.avisos?.length ? res.avisos : []
+      sairSemConfirmar()
+      await carregar()
+    }, 'Registrando venda…')
   } catch (e) {
     alert(e.response?.data?.detail || e.message || 'Erro ao registrar venda.')
   } finally {
@@ -482,7 +565,7 @@ function labelNfe(n) {
   return n.status || 'NF-e'
 }
 
-function podeEmitirNfe(vendaId) {
+function podeEmitirNfeVenda(vendaId) {
   const notas = notasPorVenda.value[vendaId] || []
   return !notas.some((n) =>
     STATUS_NFE_BLOQUEIA_REEMISSAO.includes((n.status || '').toLowerCase())
@@ -501,15 +584,33 @@ function detalheErroNfe(err) {
   return err?.message || 'Erro ao emitir NF-e.'
 }
 
+async function aprovarVendaAtual() {
+  if (!podeAprovar.value || !vendaDetalhe.value) return
+  aprovandoVenda.value = true
+  try {
+    await runWithLoading(async () => {
+      vendaDetalhe.value = await aprovarVenda(vendaDetalhe.value.id)
+      await carregar()
+    }, 'Confirmando pagamento…')
+  } catch (e) {
+    alert(e.response?.data?.detail || 'Erro ao aprovar pagamento.')
+  } finally {
+    aprovandoVenda.value = false
+  }
+}
+
 async function emitirNfeVenda(venda) {
+  if (!podeEmitirNfe.value) return
   if (nfeAmbiente.value?.modo_mock && !confirm(
     'Modo SIMULAÇÃO — a nota NÃO será enviada à Focus/SEFAZ. Continuar?'
   )) return
   emitindoNfe.value = venda.id
   try {
-    const res = await emitirNfe(venda.id)
-    alert(res.mensagem || 'NF-e emitida.')
-    await carregar()
+    await runWithLoading(async () => {
+      const res = await emitirNfe(venda.id)
+      alert(res.mensagem || 'NF-e emitida.')
+      await carregar()
+    }, 'Emitindo NF-e…')
   } catch (e) {
     alert(detalheErroNfe(e))
     await carregar()
@@ -550,8 +651,8 @@ async function emitirNfeVenda(venda) {
 }
 
 .aviso-estoque--warn {
-  background: #fff8e6;
-  border-color: #e6a817;
+  background: var(--color-attention-bg);
+  border-color: var(--color-attention);
 }
 
 .aviso-lista {
@@ -597,8 +698,8 @@ async function emitirNfeVenda(venda) {
 }
 
 .tag--pendente {
-  background: #fff3cd;
-  color: #664d03;
+  background: var(--color-attention-bg);
+  color: var(--color-text-secondary);
 }
 
 .tag--cancelado {
@@ -642,8 +743,8 @@ async function emitirNfeVenda(venda) {
 }
 
 .tag--nfe-simulacao {
-  background: #fff3cd;
-  color: #664d03;
+  background: var(--color-attention-bg);
+  color: var(--color-text-secondary);
 }
 .tag--nfe-autorizada {
   background: var(--color-success-bg);

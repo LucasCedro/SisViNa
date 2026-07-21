@@ -743,12 +743,12 @@ defineExpose({ carregar })
   font-weight: 600;
 }
 .tag-ativo--sim {
-  background: #d1e7dd;
-  color: #0f5132;
+  background: var(--color-success-bg);
+  color: var(--color-success);
 }
 .tag-ativo--nao {
-  background: #e2e3e5;
-  color: #41464b;
+  background: var(--color-surface-muted);
+  color: var(--color-text-muted);
 }
 .hint--inline {
   margin: -0.35rem 0 var(--spacing-md);
@@ -771,13 +771,15 @@ defineExpose({ carregar })
   margin-top: var(--spacing-md);
   padding: 0.65rem 0.75rem;
   border-radius: var(--radius-sm);
-  background: #cff4fc;
-  border: 1px solid #0dcaf0;
+  background: var(--color-info-bg);
+  border: 1px solid var(--color-info);
   font-size: 0.875rem;
+  color: var(--color-info-dark);
 }
 .sim-result--erro {
-  background: #fff3cd;
-  border-color: #ffc107;
+  background: var(--color-attention-bg);
+  border-color: var(--color-attention);
+  color: var(--color-text-secondary);
 }
 .sim-result p {
   margin: 0.2rem 0;
@@ -809,15 +811,15 @@ defineExpose({ carregar })
   white-space: nowrap;
 }
 .tag-op--domestica {
-  background: #e7f1ff;
-  color: #084298;
+  background: var(--color-info-bg);
+  color: var(--color-info-dark);
 }
 .tag-op--importacao {
-  background: #fff3cd;
-  color: #664d03;
+  background: var(--color-attention-bg);
+  color: var(--color-text-secondary);
 }
 .tag-op--exterior {
-  background: #d1e7dd;
-  color: #0f5132;
+  background: var(--color-success-bg);
+  color: var(--color-success);
 }
 </style>

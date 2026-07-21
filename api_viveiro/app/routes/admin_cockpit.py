@@ -16,7 +16,10 @@ from app.schemas.admin_cockpit import (
     AdminRbacOut,
 )
 from app.schemas.funcionarios import FuncionarioCreate, FuncionarioOut, FuncionarioUpdate
+from app.schemas.viveiros import ViveiroCreate, ViveiroOut
 from app.security.rbac import require_godmode
+from app.crud import viveiros as crud_viveiros
+from app.constants.viveiro_modo import MODO_LABELS
 
 router = APIRouter()
 
@@ -36,6 +39,30 @@ async def read_admin_rbac(
 ):
     """Matriz RBAC completa — somente Admin."""
     return crud_admin.get_rbac_matrix()
+
+
+@router.post("/viveiros", response_model=ViveiroOut, status_code=201)
+async def create_admin_viveiro(
+    payload: ViveiroCreate,
+    db: AsyncSession = Depends(get_db),
+    admin=Depends(require_godmode("admin.godmode.manage")),
+):
+    """Cria unidade viveiro — God Mode."""
+    if await crud_viveiros.get_viveiro_by_slug(db, payload.slug):
+        raise HTTPException(status_code=400, detail="Slug já em uso.")
+    row = await crud_viveiros.create_viveiro(db, payload)
+    await crud_viveiros.link_funcionario_viveiro(db, admin.id, row.id)
+    await db.commit()
+    await db.refresh(row)
+    return ViveiroOut(
+        id=row.id,
+        nome=row.nome,
+        slug=row.slug,
+        modo_operacao=row.modo_operacao,
+        modo_label=MODO_LABELS.get(row.modo_operacao, row.modo_operacao),
+        ativo=bool(row.ativo),
+        data_cadastro=row.data_cadastro,
+    )
 
 
 @router.get("/funcionarios", response_model=AdminFuncionarioListOut)

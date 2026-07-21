@@ -215,6 +215,12 @@ export const useColetaStore = defineStore('coleta', {
       const atualizada = await updateColetaSementes(id, payload)
       const idx = this.coletas.findIndex((c) => c.id === id)
       if (idx !== -1) this.coletas[idx] = atualizada
+      if (atualizada.lotes?.length) {
+        for (const lote of atualizada.lotes) {
+          const li = this.lotes.findIndex((l) => l.id === lote.id)
+          if (li !== -1) this.lotes[li] = lote
+        }
+      }
       await this.recarregarMatriz(atualizada.id_arvore_matriz)
       return atualizada
     },

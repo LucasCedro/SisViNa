@@ -1,10 +1,18 @@
 """Schemas de autenticação / sessão."""
 
-from typing import List
+from typing import List, Optional
 
 from pydantic import BaseModel
 
 from app.schemas.funcionarios import FuncionarioOut
+
+
+class ViveiroAtivoOut(BaseModel):
+    id: int
+    nome: str
+    slug: str
+    modo_operacao: str
+    modo_label: str
 
 
 class AuthMeOut(FuncionarioOut):
@@ -16,6 +24,11 @@ class AuthMeOut(FuncionarioOut):
     """
 
     permissions: List[str] = []
+    viveiro_ativo: Optional[ViveiroAtivoOut] = None
+    viveiros: List[ViveiroAtivoOut] = []
+    modulos_habilitados: List[str] = []
+    modulos_nav_desabilitados: List[str] = []
+    pode_selecionar_viveiro: bool = False
 
 
 class PermissionsOut(BaseModel):

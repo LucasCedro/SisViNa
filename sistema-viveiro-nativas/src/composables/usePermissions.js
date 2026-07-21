@@ -21,11 +21,18 @@ export function usePermissions() {
     return Array.isArray(auth.user?.perfis) && auth.user.perfis.includes(roleId)
   }
 
+  function hasAnyRole(...roleIds) {
+    const perfis = auth.user?.perfis
+    if (!Array.isArray(perfis) || !roleIds.length) return false
+    return roleIds.some((r) => perfis.includes(r))
+  }
+
   return {
     permissions,
     perfilLabels,
     can,
     canAny,
     hasRole,
+    hasAnyRole,
   }
 }

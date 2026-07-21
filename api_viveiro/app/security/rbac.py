@@ -65,6 +65,10 @@ ALL_PERMISSIONS: FrozenSet[str] = frozenset(
         "biblioteca.edit",
         "prescricao.view",
         "prescricao.create",
+        "florestal.view",
+        "florestal.create",
+        "florestal.edit",
+        "florestal.transfer",
         "admin.godmode.view",
         "admin.godmode.manage",
     }
@@ -106,6 +110,7 @@ _FISCAL_ALL = _module_all("fiscal", ("view", "emit", "edit"))
 _CONTAB_ALL = _module_all("contabilidade", ("view", "edit"))
 _BIBLIOTECA_ALL = _module_all("biblioteca", ("view", "edit"))
 _PRESCRICAO_ALL = _module_all("prescricao", ("view", "create"))
+_FLORESTAL_ALL = _module_all("florestal", ("view", "create", "edit", "transfer"))
 
 ROLE_PERMISSIONS: dict[str, FrozenSet[str]] = {
     "admin": ALL_PERMISSIONS,
@@ -119,6 +124,7 @@ ROLE_PERMISSIONS: dict[str, FrozenSet[str]] = {
     | _VENDAS_GESTOR
     | _BIBLIOTECA_ALL
     | _PRESCRICAO_ALL
+    | _FLORESTAL_ALL
     | _perms("financeiro.view", "financeiro.create", "fiscal.view", "contabilidade.view"),
     "campo": _UI
     | _perms(
@@ -134,7 +140,8 @@ ROLE_PERMISSIONS: dict[str, FrozenSet[str]] = {
     | _FERT_ALL
     | _perms("estoques.view")
     | _BIBLIOTECA_ALL
-    | _PRESCRICAO_ALL,
+    | _PRESCRICAO_ALL
+    | _perms("florestal.view", "florestal.create", "florestal.transfer"),
     "financeiro": _UI
     | _perms("coleta.view", "producao.view", "viveiro.view", "estoques.view", "biblioteca.view")
     | _VENDAS_FIN

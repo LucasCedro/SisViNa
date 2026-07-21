@@ -19,10 +19,11 @@ router = APIRouter()
 async def read_painel_financeiro(
     mes: Optional[int] = Query(None, ge=1, le=12),
     ano: Optional[int] = Query(None, ge=2000, le=2100),
+    regime: Optional[str] = Query("caixa", pattern="^(caixa|competencia)$"),
     db: AsyncSession = Depends(get_db),
     current_user: FuncionarioOut = Depends(require_permission("financeiro.view")),
 ):
-    return await crud_financeiro.get_painel_financeiro(db, mes=mes, ano=ano)
+    return await crud_financeiro.get_painel_financeiro(db, mes=mes, ano=ano, regime=regime)
 
 
 @router.get("/premissas", response_model=List[PremissaOut])

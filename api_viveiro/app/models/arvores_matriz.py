@@ -8,6 +8,7 @@ class ArvoreMatriz(Base):
     __tablename__ = "arvores_matriz"
 
     id = Column(Integer, primary_key=True, index=True)
+    id_viveiro = Column(Integer, ForeignKey("viveiros.id"), nullable=False, index=True)
     nome = Column(String(120), nullable=False)
     id_especie = Column(Integer, ForeignKey("especies.id"), nullable=False)
     cidade = Column(String(100))

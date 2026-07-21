@@ -329,7 +329,7 @@ defineExpose({ init, resumo, loteTemEstoque })
   color: var(--color-text-secondary);
 }
 .field-hint--warn {
-  color: #664d03;
+  color: var(--color-text-secondary);
 }
 .venda-resumo {
   padding: var(--spacing-md);

@@ -8,6 +8,7 @@ class Planta(Base):
     __tablename__ = "plantas"
 
     id = Column(Integer, primary_key=True, index=True)
+    id_viveiro = Column(Integer, ForeignKey("viveiros.id"), nullable=False, index=True)
     id_especie = Column(Integer, ForeignKey("especies.id"), nullable=False)
     id_canteiro = Column(Integer, ForeignKey("canteiros.id"))
     id_lote_sementes = Column(Integer, ForeignKey("lotes_sementes.id"))

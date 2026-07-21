@@ -9,6 +9,7 @@
                 class="header-brand-logo"
             />
             <div class="header-actions">
+                <AdminViveiroSelector v-if="auth.isAuthenticated" />
                 <div v-if="auth.isAuthenticated && auth.user" class="user-chip">
                     <span class="user-chip__avatar" aria-hidden="true">{{ iniciais }}</span>
                     <span class="user-chip__nome">{{ auth.user.nome }}</span>
@@ -36,6 +37,7 @@
 import { computed, defineProps } from 'vue'
 import { useAuthStore } from '../../store/auth'
 import UserAccountMenu from './UserAccountMenu.vue'
+import AdminViveiroSelector from './AdminViveiroSelector.vue'
 
 const auth = useAuthStore()
 

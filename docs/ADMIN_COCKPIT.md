@@ -1,6 +1,6 @@
 # Admin Cockpit (God Mode)
 
-Área **exclusiva do administrador** do sistema — visão overseer e gestão de usuários.
+Área **exclusiva do administrador** do sistema — visão overseer, unidades viveiro e gestão de usuários.
 
 ## Acesso
 
@@ -23,6 +23,7 @@ Usuário gestor/financeiro/consulta → **403** mesmo conhecendo a URL.
 |--------|------|-----------|
 | GET | `/overview` | `admin.godmode.view` |
 | GET | `/rbac` | `admin.godmode.view` |
+| POST | `/viveiros` | `admin.godmode.manage` |
 | GET | `/funcionarios` | `admin.godmode.manage` |
 | POST | `/funcionarios` | `admin.godmode.manage` |
 | PUT | `/funcionarios/{id}` | `admin.godmode.manage` |
@@ -32,14 +33,22 @@ Proteções: não desativa a própria conta; não remove próprio perfil `admin`
 
 ## UI — abas
 
-1. **Visão geral** — totais (usuários, plantas, vendas, espécies), usuários por perfil, revision Alembic
+1. **Visão geral** — totais (usuários, unidades viveiro, plantas, vendas), usuários por perfil, revision Alembic, **tabela cross-unidade viveiro**
 2. **Usuários** — listagem, criar, editar perfis/senha, desativar
 3. **Matriz RBAC** — mapa estático perfil → permissões (SSOT do backend)
+
+## Seletor de unidade (header)
+
+- Componente: `AdminViveiroSelector.vue`
+- Visível **somente** para admin com 2+ unidades (`pode_selecionar_viveiro` no `/auth/me`)
+- Envia `X-Viveiro-Id` nas requisições — validado no backend (`viveiro_context.py`)
+- Operadores de campo **não** veem o seletor
 
 ## Front
 
 - View: `sistema-viveiro-nativas/src/views/admin/GodModeView.vue`
 - Service: `src/services/adminCockpit.js`
+- Contexto unidade: `src/store/viveiroContext.js`
 
 ## Produção
 

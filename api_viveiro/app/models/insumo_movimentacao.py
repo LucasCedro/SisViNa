@@ -14,5 +14,7 @@ class InsumoMovimentacao(Base):
     preco_unitario = Column(Numeric(10, 4))
     saldo_quantidade = Column(Numeric(10, 2), nullable=False)
     data_movimento = Column(Date, nullable=False, index=True)
+    status_pagamento = Column(String(20))  # PAGO | PENDENTE (entradas = compra)
+    data_pagamento = Column(Date, nullable=True)
     observacao = Column(Text)
     criado_em = Column(DateTime, server_default=func.now())

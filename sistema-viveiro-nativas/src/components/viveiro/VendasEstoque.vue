@@ -100,15 +100,12 @@
     </div>
     
     <!-- Modal de edição de estoque -->
-    <div
-      v-if="modalEstoqueAberto"
-      class="modal-overlay"
-      @pointerdown.self="overlayEstoque.onOverlayPointerDown"
-      @pointerup.self="overlayEstoque.onOverlayPointerUp"
-      @pointercancel.self="overlayEstoque.cancelarFechamentoOverlay"
+    <AppModalOverlay
+      :aberto="modalEstoqueAberto"
+      :handlers="overlayEstoque"
+      panel-class="app-modal-panel--md"
     >
-      <div class="modal-content" @pointerdown="overlayEstoque.onModalPointerDown">
-        <div class="modal-header">
+      <div class="modal-header">
           <h2 class="modal-title">Preço de venda da espécie</h2>
           <button class="btn-fechar" @click="fecharModalEstoque">×</button>
         </div>
@@ -164,19 +161,20 @@
             <button type="submit" class="btn-salvar">Salvar</button>
           </div>
         </form>
-      </div>
-    </div>
+    </AppModalOverlay>
+    <ConfirmSaidaModal
+      :aberto="confirmAbertoEstoque"
+      @confirmar="confirmarSaidaEstoque"
+      @cancelar="cancelarSaidaEstoque"
+    />
     
     <!-- Modal de Nova Venda -->
-    <div
-      v-if="modalVendaAberto"
-      class="modal-overlay"
-      @pointerdown.self="overlayVenda.onOverlayPointerDown"
-      @pointerup.self="overlayVenda.onOverlayPointerUp"
-      @pointercancel.self="overlayVenda.cancelarFechamentoOverlay"
+    <AppModalOverlay
+      :aberto="modalVendaAberto"
+      :handlers="overlayVenda"
+      panel-class="app-modal-panel--md"
     >
-      <div class="modal-content" @pointerdown="overlayVenda.onModalPointerDown">
-        <div class="modal-header">
+      <div class="modal-header">
           <h2 class="modal-title">Registrar Nova Venda</h2>
           <button class="btn-fechar" @click="fecharModalVenda">×</button>
         </div>
@@ -252,13 +250,21 @@
             <button type="submit" class="btn-salvar">Registrar Venda</button>
           </div>
         </form>
-      </div>
-    </div>
+    </AppModalOverlay>
+    <ConfirmSaidaModal
+      :aberto="confirmAbertoVenda"
+      @confirmar="confirmarSaidaVenda"
+      @cancelar="cancelarSaidaVenda"
+    />
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
+import AppModalOverlay from '@/components/shared/AppModalOverlay.vue'
+import ConfirmSaidaModal from '@/components/shared/ConfirmSaidaModal.vue'
+import { useModalFormClose } from '@/composables/useModalFormClose'
+import { useFormDirty } from '@/utils/formDirty'
 import { useAuthStore } from '@/store/auth'
 import {
   getEstoqueResumo,
@@ -266,7 +272,6 @@ import {
 } from '@/services/plantas'
 import { listVendas, createVenda } from '@/services/vendas'
 import { listCompradores } from '@/services/compradores'
-import { useModalOverlayClose } from '@/composables/useModalOverlayClose'
 
 const auth = useAuthStore()
 const carregando = ref(true)
@@ -298,6 +303,15 @@ const formVenda = ref({
   formaPagamento: 'PIX',
   observacoes: ''
 })
+
+const { isDirty: isDirtyEstoque, rebase: rebaseEstoque } = useFormDirty(
+  formEstoque,
+  () => modalEstoqueAberto.value
+)
+const { isDirty: isDirtyVenda, rebase: rebaseVenda } = useFormDirty(
+  formVenda,
+  () => modalVendaAberto.value
+)
 
 // Computed properties
 const estoqueDisponivel = computed(() => {
@@ -355,17 +369,25 @@ function abrirFormularioNovaVenda() {
     observacoes: ''
   }
   modalVendaAberto.value = true
+  nextTick().then(rebaseVenda)
 }
 
 function fecharModalVendaInterno() {
   modalVendaAberto.value = false
 }
 
-const overlayVenda = useModalOverlayClose(fecharModalVendaInterno)
+const overlayVenda = useModalFormClose(fecharModalVendaInterno, () => isDirtyVenda.value, () => modalVendaAberto.value)
+const {
+  confirmAberto: confirmAbertoVenda,
+  confirmarSaida: confirmarSaidaVenda,
+  cancelarSaida: cancelarSaidaVenda,
+  requestClose: requestCloseVenda,
+  sairSemConfirmar: sairSemConfirmarVenda,
+} = overlayVenda
 
 function fecharModalVenda() {
   overlayVenda.resetOverlayPress()
-  fecharModalVendaInterno()
+  requestCloseVenda()
 }
 
 function atualizarDadosEspecie() {
@@ -408,7 +430,7 @@ async function salvarVenda() {
         },
       ],
     })
-    fecharModalVenda()
+    sairSemConfirmarVenda()
     await carregar()
   } catch (e) {
     alert(e.response?.data?.detail || 'Erro ao registrar venda.')
@@ -418,23 +440,31 @@ async function salvarVenda() {
 function editarEstoque(item) {
   formEstoque.value = { ...item }
   modalEstoqueAberto.value = true
+  nextTick().then(rebaseEstoque)
 }
 
 function fecharModalEstoqueInterno() {
   modalEstoqueAberto.value = false
 }
 
-const overlayEstoque = useModalOverlayClose(fecharModalEstoqueInterno)
+const overlayEstoque = useModalFormClose(fecharModalEstoqueInterno, () => isDirtyEstoque.value, () => modalEstoqueAberto.value)
+const {
+  confirmAberto: confirmAbertoEstoque,
+  confirmarSaida: confirmarSaidaEstoque,
+  cancelarSaida: cancelarSaidaEstoque,
+  requestClose: requestCloseEstoque,
+  sairSemConfirmar: sairSemConfirmarEstoque,
+} = overlayEstoque
 
 function fecharModalEstoque() {
   overlayEstoque.resetOverlayPress()
-  fecharModalEstoqueInterno()
+  requestCloseEstoque()
 }
 
 async function salvarEstoque() {
   try {
     await atualizarPrecoEspecie(formEstoque.value.id_especie, formEstoque.value.valorUnitario)
-    fecharModalEstoque()
+    sairSemConfirmarEstoque()
     await carregar()
   } catch (e) {
     alert(e.response?.data?.detail || 'Erro ao atualizar preço.')
@@ -628,29 +658,6 @@ function formatarData(dataString) {
 }
 
 /* Estilos para o modal */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-}
-
-.modal-content {
-  background-color: var(--color-text-inverse);
-  border-radius: 0.5rem;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  width: 90%;
-  max-width: 600px;
-  max-height: 90vh;
-  overflow-y: auto;
-}
-
 .modal-header {
   padding: 1rem 1.5rem;
   border-bottom: 1px solid var(--color-border-subtle);

@@ -1,0 +1,109 @@
+/* Shell padrão — overlays customizados (AppModalOverlay) */
+
+:root {
+  --z-modal-overlay: 1500;
+  /* Confirmação "sair sem salvar" — sempre acima do formulário */
+  --z-modal-confirm: 1600;
+}
+
+.app-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal-overlay);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(34, 42, 28, 0.48);
+  backdrop-filter: blur(2px);
+}
+
+.app-modal-panel {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-xl);
+  width: 100%;
+  max-height: min(92vh, calc(100vh - 2rem));
+  overflow: auto;
+  box-shadow: var(--shadow-lg);
+  color: var(--color-text-primary);
+}
+
+.app-modal-panel--sm {
+  max-width: min(440px, calc(100vw - 2rem));
+}
+
+.app-modal-panel--md {
+  max-width: min(520px, calc(100vw - 2rem));
+}
+
+.app-modal-panel--wide {
+  max-width: min(640px, calc(100vw - 2rem));
+}
+
+.app-modal-panel--xl {
+  max-width: min(820px, calc(100vw - 2rem));
+}
+
+.app-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.app-modal-header h2,
+.app-modal-header h3 {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.app-modal-eyebrow {
+  margin: 0 0 0.2rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-primary-700);
+}
+
+.app-modal-sub {
+  margin: 0.35rem 0 0;
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+}
+
+.app-modal-body {
+  padding: 1.25rem 1.5rem;
+}
+
+.app-modal-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 1rem 1.5rem;
+  border-top: 1px solid var(--color-border-subtle);
+  background: var(--color-surface-muted);
+}
+
+.app-modal-fechar {
+  border: none;
+  background: none;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  padding: 0.15rem 0.35rem;
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+}
+
+.app-modal-fechar:hover {
+  color: var(--color-text-primary);
+  background: var(--color-primary-subtle);
+}

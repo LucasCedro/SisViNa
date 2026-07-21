@@ -2,11 +2,11 @@
   <section class="timeline-panel">
     <header class="timeline-panel__header">
       <div>
-        <h3 class="timeline-panel__titulo">Pipeline por espécie</h3>
+        <h3 class="timeline-panel__titulo">Visão por espécie</h3>
         <p class="timeline-panel__sub">
           Tempo médio em cada etapa · armazém → sementeira → canteiro → rustificação
           <span v-if="isVisaoTodas" class="timeline-panel__hint">
-            · visão geral: etapas iguais (só o número de dias); filtre uma espécie para comparar visualmente
+            · barras com mesma largura; o verde mais escuro indica onde o tempo se concentra
           </span>
         </p>
       </div>
@@ -73,7 +73,7 @@
             <div
               class="pipeline-stage__bar"
               :class="{ 'pipeline-stage__bar--equal': isVisaoTodas }"
-              :style="barStyle(etapaData(visaoPrincipal, etapaKey), !isVisaoTodas)"
+              :style="barStyle(etapaData(visaoPrincipal, etapaKey), !isVisaoTodas, maxDiasVisao, etapaKey)"
             >
               <span class="pipeline-stage__dias">
                 {{ fmtDias(etapaData(visaoPrincipal, etapaKey)?.dias_medio) }}
@@ -121,7 +121,7 @@
             <div class="pipeline-stage pipeline-stage--compact">
               <div
                 class="pipeline-stage__bar pipeline-stage__bar--sm"
-                :style="barStyle(etapaData(e, etapaKey), true)"
+                :style="barStyle(etapaData(e, etapaKey), true, maxDiasEntidade(e), etapaKey)"
               />
               <span class="pipeline-stage__mini">{{ fmtDias(etapaData(e, etapaKey)?.dias_medio) }}</span>
             </div>
@@ -138,6 +138,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { getTimelineEstoques } from '@/services/estoques'
+import { CHART_ESTOQUE_ETAPA, CHART_NEUTRAL, estoqueTimelineBarStyle } from '@/constants/chartColors'
 
 const props = defineProps({
   timelineInicial: { type: Object, default: null },
@@ -197,6 +198,10 @@ const tituloVisao = computed(() => {
 
 const isVisaoTodas = computed(() => !filtroEspecie.value)
 
+const maxDiasVisao = computed(() =>
+  visaoPrincipal.value ? maxDiasEntidade(visaoPrincipal.value) : 0,
+)
+
 watch(
   () => props.timelineInicial,
   (v) => {
@@ -226,35 +231,36 @@ function labelEtapa(key) {
     || key
 }
 
-function corEtapa(key) {
-  const fromGlobal = timeline.value?.resumo_global?.etapas?.[key]?.cor
-  const map = {
-    armazem: '#8B6914',
-    sementeira: '#E67E22',
-    canteiro: '#4A8F3C',
-    rustificacao: '#D4A017',
-  }
-  return fromGlobal || map[key] || '#666'
+function maxDiasEntidade(entidade) {
+  return Math.max(
+    0,
+    ...ordemEtapas.value.map((k) => etapaData(entidade, k)?.dias_medio || 0),
+  )
 }
 
-function barStyle(etapa, proporcional = true) {
-  const cor = etapa?.cor || '#888'
+function corEtapa(key) {
+  const fromGlobal = timeline.value?.resumo_global?.etapas?.[key]?.cor
+  return fromGlobal || CHART_ESTOQUE_ETAPA[key] || CHART_NEUTRAL
+}
+
+function barStyle(etapa, proporcional = true, maxDias = 0, etapaKey = null) {
   const dias = etapa?.dias_medio || 0
-  if (!proporcional) {
-    return {
-      width: '100%',
-      height: '3rem',
-      background: `linear-gradient(180deg, ${cor}ee, ${cor})`,
-      opacity: dias > 0 ? 1 : 0.35,
-    }
-  }
-  const altura = Math.min(100, Math.max(35, 35 + dias * 1.2))
-  return {
+  const intensidade = estoqueTimelineBarStyle(dias, maxDias)
+  const style = {
     width: '100%',
-    height: `${altura}px`,
-    background: `linear-gradient(180deg, ${cor}ee, ${cor})`,
-    opacity: dias > 0 ? 1 : 0.35,
+    ...intensidade,
+    textShadow: intensidade.color === '#fff' ? '0 1px 2px rgba(0, 0, 0, 0.25)' : 'none',
   }
+  if (etapaKey) {
+    style.borderLeft = `4px solid ${corEtapa(etapaKey)}`
+  }
+  if (!proporcional) {
+    style.height = '3rem'
+  } else {
+    const altura = Math.min(100, Math.max(35, 35 + dias * 1.2))
+    style.height = `${altura}px`
+  }
+  return style
 }
 
 function flexEtapa(etapa) {
@@ -454,21 +460,21 @@ function metaEtapa(entidade, key) {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
   font-weight: 800;
-  font-size: 1.125rem;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
-  transition: height 0.4s ease, opacity 0.3s;
-  box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.15);
+  font-size: 1.25rem;
+  transition: height 0.4s ease, opacity 0.3s, background 0.35s ease, color 0.35s ease;
+  box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.12);
 }
 
 .pipeline-stage__bar--sm {
-  min-height: 2rem;
+  min-height: 2.25rem;
   font-size: 0;
 }
 
 .pipeline-stage__dias {
   padding: 0.25rem;
+  font-size: 1.25rem;
+  line-height: 1.1;
 }
 
 .pipeline-stage__nome {
@@ -487,8 +493,10 @@ function metaEtapa(entidade, key) {
 }
 
 .pipeline-stage__mini {
-  font-size: 0.6875rem;
-  font-weight: 700;
+  font-size: 0.875rem;
+  font-weight: 800;
+  line-height: 1.2;
+  margin-top: 0.1rem;
 }
 
 .onde-agora {

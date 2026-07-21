@@ -59,6 +59,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import PageLayout from '@/components/layout/PageLayout.vue'
+import { usePageTab } from '@/composables/usePageTab'
 import ProducaoFluxoBar from '@/components/producao/ProducaoFluxoBar.vue'
 import ProducaoVisaoGeral from '@/components/producao/ProducaoVisaoGeral.vue'
 import ProducaoSemeaduraPanel from '@/components/producao/ProducaoSemeaduraPanel.vue'
@@ -68,7 +69,8 @@ import ProducaoRustificacaoPanel from '@/components/producao/ProducaoRustificaca
 import ProducaoLiberarVendaPanel from '@/components/producao/ProducaoLiberarVendaPanel.vue'
 import { getProducaoResumo } from '@/services/producao'
 
-const guiaAtiva = ref('visao')
+const GUIAS_PRODUCAO = ['visao', 'semeadura', 'liberar_canteiro', 'transferencia', 'rustificacao', 'liberar_venda']
+const guiaAtiva = usePageTab('producao', 'visao', { valid: GUIAS_PRODUCAO })
 const resumo = ref(null)
 const carregando = ref(true)
 const erroResumo = ref('')
@@ -79,11 +81,11 @@ const liberarVendaRef = ref(null)
 
 const guias = [
   { id: 'visao', label: 'Visão geral' },
-  { id: 'semeadura', label: 'Transferir p/ sementeira' },
-  { id: 'liberar_canteiro', label: 'Liberar p/ canteiro' },
-  { id: 'transferencia', label: 'Transferir p/ canteiro' },
+  { id: 'semeadura', label: 'Transferir para sementeira' },
+  { id: 'liberar_canteiro', label: 'Liberar para canteiro' },
+  { id: 'transferencia', label: 'Transferir para canteiro' },
   { id: 'rustificacao', label: 'Rustificação' },
-  { id: 'liberar_venda', label: 'Liberar p/ venda' },
+  { id: 'liberar_venda', label: 'Liberar para venda' },
 ]
 
 const blocosFluxo = computed(() => {

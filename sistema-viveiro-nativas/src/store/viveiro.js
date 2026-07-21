@@ -9,7 +9,7 @@ import {
 import { agruparPendenciasPorCanteiro } from '@/utils/viveiroPendenciasMapa'
 import { getDashboardResumo } from '@/services/dashboard'
 import { listPragasPlantas } from '@/services/pragas'
-import { buildLayoutFromCanteiros, buildLayoutFromPlantaSalva, mapPlantaApi } from '@/utils/viveiroApiMapper'
+import { buildLayoutFromPlantaSalva, mapPlantaApi } from '@/utils/viveiroApiMapper'
 import { getViveiroLayout } from '@/services/viveiroLayout'
 
 const emptyLayout = () => ({
@@ -19,6 +19,7 @@ const emptyLayout = () => ({
   elementos: [],
 })
 
+/** Planta baixa, mudas no mapa e KPIs do módulo /viveiro. */
 export const useViveiroStore = defineStore('viveiro', {
   state: () => ({
     layout: emptyLayout(),

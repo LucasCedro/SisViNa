@@ -3,7 +3,7 @@
     <div class="secao">
       <div class="secao-header">
         <h2 class="secao-titulo">Mudas Cadastradas</h2>
-        <button class="btn-principal" @click="abrirModalCadastro">
+        <button v-if="podeCriar" class="btn-principal" @click="abrirModalCadastro">
           <svg xmlns="http://www.w3.org/2000/svg" class="icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
           </svg>
@@ -43,8 +43,8 @@
                 </span>
               </td>
               <td>{{ muda.taxaGerminacao }}%</td>
-              <td>
-                <button class="btn-acao" @click="editarMuda(muda)">
+              <td v-if="podeEditar || podeCriar">
+                <button v-if="podeEditar" class="btn-acao" @click="editarMuda(muda)">
                   <svg xmlns="http://www.w3.org/2000/svg" class="icon-small" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                   </svg>
@@ -57,15 +57,12 @@
     </div>
     
     <!-- Modal de Cadastro/Edição de Mudas -->
-    <div
-      v-if="modalAberto"
-      class="modal-overlay"
-      @pointerdown.self="onOverlayPointerDown"
-      @pointerup.self="onOverlayPointerUp"
-      @pointercancel.self="cancelarFechamentoOverlay"
+    <AppModalOverlay
+      :aberto="modalAberto"
+      :handlers="modalClose"
+      panel-class="app-modal-panel--xl"
     >
-      <div class="modal-content" @pointerdown="onModalPointerDown">
-        <div class="modal-header">
+      <div class="modal-header">
           <h2 class="modal-title">{{ modoEdicao ? 'Editar Muda' : 'Cadastrar Nova Muda' }}</h2>
           <button class="btn-fechar" @click="fecharModal">×</button>
         </div>
@@ -190,13 +187,22 @@
             <button type="submit" class="btn-salvar">{{ modoEdicao ? 'Atualizar' : 'Cadastrar' }}</button>
           </div>
         </form>
-      </div>
-    </div>
+    </AppModalOverlay>
+    <ConfirmSaidaModal
+      :aberto="confirmAberto"
+      @confirmar="confirmarSaida"
+      @cancelar="cancelarSaida"
+    />
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch, nextTick, computed } from 'vue'
+import AppModalOverlay from '@/components/shared/AppModalOverlay.vue'
+import ConfirmSaidaModal from '@/components/shared/ConfirmSaidaModal.vue'
+import { useModalFormClose } from '@/composables/useModalFormClose'
+import { useFormDirty } from '@/utils/formDirty'
+import { usePermissions } from '@/composables/usePermissions'
 import { listEspecies } from '@/services/especies'
 import { listCanteiros } from '@/services/canteiros'
 import {
@@ -204,7 +210,6 @@ import {
   cadastroLotePlantas,
   updatePlanta
 } from '@/services/plantas'
-import { useModalOverlayClose } from '@/composables/useModalOverlayClose'
 
 const STATUS_MAP = {
   SEMENTE: 'Emergência',
@@ -218,6 +223,10 @@ const canteirosFiltrados = ref([])
 const especies = ref([])
 const mudas = ref([])
 
+const { can } = usePermissions()
+const podeCriar = computed(() => can('producao.create'))
+const podeEditar = computed(() => can('producao.edit'))
+
 const modalAberto = ref(false)
 const modoEdicao = ref(false)
 
@@ -230,6 +239,14 @@ const formMuda = ref({
   status: 'MUDA',
   origem: 'compra',
   observacoes: ''
+})
+
+const { isDirty, rebase } = useFormDirty(formMuda, () => modalAberto.value)
+
+watch(modalAberto, async (aberto) => {
+  if (!aberto) return
+  await nextTick()
+  rebase()
 })
 
 function filtrarCanteiros() {
@@ -277,12 +294,14 @@ async function carregar() {
 onMounted(carregar)
 
 function abrirModalCadastro() {
+  if (!podeCriar.value) return
   modoEdicao.value = false
   resetarFormulario()
   modalAberto.value = true
 }
 
 function editarMuda(muda) {
+  if (!podeEditar.value) return
   modoEdicao.value = true
   formMuda.value = {
     id: muda.id,
@@ -300,17 +319,19 @@ function fecharModalInterno() {
   modalAberto.value = false
 }
 
+const modalClose = useModalFormClose(fecharModalInterno, () => isDirty.value, () => modalAberto.value)
 const {
-  onModalPointerDown,
-  onOverlayPointerDown,
-  onOverlayPointerUp,
-  cancelarFechamentoOverlay,
   resetOverlayPress,
-} = useModalOverlayClose(fecharModalInterno)
+  confirmAberto,
+  confirmarSaida,
+  cancelarSaida,
+  requestClose,
+  sairSemConfirmar,
+} = modalClose
 
 function fecharModal() {
   resetOverlayPress()
-  fecharModalInterno()
+  requestClose()
 }
 
 function resetarFormulario() {
@@ -348,7 +369,7 @@ async function salvarMuda() {
         observacoes: formMuda.value.observacoes
       })
     }
-    fecharModal()
+    sairSemConfirmar()
     await carregar()
   } catch (e) {
     alert(e.response?.data?.detail || 'Erro ao salvar muda.')
@@ -510,29 +531,6 @@ function formatarDataAtual() {
 }
 
 /* Estilos para o modal */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-}
-
-.modal-content {
-  background-color: var(--color-text-inverse);
-  border-radius: 0.5rem;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  width: 90%;
-  max-width: 700px;
-  max-height: 90vh;
-  overflow-y: auto;
-}
-
 .modal-header {
   padding: 1rem 1.5rem;
   border-bottom: 1px solid var(--color-border-subtle);

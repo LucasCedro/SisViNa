@@ -45,7 +45,7 @@
             <td class="obs-cell">{{ coleta.observacoes || '—' }}</td>
             <td class="acoes">
               <button
-                v-if="primeiroLoteSemTeste(coleta)"
+                v-if="podeCriar && primeiroLoteSemTeste(coleta)"
                 type="button"
                 class="btn-teste"
                 title="Registrar teste de germinação"
@@ -53,10 +53,11 @@
               >
                 Teste germ.
               </button>
-              <button type="button" class="btn-editar" title="Editar coleta" @click="emit('editar-coleta', coleta)">
+              <button v-if="podeEditar" type="button" class="btn-editar" title="Editar coleta" @click="emit('editar-coleta', coleta)">
                 Editar
               </button>
-              <button type="button" class="btn-excluir" title="Excluir coleta" @click="excluir(coleta)">×</button>
+              <button v-if="podeExcluir" type="button" class="btn-excluir" title="Excluir coleta" @click="excluir(coleta)">×</button>
+              <span v-if="!podeCriar && !podeEditar && !podeExcluir" class="acoes-muted">—</span>
             </td>
           </tr>
           <tr v-if="!store.carregando && store.coletasFiltradas.length === 0">
@@ -76,11 +77,18 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import { useColetaStore } from '@/store/coleta'
+import { usePermissions } from '@/composables/usePermissions'
 import { lotePrecisaTesteGerminacao } from '@/utils/coletaKpi'
 
 const emit = defineEmits(['editar-coleta', 'registrar-teste'])
 const store = useColetaStore()
+const { can } = usePermissions()
+
+const podeCriar = computed(() => can('coleta.create'))
+const podeEditar = computed(() => can('coleta.edit'))
+const podeExcluir = computed(() => can('coleta.delete'))
 
 function primeiroLoteSemTeste(coleta) {
   const lotes = coleta.lotes || []

@@ -105,6 +105,28 @@ export async function promoverMudas(payload) {
   return data
 }
 
+export async function getResumoOperacaoLote(etapa, params = {}) {
+  const { data } = await api.get(`${API_V1}/plantas/resumo-operacao-lote`, {
+    params: { etapa, ...params },
+  })
+  return data
+}
+
+export async function atualizarEstagioLote(payload) {
+  const { data } = await api.post(`${API_V1}/plantas/atualizar-estagio-lote`, payload)
+  return data
+}
+
+export async function promoverMudasLote(payload) {
+  const { data } = await api.post(`${API_V1}/plantas/promover-mudas-lote`, payload)
+  return data
+}
+
+export async function transferirRustificacaoLote(payload) {
+  const { data } = await api.post(`${API_V1}/plantas/transferir-rustificacao-lote`, payload)
+  return data
+}
+
 export async function cadastroLotePlantas(payload) {
   const { data } = await api.post(`${API_V1}/plantas/cadastro-lote`, payload)
   return data

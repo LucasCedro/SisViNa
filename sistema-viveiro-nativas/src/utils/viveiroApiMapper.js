@@ -101,6 +101,30 @@ export function corElemento(tipo) {
   return COR_POR_TIPO[tipo] || COR_POR_TIPO.canteiro
 }
 
+const TIPO_EDITOR_POR_ELEMENTO = {
+  armazenamento: 'estoque',
+}
+
+/** Converte elementos da planta (gestão) → retângulos do editor. */
+export function elementosParaCamposEditor(elementos = []) {
+  return elementos.map((el, index) => {
+    const tipo = TIPO_EDITOR_POR_ELEMENTO[el.tipo] || el.tipo
+    return {
+      id: el.apiId ? el.apiId * 10_000 + index : Date.now() + index,
+      apiId: el.apiId || null,
+      tipo,
+      nome: el.nome || 'Área',
+      x: el.posicao?.x ?? 0,
+      y: el.posicao?.y ?? 0,
+      largura: el.dimensoes?.largura ?? 200,
+      altura: el.dimensoes?.altura ?? 120,
+      metros: el.metros || null,
+      cor: el.cor || corElemento(el.tipo),
+      config: el.capacidade != null ? { capacidade: el.capacidade } : {},
+    }
+  })
+}
+
 export function mapPlantaApi(p) {
   const dias =
     p.data_plantio && !Number.isNaN(Date.parse(p.data_plantio))

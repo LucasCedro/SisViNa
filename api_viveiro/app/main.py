@@ -4,7 +4,13 @@ import logging
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.bootstrap import ensure_default_admin, ensure_demo_especies, ensure_demo_comprador
+from app.bootstrap import (
+    ensure_default_admin,
+    ensure_demo_especies,
+    ensure_demo_comprador,
+    ensure_rbac_demo_users,
+    ensure_default_viveiros,
+)
 from app.config import settings
 from app.database import get_db
 from app.routes import (
@@ -32,7 +38,10 @@ from app.routes import (
     referencia_viveiro,
     nfe,
     fiscal,
+    contabilidade,
     admin_cockpit,
+    viveiros,
+    florestal,
 )
 from app.auth.router import router as auth_router
 
@@ -59,6 +68,8 @@ if settings.BACKEND_CORS_ORIGINS:
 async def startup():
     # Schema criado pelos scripts SQL em bd_viveiro/init-scripts
     await ensure_default_admin()
+    await ensure_default_viveiros()
+    await ensure_rbac_demo_users()
     await ensure_demo_especies()
     await ensure_demo_comprador()
 
@@ -244,7 +255,25 @@ app.include_router(
 )
 
 app.include_router(
+    contabilidade.router,
+    prefix=f"{settings.API_V1_STR}/contabilidade",
+    tags=["contabilidade"],
+)
+
+app.include_router(
     admin_cockpit.router,
     prefix=f"{settings.API_V1_STR}/admin/cockpit",
     tags=["admin-cockpit"],
+)
+
+app.include_router(
+    viveiros.router,
+    prefix=f"{settings.API_V1_STR}/viveiros",
+    tags=["viveiros"],
+)
+
+app.include_router(
+    florestal.router,
+    prefix=f"{settings.API_V1_STR}/florestal",
+    tags=["florestal"],
 )

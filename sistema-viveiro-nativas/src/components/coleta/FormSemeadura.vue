@@ -1,12 +1,9 @@
 <template>
-  <div
-    v-if="aberto"
-    class="modal-overlay"
-    @pointerdown.self="onOverlayPointerDown"
-    @pointerup.self="onOverlayPointerUp"
-    @pointercancel.self="cancelarFechamentoOverlay"
+  <AppModalOverlay
+    :aberto="aberto"
+    :handlers="modalClose"
+    panel-class="app-modal-panel--wide"
   >
-    <div class="modal-card modal-wide" role="dialog" @pointerdown="onModalPointerDown">
       <header class="modal-header">
         <h2>Registrar semeadura (produção)</h2>
         <button type="button" class="btn-fechar" @click="fechar">×</button>
@@ -50,10 +47,10 @@
           <input v-model="form.registrar_plantas" type="checkbox" />
           Criar registros de plantas no viveiro (rastreio automático)
         </label>
-        <label v-if="form.registrar_plantas" class="field">
-          Quantidade de plantas a registrar
-          <input v-model.number="form.quantidade_plantas_registrar" type="number" min="1" />
-        </label>
+        <p v-if="form.registrar_plantas && form.quantidade_sementes_usadas" class="plantas-hint">
+          Serão criadas <strong>{{ form.quantidade_sementes_usadas }}</strong> plantas SEMENTE
+          (1 por semente usada).
+        </p>
         <label class="field">
           Observações
           <textarea v-model="form.observacoes" rows="2" />
@@ -64,16 +61,24 @@
           <button type="submit" class="btn-prim" :disabled="salvando">Registrar</button>
         </footer>
       </form>
-    </div>
-  </div>
+  </AppModalOverlay>
+  <ConfirmSaidaModal
+    :aberto="confirmAberto"
+    @confirmar="confirmarSaida"
+    @cancelar="cancelarSaida"
+  />
 </template>
 
 <script setup>
-import { ref, watch, onMounted } from 'vue'
+import { ref, watch, onMounted, nextTick } from 'vue'
+import AppModalOverlay from '@/components/shared/AppModalOverlay.vue'
+import ConfirmSaidaModal from '@/components/shared/ConfirmSaidaModal.vue'
+import { useModalFormClose } from '@/composables/useModalFormClose'
+import { useFormDirty } from '@/utils/formDirty'
 import { listCanteiros } from '@/services/canteiros'
 import { createSemeadura } from '@/services/semeaduras'
 import { useColetaStore } from '@/store/coleta'
-import { useModalOverlayClose } from '@/composables/useModalOverlayClose'
+import { useGlobalLoading } from '@/composables/useGlobalLoading'
 
 const props = defineProps({
   aberto: Boolean,
@@ -82,6 +87,7 @@ const props = defineProps({
 const emit = defineEmits(['fechar', 'salvo'])
 
 const store = useColetaStore()
+const { runWithLoading } = useGlobalLoading()
 const canteiros = ref([])
 const salvando = ref(false)
 const erro = ref('')
@@ -91,9 +97,10 @@ const form = ref({
   id_canteiro: '',
   quantidade_mudas_obtidas: null,
   registrar_plantas: true,
-  quantidade_plantas_registrar: null,
   observacoes: ''
 })
+
+const { isDirty, rebase } = useFormDirty(form, () => props.aberto)
 
 onMounted(async () => {
   try {
@@ -105,11 +112,12 @@ onMounted(async () => {
 
 watch(
   () => props.aberto,
-  (v) => {
+  async (v) => {
     if (!v) return
     erro.value = ''
     form.value.quantidade_sementes_usadas = props.lote?.quantidade_disponivel || null
-    form.value.quantidade_plantas_registrar = form.value.quantidade_mudas_obtidas || null
+    await nextTick()
+    rebase()
   }
 )
 
@@ -122,17 +130,19 @@ function fecharInterno() {
   emit('fechar')
 }
 
+const modalClose = useModalFormClose(fecharInterno, () => isDirty.value, () => props.aberto)
 const {
-  onModalPointerDown,
-  onOverlayPointerDown,
-  onOverlayPointerUp,
-  cancelarFechamentoOverlay,
   resetOverlayPress,
-} = useModalOverlayClose(fecharInterno)
+  confirmAberto,
+  confirmarSaida,
+  cancelarSaida,
+  requestClose,
+  sairSemConfirmar,
+} = modalClose
 
 function fechar() {
   resetOverlayPress()
-  fecharInterno()
+  requestClose()
 }
 
 async function salvar() {
@@ -140,23 +150,25 @@ async function salvar() {
   erro.value = ''
   salvando.value = true
   try {
-    const payload = {
-      id_lote_sementes: props.lote.id,
-      data_semeadura: form.value.data_semeadura,
-      quantidade_sementes_usadas: form.value.quantidade_sementes_usadas,
-      id_canteiro: form.value.id_canteiro || null,
-      quantidade_mudas_obtidas: form.value.quantidade_mudas_obtidas ?? null,
-      observacoes: form.value.observacoes || null,
-      registrar_plantas: form.value.registrar_plantas,
-      quantidade_plantas_registrar: form.value.registrar_plantas
-        ? form.value.quantidade_plantas_registrar
-        : null
-    }
-    const sem = await createSemeadura(payload)
-    store.upsertSemeadura(sem)
-    await store.recarregarMatriz(props.lote.id_arvore_matriz)
-    emit('salvo', sem)
-    fechar()
+    await runWithLoading(async () => {
+      const payload = {
+        id_lote_sementes: props.lote.id,
+        data_semeadura: form.value.data_semeadura,
+        quantidade_sementes_usadas: form.value.quantidade_sementes_usadas,
+        id_canteiro: form.value.id_canteiro || null,
+        quantidade_mudas_obtidas: form.value.quantidade_mudas_obtidas ?? null,
+        observacoes: form.value.observacoes || null,
+        registrar_plantas: form.value.registrar_plantas,
+        quantidade_plantas_registrar: form.value.registrar_plantas
+          ? form.value.quantidade_sementes_usadas
+          : null
+      }
+      const sem = await createSemeadura(payload)
+      store.upsertSemeadura(sem)
+      await store.recarregarMatriz(props.lote.id_arvore_matriz)
+      emit('salvo', sem)
+      sairSemConfirmar()
+    }, 'Registrando semeadura…')
   } catch (e) {
     erro.value = e.response?.data?.detail || e.message || 'Erro'
   } finally {
@@ -166,24 +178,6 @@ async function salvar() {
 </script>
 
 <style scoped>
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 1500;
-  background: rgba(0, 0, 0, 0.45);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1rem;
-}
-.modal-card {
-  background: var(--color-surface);
-  border-radius: 12px;
-  width: 100%;
-  max-width: 520px;
-  max-height: 92vh;
-  overflow: auto;
-}
 .modal-header {
   display: flex;
   justify-content: space-between;
@@ -239,6 +233,11 @@ async function salvar() {
   gap: 0.5rem;
   font-size: 0.875rem;
   margin-bottom: 1rem;
+}
+.plantas-hint {
+  margin: -0.5rem 0 1rem;
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
 }
 .modal-footer {
   display: flex;

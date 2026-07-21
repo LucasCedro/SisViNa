@@ -18,8 +18,9 @@
     <!-- Receitas (read-only) -->
     <div v-if="aba === 'receitas'" class="gestao-painel">
       <p class="financeiro-lead">
-        Vendas com status <strong>PAGO</strong> no período — registradas em
-        <router-link to="/vendas">Vendas</router-link>.
+        Recebimentos com status <strong>PAGO</strong> no período (data de pagamento) —
+        registrados em <router-link to="/vendas">Vendas</router-link>.
+        Vendas pendentes aparecem na DRE contábil em <router-link to="/contabilidade">Contabilidade</router-link>.
       </p>
       <div v-if="painel.receitas?.length" class="tabela-wrap">
         <table class="gestao-tabela">
@@ -53,10 +54,10 @@
       <p v-else class="fin-empty">Nenhuma receita (venda paga) neste período.</p>
     </div>
 
-    <!-- Gráficos OPEX/CAPEX do período -->
+    <!-- Gráficos OPEX (premissas) / CAPEX (lançamentos) -->
     <div v-if="aba === 'capex' || aba === 'opex'" class="gestao-grid-graficos">
       <article class="grafico-card">
-        <h3>{{ aba === 'opex' ? 'OPEX por categoria' : 'CAPEX por categoria' }}</h3>
+        <h3>{{ aba === 'opex' ? 'OPEX — premissas DRE' : 'CAPEX por categoria' }}</h3>
         <div v-if="distribuicaoAtual.length">
           <div v-for="(item, i) in distribuicaoAtual" :key="item.categoria" class="barra-h">
             <div class="barra-h__top">
@@ -71,7 +72,9 @@
             </div>
           </div>
         </div>
-        <p v-else class="fin-empty">Sem lançamentos neste período.</p>
+        <p v-else class="fin-empty">
+          {{ aba === 'opex' ? 'Nenhuma premissa DESPESA configurada.' : 'Sem lançamentos neste período.' }}
+        </p>
       </article>
       <article class="grafico-card">
         <h3>Comparativo por categoria</h3>
@@ -89,8 +92,45 @@
       </article>
     </div>
 
-    <!-- Tabela CAPEX / OPEX -->
-    <div v-if="aba === 'capex' || aba === 'opex'" class="gestao-painel">
+    <!-- OPEX automático (premissas) -->
+    <div v-if="aba === 'opex'" class="gestao-painel">
+      <p class="financeiro-lead">
+        OPEX entra na DRE <strong>automaticamente</strong> — comissão (% sobre faturamento do período)
+        + despesas mensais fixas das premissas DESPESA.
+        Não é necessário lançar OPEX manualmente.
+        <router-link to="/financeiro">Editar premissas</router-link>
+      </p>
+      <div class="tabela-wrap">
+        <table class="gestao-tabela">
+          <thead>
+            <tr>
+              <th>Premissa</th>
+              <th>Tipo</th>
+              <th class="num">Valor no período</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="item in itensOpexPremissas" :key="item.chave">
+              <td>{{ item.nome }}</td>
+              <td>{{ item.tipo === 'comissao' ? 'Comissão (% receita)' : 'Despesa fixa/mês' }}</td>
+              <td class="num">{{ fmt(item.valor) }}</td>
+            </tr>
+            <tr v-if="!itensOpexPremissas.length">
+              <td colspan="3" class="fin-empty">Configure premissas DESPESA em Financeiro → Premissas.</td>
+            </tr>
+          </tbody>
+          <tfoot v-if="itensOpexPremissas.length">
+            <tr>
+              <td colspan="2" class="num"><strong>Total OPEX (DRE)</strong></td>
+              <td class="num"><strong>{{ fmt(painel.dre.opex) }}</strong></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+
+    <!-- Tabela CAPEX (lançamentos manuais) -->
+    <div v-if="aba === 'capex'" class="gestao-painel">
       <div class="gestao-toolbar">
         <div class="gestao-filtros">
           <label>
@@ -111,12 +151,12 @@
           <button type="button" class="btn btn-secondary btn-sm" @click="limparFiltros">Limpar</button>
         </div>
         <button
-          v-if="podeEditar"
+          v-if="podeCriar && aba === 'capex'"
           type="button"
           class="btn btn-primary btn-sm"
           @click="abrirModalNovo"
         >
-          Novo {{ aba.toUpperCase() }}
+          Novo CAPEX
         </button>
       </div>
 
@@ -129,7 +169,7 @@
               <th>Data</th>
               <th class="num">Valor</th>
               <th>Pagamento</th>
-              <th v-if="podeEditar">Ações</th>
+              <th v-if="podeEditarFin || podeExcluir">Ações</th>
             </tr>
           </thead>
           <tbody>
@@ -139,13 +179,13 @@
               <td>{{ fmtData(item.data) }}</td>
               <td class="num">{{ fmt(item.valor) }}</td>
               <td>{{ item.formaPagamento || '—' }}</td>
-              <td v-if="podeEditar" class="gestao-acoes">
-                <button type="button" class="btn-icon" title="Editar" @click="editar(item)">✎</button>
-                <button type="button" class="btn-icon btn-icon--danger" title="Excluir" @click="excluir(item.id)">✕</button>
+              <td v-if="podeEditarFin || podeExcluir" class="gestao-acoes">
+                <button v-if="podeEditarFin" type="button" class="btn-icon" title="Editar" @click="editar(item)">✎</button>
+                <button v-if="podeExcluir" type="button" class="btn-icon btn-icon--danger" title="Excluir" @click="excluir(item.id)">✕</button>
               </td>
             </tr>
             <tr v-if="!itensFiltrados.length">
-              <td :colspan="podeEditar ? 6 : 5" class="fin-empty">Nenhum lançamento.</td>
+              <td :colspan="(podeEditarFin || podeExcluir) ? 6 : 5" class="fin-empty">Nenhum lançamento.</td>
             </tr>
           </tbody>
           <tfoot v-if="itensFiltrados.length">
@@ -160,15 +200,12 @@
     </div>
 
     <!-- Modal lançamento -->
-    <div
-      v-if="modalAberto"
-      class="modal-overlay"
-      @pointerdown.self="onOverlayPointerDown"
-      @pointerup.self="onOverlayPointerUp"
-      @pointercancel.self="cancelarFechamentoOverlay"
+    <AppModalOverlay
+      :aberto="modalAberto"
+      :handlers="modalClose"
+      panel-class="app-modal-panel--md"
     >
-      <div class="modal-box" @pointerdown="onModalPointerDown">
-        <div class="modal-head">
+      <div class="modal-head">
           <h3>{{ form.id ? 'Editar' : 'Novo' }} {{ form.tipo }}</h3>
           <button type="button" class="btn-icon" @click="fecharModal">✕</button>
         </div>
@@ -206,20 +243,33 @@
             <button type="submit" class="btn btn-primary btn-sm">Salvar</button>
           </div>
         </form>
-      </div>
-    </div>
+    </AppModalOverlay>
+    <ConfirmSaidaModal
+      :aberto="confirmAberto"
+      @confirmar="confirmarSaida"
+      @cancelar="cancelarSaida"
+    />
   </section>
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
+import AppModalOverlay from '@/components/shared/AppModalOverlay.vue'
+import ConfirmSaidaModal from '@/components/shared/ConfirmSaidaModal.vue'
+import { useModalFormClose } from '@/composables/useModalFormClose'
+import { useFormDirty } from '@/utils/formDirty'
 import {
   createLancamento,
   updateLancamento,
   deleteLancamento,
 } from '@/services/lancamentosFinanceiros'
 import { CHART_PALETTE } from '@/constants/chartColors'
-import { useModalOverlayClose } from '@/composables/useModalOverlayClose'
+import { usePermissions } from '@/composables/usePermissions'
+
+const { can } = usePermissions()
+const podeCriar = computed(() => can('financeiro.create'))
+const podeEditarFin = computed(() => can('financeiro.edit'))
+const podeExcluir = computed(() => can('financeiro.delete'))
 
 const props = defineProps({
   painel: { type: Object, required: true },
@@ -231,7 +281,7 @@ const emit = defineEmits(['atualizar'])
 
 const abas = [
   { id: 'receitas', label: 'Receitas' },
-  { id: 'opex', label: 'OPEX' },
+  { id: 'opex', label: 'OPEX (automático)' },
   { id: 'capex', label: 'CAPEX' },
 ]
 
@@ -278,6 +328,8 @@ const filtros = ref({ dataInicial: '', dataFinal: '', categoria: '' })
 
 const form = ref(emptyForm('OPEX'))
 
+const { isDirty, rebase } = useFormDirty(form, () => modalAberto.value)
+
 function emptyForm(tipo) {
   return {
     id: null,
@@ -322,9 +374,13 @@ const distribuicaoAtual = computed(() => {
   return []
 })
 
+const itensOpexPremissas = computed(() =>
+  (props.painel?.despesas_estimadas?.itens || []).filter((i) => Number(i.valor) > 0)
+)
+
 const itensFiltrados = computed(() => {
-  const tipo = aba.value.toUpperCase()
-  let list = props.lancamentos.filter((l) => l.tipo === tipo)
+  if (aba.value !== 'capex') return []
+  let list = props.lancamentos.filter((l) => l.tipo === 'CAPEX')
   if (filtros.value.dataInicial) list = list.filter((l) => l.data >= filtros.value.dataInicial)
   if (filtros.value.dataFinal) list = list.filter((l) => l.data <= filtros.value.dataFinal)
   if (filtros.value.categoria) list = list.filter((l) => l.categoria === filtros.value.categoria)
@@ -358,30 +414,36 @@ function limparFiltros() {
 }
 
 function abrirModalNovo() {
+  if (!podeCriar.value) return
   form.value = emptyForm(aba.value.toUpperCase())
   modalAberto.value = true
+  nextTick().then(rebase)
 }
 
 function editar(item) {
+  if (!podeEditarFin.value) return
   form.value = { ...item }
   modalAberto.value = true
+  nextTick().then(rebase)
 }
 
 function fecharModalInterno() {
   modalAberto.value = false
 }
 
+const modalClose = useModalFormClose(fecharModalInterno, () => isDirty.value, () => modalAberto.value)
 const {
-  onModalPointerDown,
-  onOverlayPointerDown,
-  onOverlayPointerUp,
-  cancelarFechamentoOverlay,
   resetOverlayPress,
-} = useModalOverlayClose(fecharModalInterno)
+  confirmAberto,
+  confirmarSaida,
+  cancelarSaida,
+  requestClose,
+  sairSemConfirmar,
+} = modalClose
 
 function fecharModal() {
   resetOverlayPress()
-  fecharModalInterno()
+  requestClose()
 }
 
 async function salvar() {
@@ -397,7 +459,7 @@ async function salvar() {
   try {
     if (form.value.id) await updateLancamento(form.value.id, payload)
     else await createLancamento(payload)
-    fecharModal()
+    sairSemConfirmar()
     emit('atualizar')
   } catch (e) {
     alert(e.response?.data?.detail || 'Erro ao salvar.')
@@ -405,6 +467,7 @@ async function salvar() {
 }
 
 async function excluir(id) {
+  if (!podeExcluir.value) return
   if (!confirm('Excluir este lançamento?')) return
   try {
     await deleteLancamento(id)

@@ -79,7 +79,7 @@
     </div>
     
     <!-- Botão para nova ocorrência -->
-    <div class="action-buttons">
+    <div v-if="podeCriar" class="action-buttons">
       <button class="btn-nova-ocorrencia" @click="abrirFormulario">
         <svg xmlns="http://www.w3.org/2000/svg" class="icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
@@ -127,12 +127,12 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                   </svg>
                 </button>
-                <button class="btn-acao" @click="editarOcorrencia(ocorrencia)" title="Editar">
+                <button v-if="podeEditar" class="btn-acao" @click="editarOcorrencia(ocorrencia)" title="Editar">
                   <svg xmlns="http://www.w3.org/2000/svg" class="icon-small" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                   </svg>
                 </button>
-                <button class="btn-acao btn-deletar" @click="excluirOcorrencia(ocorrencia.id)" title="Excluir">
+                <button v-if="podeEditar" class="btn-acao btn-deletar" @click="excluirOcorrencia(ocorrencia.id)" title="Excluir">
                   <svg xmlns="http://www.w3.org/2000/svg" class="icon-small" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                   </svg>
@@ -145,15 +145,12 @@
     </div>
     
     <!-- Modal de formulário -->
-    <div
-      v-if="formularioAberto"
-      class="modal-overlay"
-      @pointerdown.self="overlayFormulario.onOverlayPointerDown"
-      @pointerup.self="overlayFormulario.onOverlayPointerUp"
-      @pointercancel.self="overlayFormulario.cancelarFechamentoOverlay"
+    <AppModalOverlay
+      :aberto="formularioAberto"
+      :handlers="modalCloseFormulario"
+      panel-class="app-modal-panel--xl"
     >
-      <div class="modal-content" @pointerdown="overlayFormulario.onModalPointerDown">
-        <div class="modal-header">
+      <div class="modal-header">
           <h2 class="modal-title">{{ modoEdicao ? 'Editar Ocorrência' : 'Nova Ocorrência' }}</h2>
           <button class="btn-fechar" @click="fecharFormulario">×</button>
         </div>
@@ -241,19 +238,20 @@
             <button type="submit" class="btn-salvar">Salvar</button>
           </div>
         </form>
-      </div>
-    </div>
+    </AppModalOverlay>
+    <ConfirmSaidaModal
+      :aberto="confirmAbertoFormulario"
+      @confirmar="confirmarSaidaFormulario"
+      @cancelar="cancelarSaidaFormulario"
+    />
     
     <!-- Modal de detalhes -->
-    <div
-      v-if="detalhesAbertos"
-      class="modal-overlay"
-      @pointerdown.self="overlayDetalhes.onOverlayPointerDown"
-      @pointerup.self="overlayDetalhes.onOverlayPointerUp"
-      @pointercancel.self="overlayDetalhes.cancelarFechamentoOverlay"
+    <AppModalOverlay
+      :aberto="detalhesAbertos"
+      :handlers="modalCloseDetalhes"
+      panel-class="app-modal-panel--xl"
     >
-      <div class="modal-content" @pointerdown="overlayDetalhes.onModalPointerDown">
-        <div class="modal-header">
+      <div class="modal-header">
           <h2 class="modal-title">Detalhes da Ocorrência</h2>
           <button class="btn-fechar" @click="fecharDetalhes">×</button>
         </div>
@@ -289,18 +287,22 @@
             </div>
           </div>
         </div>
-      </div>
-    </div>
+    </AppModalOverlay>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, nextTick } from 'vue'
 import Chart from 'chart.js/auto'
+import AppModalOverlay from '@/components/shared/AppModalOverlay.vue'
+import ConfirmSaidaModal from '@/components/shared/ConfirmSaidaModal.vue'
+import { useModalFormClose } from '@/composables/useModalFormClose'
+import { useSimpleModalClose } from '@/composables/useSimpleModalClose'
+import { useFormDirty } from '@/utils/formDirty'
+import { usePermissions } from '@/composables/usePermissions'
 import { listCanteiros } from '@/services/canteiros'
 import { listPragasPlantas, listTiposPragas, createPragaPlanta } from '@/services/pragas'
 import { listPlantasComRelacoes } from '@/services/plantas'
-import { useModalOverlayClose } from '@/composables/useModalOverlayClose'
 import { useAuthStore } from '@/store/auth'
 import {
   CHART_PRIMARY,
@@ -312,6 +314,9 @@ import {
 } from '@/constants/chartColors'
 
 const auth = useAuthStore()
+const { can } = usePermissions()
+const podeCriar = computed(() => can('fitossanidade.create'))
+const podeEditar = computed(() => can('fitossanidade.edit'))
 const canteiros = ref([])
 const plantas = ref([])
 const tiposPraga = ref([])
@@ -378,6 +383,11 @@ const detalhesAbertos = ref(false);
 const ocorrenciaSelecionada = ref(null);
 const imagemPreview = ref(null);
 
+const { isDirty: isDirtyFormulario, rebase: rebaseFormulario } = useFormDirty(
+  ocorrenciaForm,
+  () => formularioAberto.value
+);
+
 // Filtros
 const filtros = reactive({
   especie: '',
@@ -430,10 +440,13 @@ const formatarData = (data) => {
   return new Date(data).toLocaleDateString('pt-BR');
 };
 
-const abrirFormulario = () => {
+const abrirFormulario = async () => {
+  if (!podeCriar.value) return
   modoEdicao.value = false;
   resetarFormulario();
   formularioAberto.value = true;
+  await nextTick();
+  rebaseFormulario();
 };
 
 const fecharFormularioInterno = () => {
@@ -441,12 +454,24 @@ const fecharFormularioInterno = () => {
   resetarFormulario();
 };
 
-const overlayFormulario = useModalOverlayClose(fecharFormularioInterno);
+const modalCloseFormulario = useModalFormClose(
+  fecharFormularioInterno,
+  () => isDirtyFormulario.value,
+  () => formularioAberto.value,
+)
+const {
+  resetOverlayPress: resetOverlayPressFormulario,
+  confirmAberto: confirmAbertoFormulario,
+  confirmarSaida: confirmarSaidaFormulario,
+  cancelarSaida: cancelarSaidaFormulario,
+  requestClose: requestCloseFormulario,
+  sairSemConfirmar: sairSemConfirmarFormulario,
+} = modalCloseFormulario
 
 const fecharFormulario = () => {
-  overlayFormulario.resetOverlayPress();
-  fecharFormularioInterno();
-};
+  resetOverlayPressFormulario()
+  requestCloseFormulario()
+}
 
 const resetarFormulario = () => {
   Object.keys(ocorrenciaForm).forEach(key => {
@@ -495,23 +520,27 @@ const salvarOcorrencia = async () => {
       nivel_infestacao: SEV_MAP[ocorrenciaForm.severidade] || 'MEDIO',
       observacoes: ocorrenciaForm.observacoes
     })
-    fecharFormulario()
+    sairSemConfirmarFormulario()
     await carregarFitossanidade()
   } catch (e) {
     alert(e.response?.data?.detail || 'Erro ao salvar ocorrência.')
   }
 }
 
-const editarOcorrencia = (ocorrencia) => {
+const editarOcorrencia = async (ocorrencia) => {
+  if (!podeEditar.value) return
   modoEdicao.value = true;
   Object.keys(ocorrenciaForm).forEach(key => {
     ocorrenciaForm[key] = ocorrencia[key];
   });
   imagemPreview.value = ocorrencia.imagem;
   formularioAberto.value = true;
+  await nextTick();
+  rebaseFormulario();
 };
 
 const excluirOcorrencia = (id) => {
+  if (!podeEditar.value) return
   if (confirm('Tem certeza que deseja excluir esta ocorrência?')) {
     ocorrencias.value = ocorrencias.value.filter(item => item.id !== id);
     atualizarGraficos();
@@ -528,12 +557,12 @@ const fecharDetalhesInterno = () => {
   ocorrenciaSelecionada.value = null;
 };
 
-const overlayDetalhes = useModalOverlayClose(fecharDetalhesInterno);
+const modalCloseDetalhes = useSimpleModalClose(fecharDetalhesInterno, () => detalhesAbertos.value)
 
 const fecharDetalhes = () => {
-  overlayDetalhes.resetOverlayPress();
-  fecharDetalhesInterno();
-};
+  modalCloseDetalhes.resetOverlayPress()
+  fecharDetalhesInterno()
+}
 
 const aplicarFiltros = () => {
   // Os filtros são aplicados automaticamente através do computed
@@ -951,29 +980,6 @@ const atualizarGraficos = () => {
 }
 
 /* Modal */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.modal-content {
-  background-color: var(--color-text-inverse);
-  border-radius: 0.5rem;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  width: 100%;
-  max-width: 800px;
-  max-height: 90vh;
-  overflow-y: auto;
-}
-
 .modal-header {
   display: flex;
   justify-content: space-between;

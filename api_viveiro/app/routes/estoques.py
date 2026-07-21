@@ -7,11 +7,13 @@ from app.auth.jwt import get_current_user
 from app.security.rbac import require_permission
 from app.crud import estoques as crud_estoques
 from app.crud.estoques_analytics import listar_detalhe_analitico
+from app.crud.estoques_cmv_detalhe import montar_cmv_detalhe_especie
 from app.crud.estoques_timeline import montar_timeline_especies
 from app.crud import lotes_sementes as crud_lotes
 from app.database import get_db
 from app.schemas.estoques import (
     EstoqueAnaliticoDetalheOut,
+    EstoqueCmvDetalheOut,
     EstoqueResumoGeral,
     EstoqueTimelineOut,
 )
@@ -62,6 +64,19 @@ async def timeline_especies_estoque(
     current_user: FuncionarioOut = Depends(require_permission("estoques.view")),
 ):
     return await montar_timeline_especies(db, id_especie=id_especie)
+
+
+@router.get("/especie/{id_especie}/cmv-detalhe", response_model=EstoqueCmvDetalheOut)
+async def cmv_detalhe_especie(
+    id_especie: int,
+    escopo: str = Query("comercial", regex="^(comercial|vivas)$"),
+    db: AsyncSession = Depends(get_db),
+    current_user: FuncionarioOut = Depends(require_permission("estoques.view")),
+):
+    data = await montar_cmv_detalhe_especie(db, id_especie, escopo=escopo)
+    if not data:
+        raise HTTPException(status_code=404, detail="Espécie não encontrada")
+    return data
 
 
 @router.post("/entrada-sementes", response_model=LoteSementesOut, status_code=201)

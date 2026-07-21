@@ -101,8 +101,8 @@
       <h2>Vamos começar?</h2>
       <p>Cadastre sua primeira árvore matriz e registre uma coleta para ativar o rastreio completo.</p>
       <div class="home-onboarding__actions">
-        <button type="button" class="btn btn-primary" @click="ir('/coleta')">Cadastrar matriz</button>
-        <button type="button" class="btn btn-outline" @click="ir('/biblioteca')">Ver biblioteca de espécies</button>
+        <button v-if="can('coleta.create')" type="button" class="btn btn-primary" @click="ir('/coleta')">Cadastrar matriz</button>
+        <button v-if="can('biblioteca.view')" type="button" class="btn btn-outline" @click="ir('/biblioteca')">Ver biblioteca de espécies</button>
       </div>
     </section>
 
@@ -176,6 +176,7 @@ const fluxoVisivel = computed(() =>
 
 const mostrarOnboarding = computed(
   () => !carregando.value && resumo.value && resumo.value.matrizes === 0
+    && (can('coleta.create') || can('biblioteca.view'))
 )
 
 const rotaNegadaLabel = computed(() => {
@@ -184,7 +185,7 @@ const rotaNegadaLabel = computed(() => {
     '/coleta': 'Coleta de Sementes',
     '/producao': 'Produção',
     '/viveiro': 'Viveiro',
-    '/estoques': 'Estoques',
+    '/estoques': 'Compras e Estoques',
     '/vendas': 'Vendas',
     '/biblioteca': 'Biblioteca',
     '/fitossanidade': 'Fitossanidade',
@@ -236,7 +237,7 @@ const statsVisiveis = computed(() => {
       id: 'lotes',
       label: 'Lotes ativos',
       value: r.lotes_ativos,
-      hint: 'Estoques',
+      hint: 'Compras e Estoques',
       rota: '/estoques',
       permission: 'estoques.view',
     },

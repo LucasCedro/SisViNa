@@ -1,7 +1,6 @@
-# SisViNa — Design System
+# Brotare Viveiros — Design System
 
-> Paleta e tokens visuais oficiais do Sistema Viveiro Nativas.  
-> Versão 0.1 · Maio 2026
+> Paleta e tokens visuais oficiais. Versão 0.2 · 2026
 
 ---
 
@@ -22,6 +21,35 @@
 - **Hierarquia tipográfica**: títulos em `--color-text-primary`, metadados em `--color-text-secondary`, hints em `--color-text-muted`.
 - **Feedback semântico**: sucesso/erro/info/atencao sempre com par fundo + texto (`--color-*-bg` + `--color-*`).
 - **Consistência**: componentes consomem **CSS variables** de `src/assets/main.css` — evitar hex solto nos `.vue`.
+
+### Mobile e breakpoints
+
+Layout responsivo e app operacional em campo (PWA / Capacitor). Ver também `docs/MOBILE_SPRINTS.md`.
+
+| Faixa | Largura | Token CSS | Uso |
+|-------|---------|-----------|-----|
+| **Mobile** | `< 768px` | `--breakpoint-mobile-max: 767px` | Bottom nav (`MobileNav`), sidebar oculta, touch 44px |
+| **Tablet** | `768px – 1024px` | `--breakpoint-tablet-max: 1024px` | Sidebar compacta opcional; grids 2 colunas |
+| **Desktop** | `> 1024px` | — | Layout atual (sidebar 230px) |
+
+**Media queries oficiais** (usar estes valores em todo o projeto):
+
+```css
+/* Mobile */
+@media (max-width: 767px) { … }
+
+/* Tablet */
+@media (min-width: 768px) and (max-width: 1024px) { … }
+
+/* Desktop */
+@media (min-width: 1025px) { … }
+```
+
+**JavaScript:** `composables/useViewport.js` — `isMobile`, `isTablet`, `isDesktop` via `matchMedia`, sincroniza classes `viewport-mobile` / `viewport-tablet` no `<html>`.
+
+**Navegação mobile (operacional):** bottom bar com Home, Coleta, Produção, Fitossanidade, Fertilização — mesmas permissões RBAC e pipeline da unidade (`viveiroContext`).
+
+No modo **florestal**, itens nativos (Coleta, Produção nativa) ficam ocultos via `modulos_nav_desabilitados`.
 
 ### Crítica construtiva à paleta
 
@@ -96,10 +124,56 @@ Hover semânticos: `--color-info-dark` `#3A5066` · `--color-error-dark` `#72302
 
 ### Gráficos (Chart.js / SVG)
 
+Paleta categórica base — `src/constants/chartColors.js`:
+
 ```js
 ['#596247', '#3E6247', '#625947', '#624E47', '#47607B',
  '#A4B39A', '#C8A84B', '#47503A', '#8E9089', '#353D2B']
 ```
+
+Presets por módulo (mesmos hex que `main.css`):
+
+| Export | Uso |
+|--------|-----|
+| `CHART_DFC` | Barras evolução caixa (entrada / saída / saldo) |
+| `CHART_DRE` | Faturamento × CMV |
+| `CHART_ESTOQUE_ETAPA` | Timeline Compras e Estoques |
+
+---
+
+## Mapa do viveiro (planta baixa)
+
+O editor (`ViveiroDesigner`, `ViveiroLayoutEditor`, `PlantaBaixa`) segue a **mesma sistemática** do restante da app — sem exceção.
+
+### Duas camadas
+
+| Camada | Onde | Como |
+|--------|------|------|
+| **Chrome UI** | header, toolbar, painéis, erros | `var(--color-*)` de `main.css` + classes `.viveiro-toolbar` em `viveiro-map-shell.css` |
+| **SVG / atributos dinâmicos** | `fill`, `stroke`, `setAttribute`, legenda | Hex de `src/constants/viveiroMapColors.js` |
+
+Atributos SVG **não resolvem** CSS variables — por isso o hex fica centralizado em JS, espelhado em CSS:
+
+```css
+/* viveiro-map-shell.css — manter sincronizado com viveiroMapColors.js */
+--viveiro-tipo-canteiro: #596247;
+--viveiro-tipo-sementeira: #C8A84B;
+/* … */
+```
+
+### Fontes por tipo de área
+
+| Tipo | Token design | Hex mapa |
+|------|--------------|----------|
+| Canteiro | `--color-primary` | `#596247` |
+| Sementeira | `--color-attention` | `#C8A84B` |
+| Rustificação / trabalho | `--color-primary-200` | `#A4B39A` |
+| Sede / água | `--color-info` / `--color-info-dark` | `#47607B` / `#3A5066` |
+| Garagem / estoque | `--color-neutral-medium` | `#8E9089` |
+
+`viveiroComponentes.js` (`corPadrao`) e `viveiroLayout.js` importam `corPadraoTipo()` — **não** duplicar hex nesses arquivos.
+
+Paletas do seletor de cor no editor: `VIVEIRO_PALETTES` (5 tons harmônicos por categoria).
 
 ---
 
@@ -140,16 +214,21 @@ Classes utilitárias em `main.css` (não scoped):
 
 ## Implementação
 
-1. **Fonte da verdade**: `src/assets/main.css` — todas as CSS variables
-2. **Tailwind**: `tailwind.config.js` espelha tokens para stubs legados
-3. **Exceção**: `ViveiroDesigner.vue` mantém cores internas do canvas SVG (módulo instável — não migrar tokens lá ainda)
+1. **Fonte da verdade (UI)**: `src/assets/main.css` — todas as CSS variables
+2. **Gráficos / SVG dinâmico**: `src/constants/chartColors.js` e `src/constants/viveiroMapColors.js` — hex literal espelhando os tokens
+3. **Shell do mapa**: `src/assets/viveiro-map-shell.css` — toolbar, fundo do canvas, `--viveiro-*` para fills em scoped CSS
+4. **Tailwind**: `tailwind.config.js` espelha tokens para stubs legados
+5. **Painéis de módulo**: `src/assets/module-panels.css` — banners e utilitários `.sem-fill-*` / `.sem-border-*`
 
 ---
 
 ## Checklist para novos componentes
 
-- [ ] Usar `var(--color-*)` em vez de hex
+- [ ] Usar `var(--color-*)` em vez de hex no CSS do componente
 - [ ] Botão primário: `--color-primary` + hover `--color-primary-dark`
 - [ ] Erro/sucesso: par bg + texto semântico
 - [ ] Respeitar 60-30-10 — no máximo 1 acento forte por viewport
 - [ ] Testar contraste de texto muted em fundo branco
+- [ ] **Mapa viveiro**: chrome com tokens; cores de área via `viveiroMapColors.js` + `--viveiro-tipo-*` no CSS scoped
+- [ ] **Chart.js / canvas**: importar de `chartColors.js`, não inventar hex
+- [ ] **Mobile**: testar em `< 768px`; alvos de toque ≥ 44px; evitar scroll horizontal na shell

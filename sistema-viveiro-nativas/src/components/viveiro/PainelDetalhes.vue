@@ -125,7 +125,7 @@
                         </div>
                     </dl>
 
-                    <button v-if="!modoEdicao" type="button" class="btn-editar" @click="habilitarEdicao">
+                    <button v-if="podeEditarViveiro && !modoEdicao" type="button" class="btn-editar" @click="habilitarEdicao">
                         Editar dados
                     </button>
 
@@ -199,12 +199,15 @@
 <script setup>
 import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
+import { usePermissions } from '@/composables/usePermissions';
 import { textoMetros } from '@/constants/viveiroDimensoes';
 import { pendenciasDoCanteiro } from '@/utils/viveiroPendenciasMapa';
 import { useViveiroStore } from '../../store/viveiro';
 
 const store = useViveiroStore();
 const router = useRouter();
+const { can } = usePermissions();
+const podeEditarViveiro = computed(() => can('viveiro.edit'));
 
 // Dados do store
 const elementoSelecionado = computed(() => store.elementoSelecionado);
@@ -302,6 +305,7 @@ const fecharPainel = () => {
 };
 
 const habilitarEdicao = () => {
+    if (!podeEditarViveiro.value) return;
     // Copia os dados atuais para o formulário
     dadosEditados.value = { ...mudaSelecionada.value };
     modoEdicao.value = true;

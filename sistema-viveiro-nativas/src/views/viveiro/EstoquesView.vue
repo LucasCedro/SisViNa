@@ -4,12 +4,21 @@
       <div>
         <p class="page-lead">
           Sementes, insumos (média móvel), mudas por custo acumulado — do desenvolvimento à comercialização.
-          <template v-if="resumo">
-            CMV mudas vivas: <strong>R$ {{ formatMoeda(resumo.valor_total_mudas) }}</strong>
-            · comercial: <strong>R$ {{ formatMoeda(resumo.valor_mudas_comercial) }}</strong>
-            · sementes: <strong>R$ {{ formatMoeda(resumo.valor_total_sementes) }}</strong>
-          </template>
         </p>
+        <ul v-if="resumo" class="estoque-kpis-linha" aria-label="Totais de estoque">
+          <li>
+            <span class="estoque-kpis-linha__lbl">CMV vivas</span>
+            <strong>R$ {{ formatMoeda(resumo.valor_total_mudas) }}</strong>
+          </li>
+          <li>
+            <span class="estoque-kpis-linha__lbl">Comercial</span>
+            <strong>R$ {{ formatMoeda(resumo.valor_mudas_comercial) }}</strong>
+          </li>
+          <li>
+            <span class="estoque-kpis-linha__lbl">Sementes</span>
+            <strong>R$ {{ formatMoeda(resumo.valor_total_sementes) }}</strong>
+          </li>
+        </ul>
       </div>
       <div class="estoque-page-header__acoes">
         <button
@@ -62,14 +71,10 @@
           @atualizado="carregar"
         />
         <EstoqueTimelinePanel :timeline-inicial="resumo.timeline_especies" />
-        <details class="estoque-detalhes-extra">
-          <summary>Detalhes tabulares (idade, CMV, muda a muda)</summary>
-          <EstoqueAnaliticoPanel
-            :analitico-viveiro="resumo.analitico_mudas"
-            :analitico-rustificacao="resumo.analitico_mudas_rustificacao"
-            :cmv="resumo.cmv_integridade"
-          />
-        </details>
+        <EstoqueAnaliticoPanel
+          :analitico-viveiro="resumo.analitico_mudas"
+          :analitico-rustificacao="resumo.analitico_mudas_rustificacao"
+        />
       </PageSection>
 
       <!-- Sementes -->
@@ -84,7 +89,7 @@
                 valor CMV: <strong>R$ {{ formatMoeda(resumo.valor_total_sementes) }}</strong>
               </p>
             </div>
-            <button type="button" class="btn btn-primary" @click="modalEntrada = true">
+            <button v-if="podeEditar" type="button" class="btn btn-primary" @click="abrirEntradaSementes">
               + Entrada no armazém
             </button>
           </div>
@@ -96,7 +101,7 @@
             Registre entrada de sementes (compra, armazém ou ajuste) ou forme lotes a partir da coleta.
           </p>
           <div class="estoque-empty__acoes">
-            <button type="button" class="btn btn-primary" @click="modalEntrada = true">
+            <button v-if="podeEditar" type="button" class="btn btn-primary" @click="abrirEntradaSementes">
               Registrar entrada
             </button>
             <router-link to="/coleta" class="btn btn-outline">Módulo Coleta</router-link>
@@ -161,7 +166,7 @@
                 — registre compras com quantidade e valor pago (preço médio automático)
               </p>
             </div>
-            <button type="button" class="btn btn-primary" @click="abrirCadastroInsumo">
+            <button v-if="podeEditar" type="button" class="btn btn-primary" @click="abrirCadastroInsumo">
               + Cadastrar insumo
             </button>
           </div>
@@ -181,7 +186,7 @@
           <p class="estoque-empty__texto">
             Cadastre substrato, NPK, embalagens etc. Depois use <strong>Entrada</strong> para registrar compras.
           </p>
-          <button type="button" class="btn btn-primary" @click="abrirCadastroInsumo">
+          <button v-if="podeEditar" type="button" class="btn btn-primary" @click="abrirCadastroInsumo">
             Cadastrar primeiro insumo
           </button>
         </div>
@@ -252,7 +257,7 @@
                   </span>
                   <span v-else class="estoque-tag estoque-tag--ok">Normal</span>
                 </td>
-                <td class="col-acoes">
+                <td v-if="podeEditar" class="col-acoes">
                   <div class="estoque-acoes-grupo">
                     <button type="button" class="btn btn-outline btn-sm" title="Editar cadastro" @click="abrirEditarInsumo(i)">
                       Editar
@@ -270,6 +275,7 @@
                     </button>
                   </div>
                 </td>
+                <td v-else class="col-acoes text-muted">—</td>
               </tr>
             </tbody>
           </table>
@@ -278,14 +284,11 @@
     </template>
 
     <!-- Modal cadastro / edição insumo -->
-    <div
-      v-if="modalInsumoForm"
-      class="estoque-modal-overlay"
-      @pointerdown.self="overlayInsumo.onOverlayPointerDown"
-      @pointerup.self="overlayInsumo.onOverlayPointerUp"
-      @pointercancel.self="overlayInsumo.cancelarFechamentoOverlay"
+    <AppModalOverlay
+      :aberto="modalInsumoForm"
+      :handlers="overlayInsumo"
+      panel-class="app-modal-panel--wide"
     >
-      <div class="estoque-modal estoque-modal--wide" role="dialog" @pointerdown="overlayInsumo.onModalPointerDown">
         <header class="estoque-modal__header">
           <h3>{{ modoInsumoForm === 'editar' ? 'Editar insumo' : 'Cadastrar insumo' }}</h3>
           <p>{{ metaInsumoForm.dicaUnidade }}</p>
@@ -355,6 +358,13 @@
               />
               <span class="field-hint">{{ metaInsumoForm.dicaEntrada }}</span>
             </label>
+            <label v-if="formInsumo.quantidade_inicial > 0" class="form-label">
+              Pagamento
+              <select v-model="formInsumo.status_pagamento" class="form-input">
+                <option value="PAGO">À vista (pago)</option>
+                <option value="PENDENTE">A prazo (pendente)</option>
+              </select>
+            </label>
             <p v-if="previewCadastroPu" class="form-label form-label--full insumo-preview-pu">
               Preço médio estimado: <strong>{{ fmtPrecoUnitario(previewCadastroPu) }}</strong>
               / {{ formInsumo.unidade_medida }}
@@ -368,18 +378,20 @@
             {{ salvando ? 'Salvando…' : modoInsumoForm === 'editar' ? 'Salvar alterações' : 'Cadastrar' }}
           </button>
         </footer>
-      </div>
-    </div>
+    </AppModalOverlay>
+    <ConfirmSaidaModal
+      :aberto="confirmAbertoInsumo"
+      @confirmar="confirmarSaidaInsumo"
+      @cancelar="cancelarSaidaInsumo"
+    />
 
     <!-- Modal sementes -->
-    <div
-      v-if="modalEntrada"
-      class="estoque-modal-overlay"
-      @pointerdown.self="overlayEntrada.onOverlayPointerDown"
-      @pointerup.self="overlayEntrada.onOverlayPointerUp"
-      @pointercancel.self="overlayEntrada.cancelarFechamentoOverlay"
+    <AppModalOverlay
+      :aberto="modalEntrada"
+      :handlers="overlayEntrada"
+      panel-class="app-modal-panel--wide"
+      aria-labelledby="modal-sementes-titulo"
     >
-      <div class="estoque-modal" role="dialog" aria-labelledby="modal-sementes-titulo" @pointerdown="overlayEntrada.onModalPointerDown">
         <header class="estoque-modal__header">
           <h3 id="modal-sementes-titulo">Entrada de sementes</h3>
           <p>Compra ou estoque guardado</p>
@@ -420,23 +432,24 @@
           <p v-if="erroModal" class="alert alert-error">{{ erroModal }}</p>
         </form>
         <footer class="estoque-modal__footer">
-          <button type="button" class="btn btn-secondary" @click="modalEntrada = false">Cancelar</button>
+          <button type="button" class="btn btn-secondary" @click="fecharEntrada">Cancelar</button>
           <button type="submit" class="btn btn-primary" :disabled="salvando" @click="salvarEntrada">
             {{ salvando ? 'Salvando…' : 'Registrar entrada' }}
           </button>
         </footer>
-      </div>
-    </div>
+    </AppModalOverlay>
+    <ConfirmSaidaModal
+      :aberto="confirmAbertoEntrada"
+      @confirmar="confirmarSaidaEntrada"
+      @cancelar="cancelarSaidaEntrada"
+    />
 
     <!-- Modal insumo -->
-    <div
-      v-if="modalMov"
-      class="estoque-modal-overlay"
-      @pointerdown.self="overlayMov.onOverlayPointerDown"
-      @pointerup.self="overlayMov.onOverlayPointerUp"
-      @pointercancel.self="overlayMov.cancelarFechamentoOverlay"
+    <AppModalOverlay
+      :aberto="modalMov"
+      :handlers="overlayMov"
+      panel-class="app-modal-panel--wide"
     >
-      <div class="estoque-modal" role="dialog" @pointerdown="overlayMov.onModalPointerDown">
         <header class="estoque-modal__header">
           <h3>{{ formMov.tipo === 'entrada' ? 'Entrada de insumo' : 'Saída de insumo' }}</h3>
           <p>{{ insumoSelecionado?.nome }} · saldo atual {{ insumoSelecionado?.quantidade_estoque }} {{ insumoSelecionado?.unidade_medida || 'un.' }}</p>
@@ -475,6 +488,14 @@
             Preço unitário desta entrada: <strong>{{ fmtPrecoUnitario(previewMovPu) }}</strong>
             / {{ insumoSelecionado?.unidade_medida }}
           </p>
+          <label v-if="formMov.tipo === 'entrada'" class="form-label">
+            Pagamento
+            <select v-model="formMov.status_pagamento" class="form-input">
+              <option value="PAGO">À vista (pago)</option>
+              <option value="PENDENTE">A prazo (pendente)</option>
+            </select>
+            <span class="field-hint">À vista entra no caixa; a prazo só na DRE até quitar</span>
+          </label>
           <label v-if="formMov.tipo === 'saida'" class="form-label">
             Motivo
             <select v-model="formMov.motivo" class="form-input">
@@ -502,13 +523,24 @@
             {{ salvando ? 'Salvando…' : 'Confirmar' }}
           </button>
         </footer>
-      </div>
-    </div>
+    </AppModalOverlay>
+    <ConfirmSaidaModal
+      :aberto="confirmAbertoMov"
+      @confirmar="confirmarSaidaMov"
+      @cancelar="cancelarSaidaMov"
+    />
   </PageLayout>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
+import AppModalOverlay from '@/components/shared/AppModalOverlay.vue'
+import ConfirmSaidaModal from '@/components/shared/ConfirmSaidaModal.vue'
+import { useModalFormClose } from '@/composables/useModalFormClose'
+import { useFormDirty } from '@/utils/formDirty'
+import { usePermissions } from '@/composables/usePermissions'
+import { usePageTab } from '@/composables/usePageTab'
+import { useGlobalLoading } from '@/composables/useGlobalLoading'
 import PageLayout from '@/components/layout/PageLayout.vue'
 import PageSection from '@/components/layout/PageSection.vue'
 import EstoqueComercialPanel from '@/components/estoques/EstoqueComercialPanel.vue'
@@ -527,11 +559,14 @@ import {
   fmtPrecoUnitario,
 } from '@/constants/insumosUi'
 import '@/components/estoques/estoques-shared.css'
-import { useModalOverlayClose } from '@/composables/useModalOverlayClose'
 
+const GUIAS_ESTOQUE = ['mudas', 'sementes', 'insumos']
 const resumo = ref(null)
+const { can } = usePermissions()
+const { runWithLoading } = useGlobalLoading()
+const podeEditar = computed(() => can('estoques.edit'))
+const guiaAtiva = usePageTab('estoques', 'mudas', { valid: GUIAS_ESTOQUE })
 const especies = ref([])
-const guiaAtiva = ref('mudas')
 const carregando = ref(true)
 const erroPagina = ref('')
 const modalEntrada = ref(false)
@@ -542,17 +577,6 @@ const insumoEditandoId = ref(null)
 const salvando = ref(false)
 const erroModal = ref('')
 const insumoSelecionado = ref(null)
-
-const overlayInsumo = useModalOverlayClose(() => {
-  fecharInsumoForm()
-})
-const overlayEntrada = useModalOverlayClose(() => {
-  modalEntrada.value = false
-})
-const overlayMov = useModalOverlayClose(() => {
-  modalMov.value = false
-  insumoSelecionado.value = null
-})
 
 function formInsumoVazio() {
   return {
@@ -565,6 +589,7 @@ function formInsumoVazio() {
     estoque_maximo: null,
     quantidade_inicial: null,
     valor_compra: null,
+    status_pagamento: 'PAGO',
   }
 }
 
@@ -583,10 +608,63 @@ const formMov = ref({
   tipo: 'entrada',
   quantidade: 1,
   valor_total: null,
+  status_pagamento: 'PAGO',
   data_movimento: new Date().toISOString().slice(0, 10),
   motivo: 'uso_sementeira',
   observacao_extra: '',
 })
+
+const { isDirty: isDirtyInsumo, rebase: rebaseInsumo } = useFormDirty(
+  formInsumo,
+  () => modalInsumoForm.value
+)
+const { isDirty: isDirtyEntrada, rebase: rebaseEntrada } = useFormDirty(
+  formEntrada,
+  () => modalEntrada.value
+)
+const { isDirty: isDirtyMov, rebase: rebaseMov } = useFormDirty(formMov, () => modalMov.value)
+
+function fecharInsumoFormInterno() {
+  modalInsumoForm.value = false
+  insumoEditandoId.value = null
+}
+
+function fecharEntradaInterno() {
+  modalEntrada.value = false
+}
+
+function fecharMovInterno() {
+  modalMov.value = false
+  insumoSelecionado.value = null
+}
+
+const overlayInsumo = useModalFormClose(fecharInsumoFormInterno, () => isDirtyInsumo.value, () => modalInsumoForm.value)
+const overlayEntrada = useModalFormClose(fecharEntradaInterno, () => isDirtyEntrada.value, () => modalEntrada.value)
+const overlayMov = useModalFormClose(fecharMovInterno, () => isDirtyMov.value, () => modalMov.value)
+
+const {
+  confirmAberto: confirmAbertoInsumo,
+  confirmarSaida: confirmarSaidaInsumo,
+  cancelarSaida: cancelarSaidaInsumo,
+  requestClose: requestCloseInsumo,
+  sairSemConfirmar: sairSemConfirmarInsumo,
+} = overlayInsumo
+
+const {
+  confirmAberto: confirmAbertoEntrada,
+  confirmarSaida: confirmarSaidaEntrada,
+  cancelarSaida: cancelarSaidaEntrada,
+  requestClose: requestCloseEntrada,
+  sairSemConfirmar: sairSemConfirmarEntrada,
+} = overlayEntrada
+
+const {
+  confirmAberto: confirmAbertoMov,
+  confirmarSaida: confirmarSaidaMov,
+  cancelarSaida: cancelarSaidaMov,
+  requestClose: requestCloseMov,
+  sairSemConfirmar: sairSemConfirmarMov,
+} = overlayMov
 
 const metaInsumoForm = computed(() => metaTipoInsumo(formInsumo.value.tipo))
 
@@ -616,6 +694,10 @@ watch(
     }
   }
 )
+
+watch(modalEntrada, (aberto) => {
+  if (aberto) nextTick().then(rebaseEntrada)
+})
 
 const guias = computed(() => {
   const r = resumo.value
@@ -669,15 +751,23 @@ onMounted(async () => {
   await carregar()
 })
 
+function abrirEntradaSementes() {
+  if (!podeEditar.value) return
+  modalEntrada.value = true
+}
+
 function abrirCadastroInsumo() {
+  if (!podeEditar.value) return
   modoInsumoForm.value = 'cadastro'
   insumoEditandoId.value = null
   formInsumo.value = formInsumoVazio()
   erroModal.value = ''
   modalInsumoForm.value = true
+  nextTick().then(rebaseInsumo)
 }
 
 function abrirEditarInsumo(insumo) {
+  if (!podeEditar.value) return
   modoInsumoForm.value = 'editar'
   insumoEditandoId.value = insumo.id
   formInsumo.value = {
@@ -693,12 +783,17 @@ function abrirEditarInsumo(insumo) {
   }
   erroModal.value = ''
   modalInsumoForm.value = true
+  nextTick().then(rebaseInsumo)
 }
 
 function fecharInsumoForm() {
   overlayInsumo.resetOverlayPress()
-  modalInsumoForm.value = false
-  insumoEditandoId.value = null
+  requestCloseInsumo()
+}
+
+function fecharEntrada() {
+  overlayEntrada.resetOverlayPress()
+  requestCloseEntrada()
 }
 
 async function salvarInsumoForm() {
@@ -711,39 +806,42 @@ async function salvarInsumoForm() {
   }
   salvando.value = true
   try {
-    if (modoInsumoForm.value === 'editar') {
-      await updateInsumo(insumoEditandoId.value, {
-        nome: formInsumo.value.nome.trim(),
-        descricao: formInsumo.value.descricao?.trim() || null,
-        unidade_medida: formInsumo.value.unidade_medida,
-        fornecedor: formInsumo.value.fornecedor?.trim() || null,
-        estoque_minimo: formInsumo.value.estoque_minimo ?? 0,
-        estoque_maximo: formInsumo.value.estoque_maximo || null,
-      })
-    } else {
-      const ins = await createInsumo({
-        nome: formInsumo.value.nome.trim(),
-        tipo: formInsumo.value.tipo,
-        descricao: formInsumo.value.descricao?.trim() || null,
-        unidade_medida: formInsumo.value.unidade_medida,
-        fornecedor: formInsumo.value.fornecedor?.trim() || null,
-        estoque_minimo: formInsumo.value.estoque_minimo ?? 0,
-        estoque_maximo: formInsumo.value.estoque_maximo || null,
-        quantidade_estoque: 0,
-      })
-      if (formInsumo.value.quantidade_inicial > 0) {
-        await registrarMovimentacaoInsumo(ins.id, {
-          tipo: 'entrada',
-          quantidade: formInsumo.value.quantidade_inicial,
-          valor_total: formInsumo.value.valor_compra,
-          data_movimento: new Date().toISOString().slice(0, 10),
-          observacao: 'Entrada inicial',
+    await runWithLoading(async () => {
+      if (modoInsumoForm.value === 'editar') {
+        await updateInsumo(insumoEditandoId.value, {
+          nome: formInsumo.value.nome.trim(),
+          descricao: formInsumo.value.descricao?.trim() || null,
+          unidade_medida: formInsumo.value.unidade_medida,
+          fornecedor: formInsumo.value.fornecedor?.trim() || null,
+          estoque_minimo: formInsumo.value.estoque_minimo ?? 0,
+          estoque_maximo: formInsumo.value.estoque_maximo || null,
         })
+      } else {
+        const ins = await createInsumo({
+          nome: formInsumo.value.nome.trim(),
+          tipo: formInsumo.value.tipo,
+          descricao: formInsumo.value.descricao?.trim() || null,
+          unidade_medida: formInsumo.value.unidade_medida,
+          fornecedor: formInsumo.value.fornecedor?.trim() || null,
+          estoque_minimo: formInsumo.value.estoque_minimo ?? 0,
+          estoque_maximo: formInsumo.value.estoque_maximo || null,
+          quantidade_estoque: 0,
+        })
+        if (formInsumo.value.quantidade_inicial > 0) {
+          await registrarMovimentacaoInsumo(ins.id, {
+            tipo: 'entrada',
+            quantidade: formInsumo.value.quantidade_inicial,
+            valor_total: formInsumo.value.valor_compra,
+            data_movimento: new Date().toISOString().slice(0, 10),
+            status_pagamento: formInsumo.value.status_pagamento || 'PAGO',
+            observacao: 'Entrada inicial',
+          })
+        }
       }
-    }
-    fecharInsumoForm()
-    guiaAtiva.value = 'insumos'
-    await carregar()
+      sairSemConfirmarInsumo()
+      guiaAtiva.value = 'insumos'
+      await carregar()
+    }, 'Salvando insumo…')
   } catch (e) {
     erroModal.value = e.response?.data?.detail || 'Erro ao salvar insumo.'
   } finally {
@@ -755,10 +853,12 @@ async function salvarEntrada() {
   erroModal.value = ''
   salvando.value = true
   try {
-    await entradaSementesArmazem(formEntrada.value)
-    modalEntrada.value = false
-    guiaAtiva.value = 'sementes'
-    await carregar()
+    await runWithLoading(async () => {
+      await entradaSementesArmazem(formEntrada.value)
+      sairSemConfirmarEntrada()
+      guiaAtiva.value = 'sementes'
+      await carregar()
+    }, 'Registrando entrada…')
   } catch (e) {
     erroModal.value = e.response?.data?.detail || 'Erro ao registrar entrada.'
   } finally {
@@ -767,6 +867,7 @@ async function salvarEntrada() {
 }
 
 function abrirMov(insumo, tipo) {
+  if (!podeEditar.value) return
   insumoSelecionado.value = insumo
   formMov.value = {
     tipo,
@@ -778,6 +879,7 @@ function abrirMov(insumo, tipo) {
   }
   erroModal.value = ''
   modalMov.value = true
+  nextTick().then(rebaseMov)
 }
 
 function montarObservacaoMov() {
@@ -794,8 +896,7 @@ function montarObservacaoMov() {
 
 function fecharMov() {
   overlayMov.resetOverlayPress()
-  modalMov.value = false
-  insumoSelecionado.value = null
+  requestCloseMov()
 }
 
 async function salvarMov() {
@@ -808,18 +909,21 @@ async function salvarMov() {
   }
   salvando.value = true
   try {
-    const payload = {
-      tipo: formMov.value.tipo,
-      quantidade: formMov.value.quantidade,
-      data_movimento: formMov.value.data_movimento,
-      observacao: montarObservacaoMov(),
-    }
-    if (formMov.value.tipo === 'entrada' && formMov.value.valor_total != null) {
-      payload.valor_total = formMov.value.valor_total
-    }
-    await registrarMovimentacaoInsumo(insumoSelecionado.value.id, payload)
-    fecharMov()
-    await carregar()
+    await runWithLoading(async () => {
+      const payload = {
+        tipo: formMov.value.tipo,
+        quantidade: formMov.value.quantidade,
+        data_movimento: formMov.value.data_movimento,
+        observacao: montarObservacaoMov(),
+      }
+      if (formMov.value.tipo === 'entrada' && formMov.value.valor_total != null) {
+        payload.valor_total = formMov.value.valor_total
+        payload.status_pagamento = formMov.value.status_pagamento || 'PAGO'
+      }
+      await registrarMovimentacaoInsumo(insumoSelecionado.value.id, payload)
+      sairSemConfirmarMov()
+      await carregar()
+    }, 'Registrando movimentação…')
   } catch (e) {
     const d = e.response?.data?.detail
     erroModal.value = typeof d === 'string' ? d : 'Erro na movimentação.'
@@ -897,23 +1001,6 @@ code {
   background: var(--color-primary-subtle);
   padding: 0.15rem 0.4rem;
   border-radius: var(--radius-sm);
-}
-
-.estoque-detalhes-extra {
-  margin-top: var(--spacing-lg);
-}
-
-.estoque-detalhes-extra summary {
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 0.875rem;
-  color: var(--color-text-secondary);
-  padding: var(--spacing-sm) 0;
-}
-
-.estoque-detalhes-extra[open] summary {
-  margin-bottom: var(--spacing-md);
-  color: var(--color-primary-700);
 }
 
 .estoque-modal--wide {

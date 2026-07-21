@@ -1,6 +1,6 @@
 <template>
   <div class="financeiro-page">
-    <header class="financeiro-toolbar">
+    <header v-if="!ocultarToolbar" class="financeiro-toolbar">
       <div class="financeiro-toolbar__periodo">
         <label class="field-inline">
           <span>Mês</span>
@@ -25,71 +25,133 @@
 
     <template v-else-if="painel">
       <p class="financeiro-lead">
-        CMV = custo das mudas vendidas (lote na semeadura + atividades + fitossanidade).
-        <strong>Despesas</strong> (faturas, comissão) entram na DRE — não no custo da muda.
-        Estoque de insumos e sementes usa <strong>preço médio móvel</strong> (<router-link to="/estoques">Estoques</router-link>).
+        <strong>DRE contábil</strong> — regime de competência (fato gerador na data da venda).
+        Vendas <strong>PENDENTE</strong> entram na receita. O caixa efetivo está em
+        <router-link to="/financeiro">Financeiro → Fluxo de caixa</router-link>.
       </p>
 
-      <!-- Camada 1 — DRE -->
-      <section class="fin-sec" aria-label="DRE do período">
-        <h2 class="fin-sec__titulo">Resultado do período — {{ painel.periodo.label }}</h2>
+      <!-- Integridade CMV -->
+      <section
+        v-if="temIntegridade"
+        class="fin-sec fin-sec--integridade"
+        aria-label="Integridade de custos"
+      >
+        <h2 class="fin-sec__titulo">Integridade de custos</h2>
+        <ul class="integridade-list">
+          <li v-if="!painel.integridade.premissa_coleta_campo_ok" class="integridade-item integridade-item--alerta">
+            Premissa <strong>Mão de obra de coleta</strong> zerada ou inativa ({{ fmt(painel.integridade.valor_hora_coleta_campo) }}/h) —
+            <router-link to="/financeiro">Premissas</router-link>
+          </li>
+          <li v-if="painel.integridade.lotes_sementes_sem_custo" class="integridade-item integridade-item--alerta">
+            <strong>{{ painel.integridade.lotes_sementes_sem_custo }}</strong>
+            lote(s) ativo(s) com custo zero no estoque —
+            <router-link to="/coleta">Coleta Sementes</router-link>
+          </li>
+          <li v-if="painel.integridade.coletas_sem_horas_campo" class="integridade-item integridade-item--alerta">
+            <strong>{{ painel.integridade.coletas_sem_horas_campo }}</strong>
+            coleta(s) com lote ativo ainda sem horas —
+            <router-link to="/coleta">Coleta Sementes</router-link>
+          </li>
+          <li v-if="painel.integridade.lotes_armazem_sem_coleta" class="integridade-item integridade-item--alerta">
+            <strong>{{ painel.integridade.lotes_armazem_sem_coleta }}</strong>
+            lote(s) do armazém sem coleta (custo não vem de horas de campo)
+          </li>
+          <li v-if="painel.integridade.mudas_vivas_sem_custo" class="integridade-item integridade-item--alerta">
+            <strong>{{ painel.integridade.mudas_vivas_sem_custo }}</strong>
+            muda(s) vivas sem custo —
+            <router-link to="/estoques">Estoques</router-link>
+          </li>
+          <li v-if="!temIntegridadeAlerta" class="integridade-item integridade-item--ok">
+            Premissas CMV e registros operacionais consistentes.
+          </li>
+        </ul>
+      </section>
+
+      <!-- Camada 1 — DRE / Caixa -->
+      <section class="fin-sec" :aria-label="tituloSecao">
+        <h2 class="fin-sec__titulo">{{ tituloSecao }} — {{ painel.periodo.label }}</h2>
         <div class="dre-flow">
-          <article class="dre-linha dre-linha--receita">
-            <span class="dre-linha__label">Faturamento (vendas pagas)</span>
-            <strong class="dre-linha__valor">{{ fmt(painel.dre.faturamento) }}</strong>
-            <span class="dre-linha__meta">{{ painel.dre.mudas_vendidas }} muda(s) · ticket {{ fmt(painel.dre.ticket_medio) }}</span>
-          </article>
-          <article class="dre-linha dre-linha--custo">
-            <span class="dre-linha__label">(−) CMV — custo das mudas vendidas</span>
-            <strong class="dre-linha__valor">{{ fmt(painel.dre.cmv) }}</strong>
-          </article>
-          <article class="dre-linha dre-linha--destaque">
-            <span class="dre-linha__label">(=) Lucro bruto</span>
-            <strong class="dre-linha__valor" :class="sinalClass(painel.dre.lucro_bruto)">{{ fmt(painel.dre.lucro_bruto) }}</strong>
-            <span v-if="painel.dre.margem_bruta_pct != null" class="dre-linha__meta">Margem {{ painel.dre.margem_bruta_pct }}%</span>
-          </article>
-          <article class="dre-linha dre-linha--custo">
-            <span class="dre-linha__label">(−) OPEX — despesas operacionais (lançamentos)</span>
-            <strong class="dre-linha__valor">{{ fmt(painel.dre.opex) }}</strong>
-            <span
-              v-if="painel.despesas_estimadas?.total_despesas_estimadas"
-              class="dre-linha__meta"
+          <article
+            v-for="linha in linhasDre"
+            :key="linha.id"
+            class="dre-linha"
+            :class="[linha.classe, { 'dre-linha--aberta': detalheAberto === linha.id, 'dre-linha--clicavel': linha.clicavel }]"
+          >
+            <button
+              v-if="linha.clicavel"
+              type="button"
+              class="dre-linha__btn"
+              :aria-expanded="detalheAberto === linha.id"
+              @click="toggleDetalhe(linha.id)"
             >
-              Referência premissas: {{ fmt(painel.despesas_estimadas.total_despesas_estimadas) }}/mês
-              (comissão {{ fmt(painel.despesas_estimadas.comissao_estimada) }})
-            </span>
-          </article>
-          <article class="dre-linha dre-linha--resultado">
-            <span class="dre-linha__label">(=) Resultado operacional</span>
-            <strong class="dre-linha__valor" :class="sinalClass(painel.dre.resultado_operacional)">{{ fmt(painel.dre.resultado_operacional) }}</strong>
+              <span class="dre-linha__chev">{{ detalheAberto === linha.id ? '▾' : '▸' }}</span>
+              <span class="dre-linha__label">{{ linha.label }}</span>
+              <strong class="dre-linha__valor" :class="linha.sinal ? sinalClass(linha.valor) : ''">{{ fmt(linha.valor) }}</strong>
+              <span v-if="linha.meta" class="dre-linha__meta">{{ linha.meta }}</span>
+            </button>
+            <template v-else>
+              <span class="dre-linha__label">{{ linha.label }}</span>
+              <strong class="dre-linha__valor" :class="linha.sinal ? sinalClass(linha.valor) : ''">{{ fmt(linha.valor) }}</strong>
+              <span v-if="linha.meta" class="dre-linha__meta">{{ linha.meta }}</span>
+            </template>
+            <FinanceiroDetalheBloco
+              v-if="linha.clicavel && detalheAberto === linha.id && painel.detalhes"
+              :tipo="linha.id"
+              :bloco="blocoDetalhe(linha.id)"
+              :receitas="painel.receitas"
+              :estoque="linha.id === 'estoque' ? painel.detalhes.estoque : null"
+            />
           </article>
         </div>
 
-        <div class="kpi-grid kpi-grid--4">
-          <article class="kpi-card">
-            <span class="kpi-card__label">Estoque mudas (custo acumulado)</span>
-            <strong class="kpi-card__valor">{{ fmt(painel.estoque.valor_mudas_vivas) }}</strong>
-            <span class="kpi-card__meta">{{ painel.estoque.mudas_vivas }} vivas · média {{ fmt(painel.estoque.custo_medio_muda_viva) }}/muda</span>
-          </article>
-          <article class="kpi-card">
-            <span class="kpi-card__label">Insumos (média móvel)</span>
-            <strong class="kpi-card__valor">{{ fmt(painel.estoque.valor_insumos) }}</strong>
-            <span class="kpi-card__meta">{{ painel.estoque.total_insumos }} item(ns)</span>
-          </article>
-          <article class="kpi-card">
-            <span class="kpi-card__label">Sementes em estoque</span>
-            <strong class="kpi-card__valor">{{ fmt(painel.estoque.valor_sementes) }}</strong>
-            <span class="kpi-card__meta">Valor dos lotes ativos</span>
-          </article>
-          <article class="kpi-card">
-            <span class="kpi-card__label">CAPEX no período</span>
-            <strong class="kpi-card__valor">{{ fmt(painel.dre.capex) }}</strong>
-            <span class="kpi-card__meta">Investimentos lançados</span>
+        <div class="kpi-grid kpi-grid--5">
+          <article
+            v-for="kpi in kpisEstoque"
+            :key="kpi.id"
+            class="kpi-card"
+            :class="kpi.classe"
+          >
+            <button type="button" class="kpi-card__btn" @click="abrirKpiModal(kpi)">
+              <span class="kpi-card__label">{{ kpi.label }}</span>
+              <strong class="kpi-card__valor">{{ fmt(kpi.valor) }}</strong>
+              <span class="kpi-card__meta" v-html="kpi.meta" />
+              <span class="kpi-card__hint">Ver composição</span>
+            </button>
           </article>
         </div>
+
+        <!-- Modal detalhe KPI -->
+        <AppModalOverlay
+          :aberto="!!kpiModal"
+          :handlers="modalCloseKpi"
+          panel-class="app-modal-panel--xl"
+          aria-labelledby="fin-kpi-modal-title"
+        >
+          <header class="fin-modal-header">
+              <div>
+                <p class="fin-modal-eyebrow">Composição do indicador</p>
+                <h2 id="fin-kpi-modal-title">{{ kpiModal.label }}</h2>
+                <p class="fin-modal-valor">{{ fmt(kpiModal.valor) }}</p>
+              </div>
+              <button type="button" class="fin-modal-fechar" aria-label="Fechar" @click="fecharKpiModal">×</button>
+            </header>
+            <div class="fin-modal-body">
+              <FinanceiroDetalheBloco
+                v-if="painel.detalhes"
+                :tipo="kpiModal.tipoDetalhe"
+                :bloco="kpiModal.tipoDetalhe === 'capex' ? painel.detalhes.capex : null"
+                :estoque="kpiModal.tipoDetalhe === 'estoque' ? painel.detalhes.estoque : null"
+                :estoque-foco="kpiModal.estoqueFoco"
+                :embedded="false"
+              />
+            </div>
+            <footer class="fin-modal-footer">
+              <button type="button" class="btn btn-secondary btn-sm" @click="fecharKpiModal">Fechar</button>
+            </footer>
+        </AppModalOverlay>
 
         <div v-if="painel.evolucao_mensal?.length" class="evolucao-wrap">
-          <h3 class="fin-sub">Evolução — últimos 12 meses</h3>
+          <h3 class="fin-sub">{{ tituloEvolucao }}</h3>
           <div class="evolucao-chart">
             <div
               v-for="p in painel.evolucao_mensal"
@@ -97,14 +159,24 @@
               class="evolucao-col"
               :title="`${p.label}: fat. ${fmt(p.faturamento)}`"
             >
-              <div class="evolucao-bar evolucao-bar--fat" :style="{ height: barPct(p.faturamento) + '%' }" />
-              <div class="evolucao-bar evolucao-bar--cmv" :style="{ height: barPct(p.cmv) + '%' }" />
+              <div
+                class="evolucao-bar evolucao-bar--fat"
+                :style="{ height: barPct(p.faturamento) + '%', backgroundColor: coresDre.faturamento }"
+              />
+              <div
+                class="evolucao-bar evolucao-bar--cmv"
+                :style="{
+                  height: barPct(p.cmv) + '%',
+                  backgroundColor: coresDre.cmv,
+                  opacity: coresDre.cmvOpacity,
+                }"
+              />
               <span class="evolucao-label">{{ p.label.split('/')[0] }}</span>
             </div>
           </div>
           <div class="evolucao-legenda">
-            <span><i class="dot dot--fat" /> Faturamento</span>
-            <span><i class="dot dot--cmv" /> CMV</span>
+            <span><i class="dot" :style="{ backgroundColor: coresDre.faturamento }" /> Faturamento</span>
+            <span><i class="dot" :style="{ backgroundColor: coresDre.cmv }" /> CMV</span>
           </div>
         </div>
       </section>
@@ -112,8 +184,8 @@
       <!-- Camada 2 — Margem -->
       <section class="fin-sec" aria-label="Margem por espécie">
         <h2 class="fin-sec__titulo">Margem por espécie</h2>
-        <ul v-if="painel.avisos?.length" class="avisos-list">
-          <li v-for="(a, i) in painel.avisos" :key="i" :class="'aviso--' + a.tipo">{{ a.mensagem }}</li>
+        <ul v-if="avisosMargem.length" class="avisos-list">
+          <li v-for="(a, i) in avisosMargem" :key="i" :class="'aviso--' + a.tipo">{{ a.mensagem }}</li>
         </ul>
         <div v-if="painel.margem_especies?.length" class="tabela-wrap">
           <table class="tabela-fin">
@@ -143,11 +215,12 @@
             </tbody>
           </table>
         </div>
-        <p v-else class="fin-empty">Nenhuma venda paga neste período.</p>
+        <p v-else class="fin-empty">{{ msgSemVendas }}</p>
       </section>
 
-      <!-- Camada 3 — Gestão -->
+      <!-- Camada 3 — Gestão (só Financeiro caixa) -->
       <FinanceiroGestao
+        v-if="mostrarGestao"
         :painel="painel"
         :lancamentos="lancamentos"
         :pode-editar="podeEditar"
@@ -159,7 +232,13 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
+import AppModalOverlay from '@/components/shared/AppModalOverlay.vue'
 import FinanceiroGestao from './FinanceiroGestao.vue'
+import FinanceiroDetalheBloco from './FinanceiroDetalheBloco.vue'
+import { useSimpleModalClose } from '@/composables/useSimpleModalClose'
+import { CHART_DRE } from '@/constants/chartColors'
+
+const coresDre = CHART_DRE
 
 const props = defineProps({
   painel: { type: Object, default: null },
@@ -169,6 +248,10 @@ const props = defineProps({
   mes: { type: Number, required: true },
   ano: { type: Number, required: true },
   podeEditar: { type: Boolean, default: false },
+  /** caixa = Financeiro gerencial; competencia = Contabilidade DRE */
+  modo: { type: String, default: 'caixa' },
+  mostrarGestao: { type: Boolean, default: true },
+  ocultarToolbar: { type: Boolean, default: false },
 })
 
 const emit = defineEmits(['atualizar', 'periodo'])
@@ -187,10 +270,203 @@ const anosDisponiveis = computed(() => {
   return [y - 1, y, y + 1]
 })
 
+const detalheAberto = ref(null)
+const kpiModal = ref(null)
+
+const tituloSecao = computed(() =>
+  props.modo === 'competencia' ? 'DRE do período' : 'Resultado em caixa'
+)
+
+const tituloEvolucao = computed(() => {
+  if (props.painel?.periodo?.mes === 0) {
+    return `Evolução mensal — ${props.painel.periodo.label}`
+  }
+  return 'Evolução — últimos 12 meses'
+})
+
+const msgSemVendas = computed(() =>
+  props.modo === 'competencia'
+    ? 'Nenhuma venda efetivada neste período.'
+    : 'Nenhum recebimento neste período.'
+)
+
+watch(() => [props.mes, props.ano], () => {
+  detalheAberto.value = null
+  kpiModal.value = null
+})
+
+function fecharKpiModalInterno() {
+  kpiModal.value = null
+}
+
+const modalCloseKpi = useSimpleModalClose(fecharKpiModalInterno, () => !!kpiModal.value)
+
+function abrirKpiModal(kpi) {
+  kpiModal.value = kpi
+}
+
+function fecharKpiModal() {
+  modalCloseKpi.resetOverlayPress()
+  fecharKpiModalInterno()
+}
+
+const linhasDre = computed(() => {
+  const d = props.painel?.dre
+  if (!d) return []
+  const fatLabel =
+    props.modo === 'competencia'
+      ? 'Receita (vendas efetivadas)'
+      : 'Entradas (vendas pagas)'
+  return [
+    {
+      id: 'faturamento',
+      label: fatLabel,
+      valor: d.faturamento,
+      classe: 'dre-linha--receita',
+      clicavel: true,
+      sinal: false,
+      meta: `${d.mudas_vendidas} muda(s) · ticket ${fmt(d.ticket_medio)}`,
+    },
+    {
+      id: 'cmv',
+      label: '(−) CMV — custo das mudas vendidas',
+      valor: d.cmv,
+      classe: 'dre-linha--custo',
+      clicavel: true,
+      sinal: false,
+      meta: 'Clique para ver item a item',
+    },
+    {
+      id: 'lucro_bruto',
+      label: '(=) Lucro bruto',
+      valor: d.lucro_bruto,
+      classe: 'dre-linha--destaque',
+      clicavel: true,
+      sinal: true,
+      meta: d.margem_bruta_pct != null ? `Margem ${d.margem_bruta_pct}%` : null,
+    },
+    {
+      id: 'compras_insumos',
+      label: '(−) Compras de insumos',
+      valor: d.compras_insumos,
+      classe: 'dre-linha--custo',
+      clicavel: true,
+      sinal: false,
+      meta: 'Entradas em Estoques → Insumos',
+    },
+    {
+      id: 'opex',
+      label: '(−) OPEX — premissas DRE (automático)',
+      valor: d.opex,
+      classe: 'dre-linha--custo',
+      clicavel: true,
+      sinal: false,
+      meta: `Comissão ${fmt(d.opex_comissao)} · Fixas ${fmt(d.opex_fixo)}`,
+    },
+    {
+      id: 'resultado',
+      label: '(=) Resultado operacional',
+      valor: d.resultado_operacional,
+      classe: 'dre-linha--resultado',
+      clicavel: true,
+      sinal: true,
+      meta: 'Lucro bruto − compras − OPEX',
+    },
+  ]
+})
+
+const kpisEstoque = computed(() => {
+  const e = props.painel?.estoque
+  const d = props.painel?.dre
+  const i = props.painel?.integridade
+  if (!e || !d) return []
+  const alertaSementes = i?.lotes_sementes_sem_custo
+    ? ` · <strong class="fin-kpi-alerta">${i.lotes_sementes_sem_custo} lote(s) zerado(s)</strong>`
+    : ''
+  return [
+    {
+      id: 'kpi-parque',
+      tipoDetalhe: 'estoque',
+      estoqueFoco: 'parque',
+      label: 'Parque (todas vivas)',
+      valor: e.valor_mudas_vivas,
+      classe: '',
+      meta: `${e.mudas_vivas} mudas · média ${fmt(e.custo_medio_muda_viva)}/muda`,
+    },
+    {
+      id: 'kpi-comercial',
+      tipoDetalhe: 'estoque',
+      estoqueFoco: 'comercial',
+      label: 'Estoque comercial (aptas venda)',
+      valor: e.valor_mudas_comercial,
+      classe: 'kpi-card--comercial',
+      meta: `${e.mudas_comercial} em rustificação · média ${fmt(e.custo_medio_muda_comercial)}/muda`,
+    },
+    {
+      id: 'kpi-insumos',
+      tipoDetalhe: 'estoque',
+      estoqueFoco: 'insumos',
+      label: 'Insumos (média móvel)',
+      valor: e.valor_insumos,
+      classe: '',
+      meta: `${e.total_insumos} item(ns)`,
+    },
+    {
+      id: 'kpi-sementes',
+      tipoDetalhe: 'estoque',
+      estoqueFoco: 'sementes',
+      label: 'Sementes em estoque',
+      valor: e.valor_sementes,
+      classe: alertaSementes ? 'kpi-card--alerta' : '',
+      meta: `Horas de coleta × homem-hora${alertaSementes}`,
+    },
+    {
+      id: 'capex',
+      tipoDetalhe: 'capex',
+      estoqueFoco: null,
+      label: 'CAPEX no período',
+      valor: d.capex,
+      classe: '',
+      meta: 'Investimentos lançados',
+    },
+  ]
+})
+
+function toggleDetalhe(id) {
+  detalheAberto.value = detalheAberto.value === id ? null : id
+}
+
+function blocoDetalhe(id) {
+  const det = props.painel?.detalhes
+  if (!det) return null
+  if (id === 'estoque') return det.estoque
+  return det[id] || null
+}
+
 const maxEvolucao = computed(() => {
   if (!props.painel?.evolucao_mensal?.length) return 1
   return Math.max(...props.painel.evolucao_mensal.map((p) => p.faturamento || 0), 1)
 })
+
+const temIntegridadeAlerta = computed(() => {
+  const i = props.painel?.integridade
+  if (!i) return false
+  return (
+    !i.premissa_coleta_campo_ok ||
+    (i.lotes_sementes_sem_custo || 0) > 0 ||
+    (i.coletas_sem_horas_campo || 0) > 0 ||
+    (i.lotes_armazem_sem_coleta || 0) > 0 ||
+    (i.mudas_vivas_sem_custo || 0) > 0
+  )
+})
+
+const temIntegridade = computed(() => Boolean(props.painel?.integridade))
+
+const avisosMargem = computed(() =>
+  (props.painel?.avisos || []).filter((a) =>
+    ['venda_abaixo_custo', 'especie_prejuizo', 'resultado_negativo'].includes(a.tipo)
+  )
+)
 
 function emitPeriodo() {
   emit('periodo', { mes: mesLocal.value, ano: anoLocal.value })

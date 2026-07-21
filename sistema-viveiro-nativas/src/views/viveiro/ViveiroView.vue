@@ -9,7 +9,7 @@
             Mapa em escala real, ocupação ao vivo e pendências por local.
           </p>
         </div>
-        <button type="button" class="btn btn-primary viveiro-hero__cta" @click="editarPlantaBaixa">
+        <button v-if="podeEditarLayout" type="button" class="btn btn-primary viveiro-hero__cta" @click="editarPlantaBaixa">
           Editar / Montar layout
         </button>
       </header>
@@ -49,7 +49,7 @@
               <p class="viveiro-empty__texto">
                 Desenhe sementeiras, canteiros e rustificação. Ao salvar, os locais entram na produção.
               </p>
-              <button type="button" class="btn btn-primary" @click="editarPlantaBaixa">
+              <button v-if="podeEditarLayout" type="button" class="btn btn-primary" @click="editarPlantaBaixa">
                 Abrir editor
               </button>
             </div>
@@ -103,8 +103,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { usePermissions } from '@/composables/usePermissions'
+import { usePageTab } from '@/composables/usePageTab'
 import PageLayout from '@/components/layout/PageLayout.vue'
 import PlantaBaixa from '@/components/viveiro/PlantaBaixa.vue'
 import PainelDetalhes from '@/components/viveiro/PainelDetalhes.vue'
@@ -117,7 +119,9 @@ import { pendenciasDoCanteiro } from '@/utils/viveiroPendenciasMapa'
 
 const store = useViveiroStore()
 const router = useRouter()
-const guiaAtiva = ref('gestao')
+const { can } = usePermissions()
+const podeEditarLayout = computed(() => can('viveiro.edit'))
+const guiaAtiva = usePageTab('viveiro', 'gestao', { valid: ['gestao', 'cadastro', 'locais'] })
 
 function pendenciasChip(el) {
   return pendenciasDoCanteiro(store.pendenciasPorCanteiro, el.apiId)
@@ -130,6 +134,7 @@ function tituloPendenciasChip(el) {
 }
 
 function editarPlantaBaixa() {
+  if (!podeEditarLayout.value) return
   router.push('/viveiro/planta-editor')
 }
 

@@ -36,20 +36,19 @@
             <option value="PJ">Pessoa jurídica</option>
           </select>
         </label>
-        <label class="module-field">
-          {{ novo.tipo === 'PJ' ? 'CNPJ' : 'CPF' }}
-          <input v-model="novo.cpf_cnpj" required />
-        </label>
+        <MaskedInput
+          v-model="novo.cpf_cnpj"
+          :mask="novo.tipo === 'PJ' ? 'cnpj' : 'cpf'"
+          :label="novo.tipo === 'PJ' ? 'CNPJ' : 'CPF'"
+          required
+        />
       </div>
       <label class="module-field">
         Nome / Razão social
         <input v-model="novo.nome" required />
       </label>
       <div class="module-form-row">
-        <label class="module-field">
-          Telefone
-          <input v-model="novo.telefone" />
-        </label>
+        <MaskedInput v-model="novo.telefone" mask="telefone" label="Telefone" />
         <label class="module-field">
           E-mail
           <input v-model="novo.email" type="email" />
@@ -77,20 +76,22 @@
           Cidade
           <input v-model="novo.cidade" required @input="atualizarPreview" />
         </label>
-        <label class="module-field">
-          UF
-          <input v-model="novo.estado" maxlength="2" required @input="atualizarPreview" />
-        </label>
+        <MaskedInput v-model="novo.estado" mask="uf" label="UF" required />
       </div>
-      <label class="module-field">
-        Cód. IBGE município (7 dígitos)
-        <input v-model="novo.codigo_municipio_ibge" maxlength="7" required placeholder="Ex.: 5208707" />
-      </label>
+      <MaskedInput
+        v-model="novo.codigo_municipio_ibge"
+        mask="ibge"
+        label="Cód. IBGE município (7 dígitos)"
+        required
+        placeholder="Ex.: 5208707"
+      />
       <div class="module-form-row">
-        <label class="module-field">
-          Inscrição estadual
-          <input v-model="novo.inscricao_estadual" />
-        </label>
+        <MaskedInput
+          v-model="novo.inscricao_estadual"
+          mask="ie"
+          label="Inscrição estadual"
+          hint="Somente números"
+        />
         <label class="module-field">
           Indicador IE
           <select v-model="novo.indicador_ie">
@@ -125,10 +126,12 @@
 <script setup>
 import { ref, watch, onMounted } from 'vue'
 import CepInput from '@/components/form/CepInput.vue'
-import { compradorVazio } from '@/constants/compradorForm'
+import MaskedInput from '@/components/form/MaskedInput.vue'
+import { compradorVazio, normalizarCompradorCampos } from '@/constants/compradorForm'
 import { listCompradores, createComprador, getCompradorNfeReadiness } from '@/services/compradores'
 import { previewRegraFiscal } from '@/services/fiscal'
 import { aplicarEnderecoCep } from '@/utils/cepAutofill'
+import { onlyDigits } from '@/utils/inputMasks'
 
 const props = defineProps({
   idComprador: { type: Number, default: null },
@@ -149,6 +152,20 @@ watch(
   () => props.idComprador,
   (v) => {
     idLocal.value = v
+  }
+)
+
+watch(
+  () => novo.value.estado,
+  () => atualizarPreview()
+)
+
+watch(
+  () => novo.value.tipo,
+  (tipo) => {
+    const d = onlyDigits(novo.value.cpf_cnpj)
+    novo.value.cpf_cnpj = tipo === 'PJ' ? d.slice(0, 14) : d.slice(0, 11)
+    atualizarPreview()
   }
 )
 
@@ -203,7 +220,7 @@ async function garantirCompradorId() {
     if (!idLocal.value) throw new Error('Selecione o comprador.')
     return idLocal.value
   }
-  const payload = { ...novo.value }
+  const payload = normalizarCompradorCampos({ ...novo.value })
   const criado = await createComprador(payload)
   idLocal.value = criado.id
   emit('update:idComprador', criado.id)
@@ -241,7 +258,7 @@ defineExpose({ garantirCompradorId, recarregarCompradores: carregarCompradores }
   cursor: pointer;
 }
 .status-ok {
-  color: #0f5132;
+  color: var(--color-success);
   font-size: 0.8125rem;
   margin: 0 0 var(--spacing-sm);
 }
@@ -249,20 +266,21 @@ defineExpose({ garantirCompradorId, recarregarCompradores: carregarCompradores }
   margin: 0 0 var(--spacing-sm);
   padding-left: 1.1rem;
   font-size: 0.8125rem;
-  color: #664d03;
+  color: var(--color-text-secondary);
 }
 .preview-regra {
   margin-top: var(--spacing-sm);
   padding: 0.5rem 0.65rem;
   border-radius: var(--radius-sm);
-  background: #cff4fc;
-  border: 1px solid #0dcaf0;
+  background: var(--color-info-bg);
+  border: 1px solid var(--color-info);
   font-size: 0.8125rem;
+  color: var(--color-info-dark);
 }
 .preview-regra--erro {
-  background: #fff3cd;
-  border-color: #ffc107;
-  color: #664d03;
+  background: var(--color-attention-bg);
+  border-color: var(--color-attention);
+  color: var(--color-text-secondary);
 }
 .preview-regra p {
   margin: 0.25rem 0 0;
@@ -278,12 +296,12 @@ defineExpose({ garantirCompradorId, recarregarCompradores: carregarCompradores }
   margin: 0.2rem 0 0;
   font-size: 0.75rem;
   font-weight: 600;
-  color: #055160;
+  color: var(--color-info-dark);
 }
 .preview-imp {
   margin: 0.2rem 0 0;
   font-size: 0.75rem;
   font-weight: 600;
-  color: #664d03;
+  color: var(--color-text-secondary);
 }
 </style>

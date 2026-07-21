@@ -103,6 +103,7 @@ import { useViveiroStore } from '@/store/viveiro'
 import { rotulosMapaElemento } from '@/utils/viveiroAreaRotulos'
 import { PX_POR_METRO } from '@/constants/viveiroDimensoes'
 import { pendenciasDoCanteiro } from '@/utils/viveiroPendenciasMapa'
+import { VIVEIRO_LEGENDA } from '@/constants/viveiroMapColors'
 
 const PAD = 24
 const store = useViveiroStore()
@@ -116,15 +117,7 @@ let panStart = null
 
 const layout = computed(() => store.layout)
 const elementoSelecionado = computed(() => store.elementoSelecionado)
-const LEGENDA_TODOS = [
-  { cor: '#C8A84B', label: 'Sementeira', tipos: ['sementeira'] },
-  { cor: '#596247', label: 'Canteiro', tipos: ['canteiro'] },
-  { cor: '#ffe135', label: 'Rustificação', tipos: ['rustificacao'] },
-  { cor: '#6b8cae', label: 'Sede', tipos: ['sede'] },
-  { cor: '#4a9fd4', label: 'Água', tipos: ['lago'] },
-  { cor: '#8E9089', label: 'Garagem', tipos: ['garagem', 'armazenamento'] },
-  { cor: '#A4B39A', label: 'Trabalho', tipos: ['area-trabalho'] },
-]
+const LEGENDA_TODOS = VIVEIRO_LEGENDA
 
 const legendaFiltrada = computed(() => {
   const tipos = new Set((layout.value.elementos || []).map((e) => e.tipo))
@@ -604,8 +597,8 @@ const ocupacaoCheia = (elemento) => {
 }
 
 .ocupacao-badge--cheio {
-  background: #fef3c7;
-  color: #92400e;
+  background: var(--color-attention-bg);
+  color: var(--color-text-secondary);
 }
 
 .pendencias-mapa {
@@ -636,7 +629,7 @@ const ocupacaoCheia = (elemento) => {
   padding: 1px 4px 1px 3px;
   border: 1px solid rgba(0, 0, 0, 0.12);
   border-radius: 6px;
-  background: #fff;
+  background: var(--color-surface);
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
   cursor: pointer;
   font-family: inherit;
@@ -650,13 +643,13 @@ const ocupacaoCheia = (elemento) => {
 }
 
 .pendencia-icone--alto {
-  border-color: #fecaca;
-  background: #fef2f2;
+  border-color: var(--color-error-bg);
+  background: var(--color-error-bg);
 }
 
 .pendencia-icone--medio {
-  border-color: #fde68a;
-  background: #fffbeb;
+  border-color: var(--color-attention-bg);
+  background: var(--color-attention-bg);
 }
 
 .pendencia-icone-sym {

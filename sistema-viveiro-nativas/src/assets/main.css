@@ -61,6 +61,14 @@
     --color-sidebar-hover: rgba(255, 255, 255, 0.08);
     --color-sidebar-active-accent: var(--color-attention);
 
+    /* ── Breakpoints (ver DESIGN_SYSTEM.md) ── */
+    --breakpoint-mobile-max: 767px;
+    --breakpoint-tablet-min: 768px;
+    --breakpoint-tablet-max: 1024px;
+    --breakpoint-desktop-min: 1025px;
+    --mobile-nav-height: 4rem;
+    --touch-target-min: 44px;
+
     /* ── Spacing ── */
     --spacing-xs: 0.25rem;
     --spacing-sm: 0.5rem;
@@ -397,4 +405,38 @@ textarea.form-input {
         padding: var(--spacing-md);
         gap: var(--spacing-md);
     }
+}
+
+/* Mobile shell — bottom nav + touch targets */
+@media (max-width: 767px) {
+    .btn:not(.btn-sm) {
+        min-height: var(--touch-target-min);
+    }
+
+    .guia {
+        min-height: var(--touch-target-min);
+        padding: var(--spacing-sm) var(--spacing-md);
+    }
+}
+
+html.viewport-mobile .btn:not(.btn-sm) {
+    min-height: var(--touch-target-min);
+}
+
+html.viewport-mobile .guia {
+    min-height: var(--touch-target-min);
+}
+
+html.viewport-mobile .icon-button {
+    min-width: var(--touch-target-min);
+    min-height: var(--touch-target-min);
+}
+
+html.viewport-mobile body {
+    overflow-x: hidden;
+}
+
+html.viewport-mobile .page-content--with-mobile-nav {
+    padding-bottom: calc(var(--mobile-nav-height) + env(safe-area-inset-bottom, 0px));
+    overflow-x: hidden;
 }

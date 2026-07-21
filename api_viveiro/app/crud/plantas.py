@@ -475,8 +475,16 @@ async def atualizar_estagio_producao(
 ) -> Dict[str, Any]:
     atualizadas = []
     avisos: List[str] = []
+    plantas_map: Dict[int, Planta] = {}
+
+    for i in range(0, len(payload.ids_plantas), 1000):
+        chunk = payload.ids_plantas[i : i + 1000]
+        result = await db.execute(select(Planta).where(Planta.id.in_(chunk)))
+        for p in result.scalars().all():
+            plantas_map[p.id] = p
+
     for pid in payload.ids_plantas:
-        planta = await get_planta(db, pid)
+        planta = plantas_map.get(pid)
         if not planta:
             raise ValueError(f"Planta {pid} não encontrada")
 
@@ -548,6 +556,15 @@ async def get_plantas_em_rustificacao(
     id_especie: Optional[int] = None,
     limit: int = 500,
 ) -> List[Dict[str, Any]]:
+    from datetime import date
+
+    from app.constants.referencia_embrapa_viveiro import RUSTIFICACAO_DIAS_MINIMO
+    from app.crud.plantas_estoque import (
+        DISPONIVEIS_VENDA,
+        _join_entrada_rustificacao,
+        data_ref_rustificacao,
+    )
+
     query = (
         select(
             Planta,
@@ -566,11 +583,17 @@ async def get_plantas_em_rustificacao(
         query = query.where(Planta.id_canteiro == id_canteiro)
     if id_especie:
         query = query.where(Planta.id_especie == id_especie)
+    query, entrada_rust = _join_entrada_rustificacao(query)
+    data_ref = data_ref_rustificacao(entrada_rust)
+    query = query.add_columns(data_ref.label("data_ref_rust"))
     query = query.order_by(Planta.data_germinacao.desc(), Planta.id).limit(limit)
     rows = (await db.execute(query)).all()
+    hoje = date.today()
     out = []
     for row in rows:
         p = row[0]
+        data_ref_val = row.data_ref_rust
+        dias = (hoje - data_ref_val).days if data_ref_val else None
         out.append(
             {
                 "id": p.id,
@@ -585,6 +608,8 @@ async def get_plantas_em_rustificacao(
                 "estagio_producao": p.estagio_producao,
                 "origem": p.origem or "semeadura",
                 "observacoes": p.observacoes,
+                "dias_rustificacao": dias,
+                "rustificacao_ok": dias is None or dias >= RUSTIFICACAO_DIAS_MINIMO,
             }
         )
     return out
@@ -605,9 +630,16 @@ async def transferir_para_rustificacao(
 
     transferidas = []
     avisos: List[str] = []
+    plantas_map: Dict[int, Planta] = {}
+
+    for i in range(0, len(payload.ids_plantas), 1000):
+        chunk = payload.ids_plantas[i : i + 1000]
+        result = await db.execute(select(Planta).where(Planta.id.in_(chunk)))
+        for p in result.scalars().all():
+            plantas_map[p.id] = p
 
     for pid in payload.ids_plantas:
-        planta = await get_planta(db, pid)
+        planta = plantas_map.get(pid)
         if not planta:
             raise ValueError(f"Planta {pid} não encontrada")
         if planta.status not in DISPONIVEIS_VENDA:
@@ -707,9 +739,16 @@ async def promover_mudas(
     )
     data_germ = payload.data_germinacao or date.today()
     transferidas = []
+    plantas_map: Dict[int, Planta] = {}
+
+    for i in range(0, len(payload.ids_plantas), 1000):
+        chunk = payload.ids_plantas[i : i + 1000]
+        result = await db.execute(select(Planta).where(Planta.id.in_(chunk)))
+        for p in result.scalars().all():
+            plantas_map[p.id] = p
 
     for pid in payload.ids_plantas:
-        planta = await get_planta(db, pid)
+        planta = plantas_map.get(pid)
         if not planta:
             raise ValueError(f"Planta {pid} não encontrada")
         if planta.status != "SEMENTE":

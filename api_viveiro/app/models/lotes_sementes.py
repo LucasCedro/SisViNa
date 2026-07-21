@@ -8,6 +8,7 @@ class LoteSementes(Base):
     __tablename__ = "lotes_sementes"
 
     id = Column(Integer, primary_key=True, index=True)
+    id_viveiro = Column(Integer, ForeignKey("viveiros.id"), nullable=False, index=True)
     codigo_lote = Column(String(50), unique=True, nullable=False)
     id_coleta_sementes = Column(Integer, ForeignKey("coletas_sementes.id", ondelete="CASCADE"), nullable=True)
     origem_lote = Column(String(30), nullable=False, default="coleta")

@@ -1,10 +1,11 @@
-# SisViNa — Documentação Técnica
+# Brotare Viveiros — Documentação Técnica
 
-**Sistema de Gestão de Viveiro de Plantas Nativas**
+**Plataforma de gestão de viveiros** (mudas nativas e florestal). Repositório: **SisViNa**.
 
 | Repositório | `https://github.com/LucasCedro/SisViNa.git` |
 |-------------|---------------------------------------------|
 | Monorepo    | `bd_viveiro` · `api_viveiro` · `sistema-viveiro-nativas` |
+| Produto     | **Brotare Viveiros** |
 
 ---
 
@@ -12,7 +13,7 @@
 
 ### O que é
 
-O **SisViNa** é um sistema web para gestão operacional e comercial de viveiros de plantas nativas. Cobre o ciclo completo desde o cadastro de **árvores-matriz** e **coleta de sementes** até **produção de mudas**, **controle fitossanitário**, **vendas** e **indicadores financeiros**.
+O **Brotare Viveiros** é um sistema web para gestão operacional e comercial de viveiros. O modo **nativo** cobre o ciclo desde **árvores-matriz** e **coleta de sementes** até produção, fitossanidade, vendas e financeiro. O modo **florestal** cobre produção por **lote/clone** (mudas plantadas). Ver [VIVEIRO_FLORESTAL.md](./VIVEIRO_FLORESTAL.md).
 
 ### Problema que resolve
 
@@ -52,7 +53,8 @@ O **SisViNa** é um sistema web para gestão operacional e comercial de viveiros
 | `/` | Home / resumo |
 | `/coleta` | Matrizes, coletas, lotes, testes, semeaduras |
 | `/viveiro` | Layout do viveiro e cadastro de mudas |
-| `/producao` | Promoção sementeira → canteiro |
+| `/producao` | Promoção sementeira → canteiro (modo nativo) |
+| `/florestal` | Produção por lote/genótipo (modo florestal) |
 | `/estoques` | Lotes em armazém e insumos |
 | `/fitossanidade` | Pragas e combates |
 | `/fertilizacao` | Atividades e insumos |
@@ -69,7 +71,7 @@ O **SisViNa** é um sistema web para gestão operacional e comercial de viveiros
 
 - **JWT** em todas as rotas operacionais (`Authorization: Bearer`).
 - **RBAC** por permissões `modulo.acao` — catálogo em `app/security/rbac.py`.
-- `GET /auth/me` retorna `permissions[]` (SSOT para o frontend).
+- `GET /auth/me` retorna `permissions[]`, `viveiro_ativo`, `modulos_nav_desabilitados` (SSOT para o frontend).
 - Router Vue usa `meta.permission` + `auth.can()` — sem inferência por `cargo`.
 - **God Mode:** perfil `admin` + `admin.godmode.*` — ver [SEGURANCA_RBAC.md](./SEGURANCA_RBAC.md) e [ADMIN_COCKPIT.md](./ADMIN_COCKPIT.md).
 - **SoD vendas:** gestor cria/edita; financeiro aprova via `POST /vendas/{id}/aprovar`.
@@ -175,7 +177,7 @@ SisViNa/
 | `alembic/versions/` | Migrações oficiais do schema |
 | `tests/` | Testes de integração (pytest + httpx) |
 
-**Migrações Alembic:** pasta `alembic/versions/` — aplicar sempre com `alembic upgrade head` ou `.\scripts\dev.ps1 migrate`. Head atual: **`27_backfill_perfis_campo`**. Não use `alembic stamp` manual.
+**Migrações Alembic:** pasta `alembic/versions/` — aplicar sempre com `alembic upgrade head` ou `.\scripts\dev.ps1 migrate`. Head atual: **`38_viveiros_florestal`**. Não use `alembic stamp` manual.
 
 Marcos históricos (não enumerar todos aqui):
 
@@ -186,17 +188,18 @@ Marcos históricos (não enumerar todos aqui):
 | 07–08 | Produção, rustificação / estágios |
 | 09–14 | Referência Embrapa, biblioteca 90 espécies, metadados |
 | 15–18 | Estoques/insumos, layout viveiro, custo item venda |
-| 19–20 | Premissas de custeio |
-| 21–25 | Premissas energia, NF-e, regras fiscais |
-| 26 | Repair schema (colunas puladas) |
-| 27 | Backfill perfis NULL → `["campo"]` |
+| 19–25 | Premissas custeio, NF-e, regras fiscais |
+| 26–27 | Repair schema, backfill perfis |
+| 28–31 | Coleta custo campo, espécies master, custeio |
+| 32–37 | Premissas financeiro, pagamento venda/insumo |
+| 38 | Multi-unidade `viveiros`, módulo florestal (`genotipos`, `lotes_producao`) |
 
 ### `sistema-viveiro-nativas/`
 
 | Pasta | Papel |
 |-------|-------|
 | `src/router/` | Rotas e guard de autenticação |
-| `src/store/` | Estado Pinia (`auth`, `coleta`, …) |
+| `src/store/` | Estado Pinia (`auth`, `viveiroContext`, `viveiro`, `coleta`, …) |
 | `src/services/` | Cliente Axios por recurso REST |
 | `src/views/` | Páginas (uma por rota principal) |
 | `src/components/` | UI por módulo (`coleta`, `viveiro`, `financeiro`, …) |
@@ -348,6 +351,33 @@ transferencias_plantas
 ```
 
 **Status de planta:** `SEMENTE` | `MUDA` | `JOVEM` | `ADULTA` | `VENDIDA` | `MORTA`
+
+### Multi-unidade e modo florestal
+
+Migration **38** introduz isolamento por unidade viveiro:
+
+```text
+viveiros (modo_operacao: nativo | florestal)
+  ├── funcionario_viveiros (N:N)
+  ├── canteiros, plantas, vendas… (id_viveiro)
+  └── florestal: genotipos → lotes_producao → movimentacoes_lote
+```
+
+| Camada | Path |
+|--------|------|
+| Contexto / segurança | `app/security/viveiro_context.py` |
+| Pipeline por modo | `app/domain/pipelines/registry.py` |
+| API unidades | `/api/v1/viveiros/contexto` |
+| API florestal | `/api/v1/florestal/*` |
+| Front contexto | `src/store/viveiroContext.js` |
+| Front planta baixa | `src/store/viveiro.js` |
+
+**Regras de segurança:**
+- `modo_operacao` vem sempre do banco (`viveiros`), nunca do payload do cliente.
+- Header `X-Viveiro-Id` só é honrado para perfil **`admin`**; demais usuários → **403** (anti-escalação).
+- Rotas florestal validam `ctx.modo_operacao == florestal`.
+
+Documentação de domínio florestal: [VIVEIRO_FLORESTAL.md](./VIVEIRO_FLORESTAL.md).
 
 ---
 
